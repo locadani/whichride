@@ -1,0 +1,155 @@
+name: Infra
+
+on:
+  pull_request:
+    paths:
+      - "infra/**"
+      - ".github/workflows/infra.yml"
+  push:
+    branches: [main]
+    paths:
+      - "infra/**"
+      - ".github/workflows/infra.yml"
+
+permissions:
+  contents: read
+
+env:
+  TF_VERSION: "1.16.5"
+  TF_IN_AUTOMATION: "true"
+
+jobs:
+  check:
+    name: Format, validate, test, scan
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v7
+        with:
+          persist-credentials: false
+
+      - uses: hashicorp/setup-terraform@v4
+        with:
+          terraform_version: ${{ env.TF_VERSION }}
+          terraform_wrapper: false
+
+      - name: Format
+        run: terraform fmt -check -recursive infra
+
+      - name: Module — validate and test
+        working-directory: infra/modules/cloud-run-app
+        run: |
+          terraform init -backend=false -input=false
+          terraform validate
+          terraform test
+
+      - name: Production — validate
+        working-directory: infra/prod
+        run: |
+          terraform init -backend=false -input=false
+          terraform validate
+
+      - name: Bootstrap — validate and test
+        working-directory: infra/bootstrap
+        run: |
+          terraform init -backend=false -input=false
+          terraform validate
+          terraform test
+
+      - name: Redaction script test
+        run: infra/scripts/redact-plan.test.sh
+
+      - name: Trivy config scan
+        uses: aquasecurity/trivy-action@ed142fd0673e97e23eac54620cfb913e5ce36c25 # v0.36.0
+        with:
+          scan-type: config
+          scan-ref: infra
+          severity: HIGH,CRITICAL
+          exit-code: "1"
+
+  # Plans need the GCP secrets, which exist only after the first apply and are not given to
+  # Dependabot or fork PRs. Skip cleanly instead of failing.
+  gate:
+    name: Plan prerequisites
+    if: github.event_name == 'pull_request' && github.event.pull_request.head.repo.full_name == github.repository
+    runs-on: ubuntu-latest
+    outputs:
+      ready: ${{ steps.check.outputs.ready }}
+    steps:
+      - id: check
+        env:
+          GCP_PROJECT_ID: ${{ secrets.GCP_PROJECT_ID }}
+        run: |
+          if [ -n "$GCP_PROJECT_ID" ]; then
+            echo "ready=true" >> "$GITHUB_OUTPUT"
+          else
+            echo "GCP secrets are not set; skipping the plan."
+            echo "ready=false" >> "$GITHUB_OUTPUT"
+          fi
+
+  plan:
+    name: Plan (read-only)
+    needs: [check, gate]
+    if: needs.gate.outputs.ready == 'true'
+    runs-on: ubuntu-latest
+    permissions:
+      contents: read
+      id-token: write
+      pull-requests: write
+    env:
+      TF_VAR_project_id: ${{ secrets.GCP_PROJECT_ID }}
+      TF_VAR_state_bucket: ${{ secrets.TF_STATE_BUCKET }}
+    steps:
+      - uses: actions/checkout@v7
+        with:
+          persist-credentials: false
+
+      - uses: google-github-actions/auth@v3
+        with:
+          workload_identity_provider: ${{ secrets.GCP_WIF_PROVIDER }}
+          service_account: ${{ secrets.GCP_PLAN_SA }}
+
+      - uses: hashicorp/setup-terraform@v4
+        with:
+          terraform_version: ${{ env.TF_VERSION }}
+          terraform_wrapper: false
+
+      - name: Init
+        working-directory: infra/prod
+        run: terraform init -input=false -backend-config="bucket=${TF_VAR_state_bucket}"
+
+      # -lock=false: taking the state lock writes to the bucket, and this account is read-only.
+      - name: Plan
+        id: plan
+        working-directory: infra/prod
+        env:
+          GCP_PROJECT_NUMBER: ${{ secrets.GCP_PROJECT_NUMBER }}
+        run: |
+          set +e
+          terraform plan -lock=false -input=false -no-color > plan.txt 2>&1
+          echo "exit=$?" >> "$GITHUB_OUTPUT"
+          set -e
+          ../scripts/redact-plan.sh "$TF_VAR_project_id" "$GCP_PROJECT_NUMBER" "$TF_VAR_state_bucket" < plan.txt > plan-redacted.txt
+          cat plan-redacted.txt
+
+      - name: Comment the plan on the PR
+        uses: actions/github-script@v9
+        with:
+          script: |
+            const fs = require('fs');
+            const marker = '<!-- terraform-plan:prod -->';
+            let plan = fs.readFileSync('infra/prod/plan-redacted.txt', 'utf8');
+            if (plan.length > 60000) plan = plan.slice(0, 60000) + '\n… (truncated; see the job log)';
+            const body = `${marker}\n### Terraform plan — prod\n\n\`\`\`\n${plan}\n\`\`\``;
+            const { owner, repo } = context.repo;
+            const issue_number = context.issue.number;
+            const comments = await github.paginate(github.rest.issues.listComments, { owner, repo, issue_number });
+            const previous = comments.find(c => c.user.type === 'Bot' && c.body.startsWith(marker));
+            if (previous) {
+              await github.rest.issues.updateComment({ owner, repo, comment_id: previous.id, body });
+            } else {
+              await github.rest.issues.createComment({ owner, repo, issue_number, body });
+            }
+
+      - name: Fail if the plan failed
+        if: steps.plan.outputs.exit != '0'
+        run: exit 1

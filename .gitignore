@@ -13,3 +13,13 @@
 .DS_Store
 .idea/
 .vscode/
+
+# Terraform
+.terraform/
+*.tfstate
+*.tfstate.*
+infra/bootstrap/terraform.tfvars
+infra/bootstrap/backend.hcl
+infra/prod/terraform.tfvars
+infra/prod/backend.hcl
+infra/modules/**/.terraform.lock.hcl

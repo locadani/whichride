@@ -1,0 +1,4 @@
+# Copy to terraform.tfvars (gitignored) and fill in.
+project_id  = "your-project-id"
+bucket_name = "your-project-id-tfstate"
+billing_account_id = "XXXXXX-XXXXXX-XXXXXX"
