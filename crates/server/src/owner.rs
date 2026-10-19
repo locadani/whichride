@@ -11,6 +11,8 @@ use uuid::Uuid;
 
 /// `price_history`: cards, from_day, report_id, reverted.
 type HistoryRow = (Json<Vec<RateCard>>, i32, Option<Uuid>, bool);
+/// `offers`: name, cards, confirmed_on, locked, hidden.
+type OfferSummary = (String, Json<Vec<RateCard>>, Option<i32>, bool, bool);
 /// A report with its yes and no vote counts.
 type ReportSummary = (Uuid, String, i32, Json<Vec<RateCard>>, i64, i64);
 
@@ -24,6 +26,60 @@ pub async fn set_locked(pool: &PgPool, offer: &str, locked: bool) -> anyhow::Res
     if updated == 0 {
         bail!("no offer {offer:?}");
     }
+    Ok(())
+}
+
+/// Hides an offer from the catalogue and from crowd input, or shows it again.
+pub async fn set_hidden(pool: &PgPool, offer: &str, hidden: bool) -> anyhow::Result<()> {
+    let updated = sqlx::query("UPDATE offers SET hidden = $2 WHERE id = $1")
+        .bind(offer)
+        .bind(hidden)
+        .execute(pool)
+        .await?
+        .rows_affected();
+    if updated == 0 {
+        bail!("no offer {offer:?}");
+    }
+    Ok(())
+}
+
+/// Closes a pending report or proposal without a decision: it becomes `superseded` and nobody
+/// is settled. Locks as the crowd paths do: the provider's proposals or the offer first.
+pub async fn close_report(pool: &PgPool, report: Uuid, today: Day) -> anyhow::Result<()> {
+    let mut tx = pool.begin().await?;
+    let (offer, provider): (Option<String>, Option<String>) =
+        sqlx::query_as("SELECT offer_id, proposed_provider FROM reports WHERE id = $1")
+            .bind(report)
+            .fetch_optional(&mut *tx)
+            .await?
+            .with_context(|| format!("no report {report}"))?;
+    match (&offer, &provider) {
+        (Some(offer), _) => {
+            sqlx::query("SELECT 1 FROM offers WHERE id = $1 FOR UPDATE")
+                .bind(offer)
+                .execute(&mut *tx)
+                .await?;
+        }
+        (None, Some(provider)) => {
+            crate::crowd::lock_proposals(&mut tx, provider)
+                .await
+                .map_err(|e| anyhow::anyhow!("{e:?}"))?;
+        }
+        (None, None) => bail!("report {report} has no target"),
+    }
+    let closed = sqlx::query(
+        "UPDATE reports SET status = 'superseded', decided_on = $2
+         WHERE id = $1 AND status = 'pending'",
+    )
+    .bind(report)
+    .bind(today.0)
+    .execute(&mut *tx)
+    .await?
+    .rows_affected();
+    if closed == 0 {
+        bail!("report {report} is not pending");
+    }
+    tx.commit().await?;
     Ok(())
 }
 
@@ -72,17 +128,19 @@ pub async fn revert_offer(pool: &PgPool, offer: &str, today: Day) -> anyhow::Res
 }
 
 pub async fn show_offer(pool: &PgPool, offer: &str) -> anyhow::Result<String> {
-    let (name, cards, confirmed, locked): (String, Json<Vec<RateCard>>, Option<i32>, bool) =
-        sqlx::query_as("SELECT name, cards, confirmed_on, locked FROM offers WHERE id = $1")
-            .bind(offer)
-            .fetch_optional(pool)
-            .await?
-            .with_context(|| format!("no offer {offer:?}"))?;
+    let (name, cards, confirmed, locked, hidden): OfferSummary = sqlx::query_as(
+        "SELECT name, cards, confirmed_on, locked, hidden FROM offers WHERE id = $1",
+    )
+    .bind(offer)
+    .fetch_optional(pool)
+    .await?
+    .with_context(|| format!("no offer {offer:?}"))?;
     let mut text = String::new();
     writeln!(
         text,
-        "{offer} ({name}){}",
-        if locked { " LOCKED" } else { "" }
+        "{offer} ({name}){}{}",
+        if locked { " LOCKED" } else { "" },
+        if hidden { " HIDDEN" } else { "" }
     )?;
     writeln!(
         text,

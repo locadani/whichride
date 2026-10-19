@@ -111,18 +111,6 @@ pub async fn post_report(
             if state.providers.provider(&provider).is_none() {
                 return Err(ApiError::NotFound);
             }
-            let existing: Option<String> = sqlx::query_scalar(
-                "SELECT id FROM offers WHERE provider_id = $1 AND lower(name) = lower($2)",
-            )
-            .bind(&provider.0)
-            .bind(name)
-            .fetch_optional(&state.db)
-            .await?;
-            if let Some(offer) = existing {
-                let offer = OfferId(offer);
-                check_cards(&offer, &body.cards)?;
-                return report_on_offer(&state, &install, &offer, &body.cards, today).await;
-            }
             check_cards(&OfferId(offer_id_for(&provider.0, name)), &body.cards)?;
             propose(&state, &install, &provider, name, &body.cards, today).await
         }
@@ -283,17 +271,19 @@ pub(crate) struct ReportRow {
 struct LockedOffer {
     cards: SqlJson<Vec<RateCard>>,
     locked: bool,
+    hidden: bool,
 }
 
-/// Locks an offer row for the rest of the transaction; `NotFound` or `OfferLocked` otherwise.
+/// Locks an offer row for the rest of the transaction; `NotFound` or `OfferLocked` (also for an
+/// offer the owner hid) otherwise.
 async fn lock_offer(tx: &mut Transaction<'_, Postgres>, id: &str) -> Result<LockedOffer, ApiError> {
     let offer: LockedOffer =
-        sqlx::query_as("SELECT cards, locked FROM offers WHERE id = $1 FOR UPDATE")
+        sqlx::query_as("SELECT cards, locked, hidden FROM offers WHERE id = $1 FOR UPDATE")
             .bind(id)
             .fetch_optional(&mut **tx)
             .await?
             .ok_or(ApiError::NotFound)?;
-    if offer.locked {
+    if offer.locked || offer.hidden {
         return Err(ApiError::OfferLocked);
     }
     Ok(offer)
@@ -521,6 +511,18 @@ async fn propose(
 ) -> Result<(StatusCode, Json<ReportOutcome>), ApiError> {
     let mut tx = state.db.begin().await?;
     lock_proposals(&mut tx, &provider.0).await?;
+    // Looked up under the lock: an accepted proposal creates its offer while holding it.
+    let existing: Option<String> = sqlx::query_scalar(
+        "SELECT id FROM offers WHERE provider_id = $1 AND lower(name) = lower($2)",
+    )
+    .bind(&provider.0)
+    .bind(name)
+    .fetch_optional(&mut *tx)
+    .await?;
+    if let Some(offer) = existing {
+        tx.rollback().await?;
+        return report_on_offer(state, install, &OfferId(offer), cards, today).await;
+    }
     let voter_weight = weight(&install.record, today);
     let matching: Option<ReportRow> = sqlx::query_as(
         "SELECT id, offer_id, proposed_provider, proposed_name, reporter, reporter_weight,
@@ -535,17 +537,16 @@ async fn propose(
     .bind(SqlJson(cards))
     .fetch_optional(&mut *tx)
     .await?;
-    // The install's own other pending proposal of this name is replaced (not the one it joins).
-    // Nobody is settled: the reporter changed their own mind.
+    // An install has at most one pending proposal per provider (decision 46): its others, of
+    // any name, are replaced (not the one it joins). Nobody is settled: the reporter changed
+    // their own mind.
     sqlx::query(
-        "UPDATE reports SET status = 'superseded', decided_on = $4
+        "UPDATE reports SET status = 'superseded', decided_on = $3
          WHERE offer_id IS NULL AND status = 'pending' AND reporter = $1
-             AND proposed_provider = $2 AND lower(proposed_name) = lower($3)
-             AND id IS DISTINCT FROM $5",
+             AND proposed_provider = $2 AND id IS DISTINCT FROM $4",
     )
     .bind(install.id)
     .bind(&provider.0)
-    .bind(name)
     .bind(today.0)
     .bind(matching.as_ref().map(|report| report.id))
     .execute(&mut *tx)

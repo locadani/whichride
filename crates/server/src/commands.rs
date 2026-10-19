@@ -89,6 +89,22 @@ pub async fn set_locked(offer: &str, locked: bool) -> anyhow::Result<()> {
     Ok(())
 }
 
+pub async fn set_hidden(offer: &str, hidden: bool) -> anyhow::Result<()> {
+    let pool = owner_pool().await?;
+    owner::set_hidden(&pool, offer, hidden).await?;
+    println!("{offer}: {}", if hidden { "hidden" } else { "shown" });
+    pool.close().await;
+    Ok(())
+}
+
+pub async fn close_report(report: uuid::Uuid) -> anyhow::Result<()> {
+    let pool = owner_pool().await?;
+    owner::close_report(&pool, report, crate::system_today()).await?;
+    println!("report {report}: closed");
+    pool.close().await;
+    Ok(())
+}
+
 pub async fn revert_offer(offer: &str) -> anyhow::Result<()> {
     let pool = owner_pool().await?;
     owner::revert_offer(&pool, offer, crate::system_today()).await?;

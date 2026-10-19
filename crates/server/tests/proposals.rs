@@ -96,6 +96,93 @@ async fn the_same_proposal_from_another_install_confirms_it() {
         .await;
     assert_eq!(status, StatusCode::OK);
     assert_eq!(body["status"], "accepted");
+    // The offer keeps the name it was first proposed with.
+    assert!(
+        bolt_offers(&app)
+            .await
+            .contains(&("bolt.fiat-500".into(), "Fiat 500".into()))
+    );
+}
+
+async fn proposal_names(app: &TestApp) -> Vec<String> {
+    let (_, catalogue) = app.get("/v1/catalogue").await;
+    catalogue["proposals"]
+        .as_array()
+        .unwrap()
+        .iter()
+        .map(|p| p["name"].as_str().unwrap().to_owned())
+        .collect::<std::collections::BTreeSet<_>>()
+        .into_iter()
+        .collect()
+}
+
+#[tokio::test]
+async fn proposing_again_replaces_the_installs_earlier_proposal() {
+    let Some(app) = TestApp::start().await else {
+        return;
+    };
+    let (a, b) = (app.register().await, app.register().await);
+    let (_, first) = app.post_as(&a, "/v1/reports", &proposal("Fiat 500")).await;
+    let mut cheaper = proposal("Fiat 500");
+    cheaper["cards"][0]["per_km"] = 19.into();
+    let (status, second) = app.post_as(&a, "/v1/reports", &cheaper).await;
+    assert_eq!(status, StatusCode::CREATED);
+    assert_ne!(first["report"], second["report"]);
+    assert_eq!(proposal_names(&app).await, ["Fiat 500"]);
+    let id = first["report"].as_str().unwrap();
+    let (status, body) = app
+        .post_as(
+            &b,
+            &format!("/v1/reports/{id}/votes"),
+            &json!({"answer": "yes"}),
+        )
+        .await;
+    assert_eq!(
+        (status, body),
+        (StatusCode::CONFLICT, json!({"error": "report_closed"}))
+    );
+}
+
+#[tokio::test]
+async fn an_install_has_one_pending_proposal_per_provider() {
+    let Some(app) = TestApp::start().await else {
+        return;
+    };
+    let a = app.register().await;
+    app.post_as(&a, "/v1/reports", &proposal("Fiat 500")).await;
+    app.post_as(&a, "/v1/reports", &proposal("Fiat 600")).await;
+    assert_eq!(proposal_names(&app).await, ["Fiat 600"]);
+    // Other providers' proposals are not affected.
+    let miles = json!({"provider": "miles", "name": "XL", "cards": [card()]});
+    app.post_as(&a, "/v1/reports", &miles).await;
+    assert_eq!(proposal_names(&app).await, ["Fiat 600", "XL"]);
+    let decided: Option<i32> =
+        sqlx::query_scalar("SELECT decided_on FROM reports WHERE proposed_name = 'Fiat 500'")
+            .fetch_one(&app.pool)
+            .await
+            .unwrap();
+    assert_eq!(decided, Some(TODAY));
+}
+
+#[tokio::test]
+async fn joining_another_proposal_keeps_it_and_replaces_the_installs_own() {
+    let Some(app) = TestApp::start().await else {
+        return;
+    };
+    let (a, b) = (app.register().await, app.register().await);
+    app.post_as(&a, "/v1/reports", &proposal("Fiat 500")).await;
+    app.post_as(&b, "/v1/reports", &proposal("Fiat 600")).await;
+    let (status, body) = app.post_as(&a, "/v1/reports", &proposal("Fiat 600")).await;
+    assert_eq!(
+        (status, &body["status"]),
+        (StatusCode::OK, &json!("accepted"))
+    );
+    assert_eq!(proposal_names(&app).await, Vec::<String>::new());
+    assert!(
+        bolt_offers(&app)
+            .await
+            .contains(&("bolt.fiat-600".into(), "Fiat 600".into()))
+    );
 }
 
 #[tokio::test]

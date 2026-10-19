@@ -77,9 +77,11 @@ pub struct OfferRow {
     pub locked: bool,
 }
 
+/// Every offer the owner has not hidden.
 pub async fn list_offers(pool: &PgPool) -> sqlx::Result<Vec<OfferRow>> {
     sqlx::query_as(
-        "SELECT id, provider_id, name, cards, confirmed_on, locked FROM offers ORDER BY id",
+        "SELECT id, provider_id, name, cards, confirmed_on, locked FROM offers
+         WHERE NOT hidden ORDER BY id",
     )
     .fetch_all(pool)
     .await

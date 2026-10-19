@@ -15,6 +15,11 @@ async fn main() -> ExitCode {
         Command::UnlockOffer { offer } => {
             whichride_server::commands::set_locked(&offer, false).await
         }
+        Command::HideOffer { offer } => whichride_server::commands::set_hidden(&offer, true).await,
+        Command::UnhideOffer { offer } => {
+            whichride_server::commands::set_hidden(&offer, false).await
+        }
+        Command::CloseReport { report } => whichride_server::commands::close_report(report).await,
         Command::RevertOffer { offer } => whichride_server::commands::revert_offer(&offer).await,
         Command::CheckRouting => whichride_server::commands::check_routing().await,
     };

@@ -2,6 +2,7 @@
 //! against the production database from the owner's machine or Cloud Shell, never over HTTP.
 
 use clap::{Parser, Subcommand};
+use uuid::Uuid;
 
 #[derive(Debug, Parser)]
 #[command(
@@ -26,6 +27,12 @@ pub enum Command {
     LockOffer { offer: String },
     /// Allow reports and votes on an offer again.
     UnlockOffer { offer: String },
+    /// Remove an offer from the catalogue and stop all crowd input on it (abuse only).
+    HideOffer { offer: String },
+    /// Show a hidden offer again.
+    UnhideOffer { offer: String },
+    /// Close a pending report or proposal without deciding it; nobody is settled (abuse only).
+    CloseReport { report: Uuid },
     /// Put back the offer's previous price and close its pending reports (abuse only).
     RevertOffer { offer: String },
     /// Route between two Berlin landmarks through OpenRouteService, to check the key, TLS and
@@ -76,5 +83,25 @@ mod tests {
             }
         );
         assert!(parse(&["lock-offer"]).is_err());
+        assert_eq!(
+            parse(&["hide-offer", "bolt.spam"]).unwrap(),
+            Command::HideOffer {
+                offer: "bolt.spam".into()
+            }
+        );
+        assert_eq!(
+            parse(&["unhide-offer", "bolt.spam"]).unwrap(),
+            Command::UnhideOffer {
+                offer: "bolt.spam".into()
+            }
+        );
+        let report = "123e4567-e89b-42d3-a456-426614174000";
+        assert_eq!(
+            parse(&["close-report", report]).unwrap(),
+            Command::CloseReport {
+                report: report.parse().unwrap()
+            }
+        );
+        assert!(parse(&["close-report", "not-a-uuid"]).is_err());
     }
 }
