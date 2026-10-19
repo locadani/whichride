@@ -3,8 +3,9 @@
 > **For agentic workers:** REQUIRED SUB-SKILL: Use superpowers:subagent-driven-development (recommended) or superpowers:executing-plans to implement this plan task-by-task. Steps use checkbox (`- [ ]`) syntax for tracking.
 
 **Goal:** Extend the pure `carsharing-core` crate so it can turn a shared Google Maps link,
-`geo:` URI or shared text into a destination, charge airport/zone fees from the trip's start and
-end coordinates, and decide crowd price reports with the voting rules of spec §7.2–7.5.
+`geo:` URI or shared text into a destination, and decide crowd price reports with the voting
+rules of spec §7.2–7.5. Airport/zone fees are **not** part of this milestone (owner decision,
+2026-10-19); they stay on the roadmap for later.
 
 **Architecture:** Everything stays in `crates/core`: pure functions, no I/O, no clock, no
 floating point. Coordinates are integers in 1e-7 degrees (OpenStreetMap's precision) parsed from
@@ -16,8 +17,8 @@ server (milestone 3).
 dependencies: `url` 2 (WHATWG URL parsing, also used by the server later) and `percent-encoding` 2
 (decoding path segments). Both are MIT/Apache-2.0 and build for Android and WebAssembly.
 
-**Spec:** `docs/specs/2026-10-19-carsharing-compare-design.md` (§4 core flow, §5 zone fees, §6
-adjustment order, §7 crowd prices, §9 privacy). Decisions: `docs/DECISIONS.md`. Previous milestone:
+**Spec:** `docs/specs/2026-10-19-carsharing-compare-design.md` (§4 core flow, §6 adjustment
+order, §7 crowd prices, §9 privacy). Decisions: `docs/DECISIONS.md`. Previous milestone:
 `docs/plans/01-foundation-and-pricing-core.md`.
 
 ## Global Constraints
@@ -57,10 +58,10 @@ adjustment order, §7 crowd prices, §9 privacy). Decisions: `docs/DECISIONS.md`
    out of range, non-ASCII digits. They must round half away from zero, accept the limits, and
    reject the rest without a panic (tests in Task 1 and Task 2).
 4. **Device clock skew:** a "last asked" or "first seen" date in the future. It must not block the
-   confirmation question forever or produce a negative age (tests in Task 5 and Task 6).
+   confirmation question forever or produce a negative age (tests in Task 3 and Task 4).
 5. **Vote stuffing:** one install voting many times, the reporter confirming their own report, an
    install whose weight has dropped to zero. None of these may accept a report on its own (tests
-   in Task 5).
+   in Task 3).
 
 ---
 
@@ -71,18 +72,15 @@ crates/core/
 ├─ Cargo.toml                 + url, percent-encoding
 └─ src/
    ├─ lib.rs                  module list + re-exports (modified in every task)
-   ├─ geo.rs                  NEW  Coordinate (1e-7°), parse_pair, polygon_contains
+   ├─ geo.rs                  NEW  Coordinate (1e-7°), parse_pair
    ├─ link.rs                 NEW  Destination, LinkError, parse_destination
-   ├─ zone.rs                 NEW  ZoneFee, ChargedWhen, Ends, ZoneCharge (+ fixtures)
-   ├─ catalogue.rs            Provider.zone_fees + validation; fixture gets a BER zone
-   ├─ compare.rs              compare(.., ends, ..) adds zone fees; Quote.zone_fees
    ├─ day.rs                  NEW  Day (days since 1970-01-01)
    ├─ voting.rs               NEW  InstallId, Weight, InstallRecord, Vote, Answer, weight, is_accepted
    └─ confirmation.rs         NEW  should_ask, confirmed_days_ago
 Cargo.toml                    + url, percent-encoding in [workspace.dependencies]
 docs/DECISIONS.md             rows 27–31
 docs/specs/…-design.md        §6 order line updated
-docs/plans/ROADMAP.md         milestone 2 ✅
+docs/plans/ROADMAP.md         milestone 2 ✅, zone fees moved to a later milestone
 README.md                     status line
 ```
 
@@ -90,8 +88,7 @@ README.md                     status line
 
 ### Task 1: Coordinates
 
-Integer coordinates parsed from decimal text, and a point-in-polygon test, all without floating
-point.
+Integer coordinates parsed from decimal text, without floating point.
 
 **Files:**
 - Create: `crates/core/src/geo.rs`
@@ -102,7 +99,7 @@ point.
 - Produces: `Coordinate { lat_e7: i32, lon_e7: i32 }` (Copy, Eq, Hash, serde as
   `{"lat_e7":…,"lon_e7":…}`); `Coordinate::new(i32, i32) -> Result<Coordinate, CoordinateError>`;
   `Coordinate::parse_pair(&str) -> Result<Coordinate, CoordinateError>`;
-  `CoordinateError::{NotAPair, OutOfRange}`; `polygon_contains(&[Coordinate], Coordinate) -> bool`.
+  `CoordinateError::{NotAPair, OutOfRange}`.
 
 - [ ] **Step 1: Register the module and write the failing tests**
 
@@ -112,7 +109,7 @@ order; `cargo fmt` orders the names inside braces):
 ```rust
 pub mod geo;
 
-pub use geo::{Coordinate, CoordinateError, polygon_contains};
+pub use geo::{Coordinate, CoordinateError};
 ```
 
 Create `crates/core/src/geo.rs` containing only the tests (the implementation is added above
@@ -225,60 +222,13 @@ mod tests {
             r#"{"lat_e7":1,"lon_e7":-2}"#
         );
     }
-
-    fn square() -> Vec<Coordinate> {
-        vec![at(0, 0), at(0, 100), at(100, 100), at(100, 0)]
-    }
-
-    #[test]
-    fn polygon_contains_points_inside_only() {
-        assert!(polygon_contains(&square(), at(50, 50)));
-        assert!(!polygon_contains(&square(), at(150, 50)));
-        assert!(!polygon_contains(&square(), at(50, -1)));
-    }
-
-    #[test]
-    fn polygon_contains_handles_concave_shapes() {
-        // An L shape: the notch at the top right is outside.
-        let l_shape = [
-            at(0, 0),
-            at(0, 40),
-            at(20, 40),
-            at(20, 20),
-            at(40, 20),
-            at(40, 0),
-        ];
-        assert!(polygon_contains(&l_shape, at(10, 30)));
-        assert!(polygon_contains(&l_shape, at(30, 10)));
-        assert!(!polygon_contains(&l_shape, at(30, 30)));
-    }
-
-    #[test]
-    fn fewer_than_three_points_contain_nothing() {
-        assert!(!polygon_contains(&[], at(0, 0)));
-        assert!(!polygon_contains(&[at(0, 0), at(10, 10)], at(5, 5)));
-    }
-
-    #[test]
-    fn extreme_polygons_do_not_overflow() {
-        let world = [
-            at(-900_000_000, -1_800_000_000),
-            at(-900_000_000, 1_800_000_000),
-            at(900_000_000, 1_800_000_000),
-            at(900_000_000, -1_800_000_000),
-        ];
-        assert!(polygon_contains(&world, at(525_219_184, 134_132_147)));
-        // A point on a vertex may count as either side, but must not panic.
-        let _ = polygon_contains(&world, world[0]);
-    }
 }
 ```
 
 - [ ] **Step 2: Run the tests to see them fail**
 
 Run: `cargo test -p carsharing-core geo`
-Expected: compile errors naming the items Step 3 defines (`Coordinate`, `CoordinateError`,
-`polygon_contains`).
+Expected: compile errors naming the items Step 3 defines (`Coordinate`, `CoordinateError`).
 
 - [ ] **Step 3: Write the implementation above the tests**
 
@@ -356,32 +306,6 @@ fn parse_degrees(text: &str) -> Option<i64> {
     }
     Some(if negative { -value } else { value })
 }
-
-/// Whether `point` lies inside the polygon `area` (vertices in order, the last joined to the
-/// first), by even-odd ray casting in exact integer arithmetic. Fewer than three vertices contain
-/// nothing. A point exactly on an edge or vertex may count as either side.
-pub fn polygon_contains(area: &[Coordinate], point: Coordinate) -> bool {
-    if area.len() < 3 {
-        return false;
-    }
-    let (py, px) = (i128::from(point.lat_e7), i128::from(point.lon_e7));
-    let mut inside = false;
-    let mut previous = area[area.len() - 1];
-    for &current in area {
-        let (ay, ax) = (i128::from(previous.lat_e7), i128::from(previous.lon_e7));
-        let (by, bx) = (i128::from(current.lat_e7), i128::from(current.lon_e7));
-        if (ay > py) != (by > py) {
-            // Is the point west of where this edge crosses its latitude? Compared without division.
-            let lhs = (px - ax) * (by - ay);
-            let rhs = (bx - ax) * (py - ay);
-            if (by > ay && lhs < rhs) || (by < ay && lhs > rhs) {
-                inside = !inside;
-            }
-        }
-        previous = current;
-    }
-    inside
-}
 ```
 
 - [ ] **Step 4: Run the tests, lints and formatting**
@@ -393,7 +317,7 @@ Expected: no warnings; all tests pass.
 
 ```bash
 git add crates/core/src/geo.rs crates/core/src/lib.rs
-git commit -m "feat(core): integer coordinates and point-in-polygon without floats" -m "Co-Authored-By: Claude Opus 5.5 <noreply@anthropic.com>"
+git commit -m "feat(core): integer coordinates parsed without floats" -m "Co-Authored-By: Claude Opus 5.5 <noreply@anthropic.com>"
 ```
 
 ---
@@ -1001,516 +925,7 @@ git commit -m "feat(core): parse Google Maps links, geo: URIs and shared text in
 
 ---
 
-### Task 3: Zone fees in the catalogue
-
-Providers can charge a fee when a trip starts and/or ends inside an area (MILES at BER,
-Free2move airport fee). The area is a polygon in the provider data, so new zones need no code.
-
-**Files:**
-- Create: `crates/core/src/zone.rs`
-- Modify: `crates/core/src/catalogue.rs`, `crates/core/src/lib.rs`
-
-**Interfaces:**
-- Consumes: `Coordinate`, `polygon_contains` (Task 1); `Cents` (milestone 1); `Provider`,
-  `Catalogue::validate`, `CatalogueError`, `catalogue::fixtures::catalogue()` (milestone 1)
-- Produces: `Ends { start: Coordinate, end: Coordinate }`; `ChargedWhen::{AtStart, AtEnd,
-  AtStartOrEnd}` (JSON `"at_start"`, `"at_end"`, `"at_start_or_end"`); `ZoneFee { name, area:
-  Vec<Coordinate>, fee: Cents, when: ChargedWhen }` with `applies(&Ends) -> bool`; `ZoneCharge {
-  name, fee }`; `Provider.zone_fees: Vec<ZoneFee>` (JSON default `[]`);
-  `CatalogueError::{ZoneTooSmall { provider, zone }, NegativeZoneFee { provider, zone }}`;
-  test-only `zone::fixtures::{ALEXANDERPLATZ, BER_T1, ber_fee()}` (`ber_fee()` = "BER airport",
-  €10, `AtStartOrEnd`); the catalogue fixture's `miles` provider now has `zone_fees: [ber_fee()]`.
-
-- [ ] **Step 1: Register the module and write the failing tests**
-
-Add to `crates/core/src/lib.rs`:
-
-```rust
-pub mod zone;
-
-pub use zone::{ChargedWhen, Ends, ZoneCharge, ZoneFee};
-```
-
-Create `crates/core/src/zone.rs` containing only the fixtures and tests:
-
-```rust
-#[cfg(test)]
-pub(crate) mod fixtures {
-    use super::*;
-
-    pub const ALEXANDERPLATZ: Coordinate = Coordinate {
-        lat_e7: 525_219_184,
-        lon_e7: 134_132_147,
-    };
-
-    /// BER airport, Terminal 1.
-    pub const BER_T1: Coordinate = Coordinate {
-        lat_e7: 523_667_000,
-        lon_e7: 135_033_000,
-    };
-
-    /// A rectangle around BER airport. Test data, not the real fee area.
-    pub fn ber_fee() -> ZoneFee {
-        ZoneFee {
-            name: "BER airport".into(),
-            area: vec![
-                Coordinate {
-                    lat_e7: 523_500_000,
-                    lon_e7: 134_800_000,
-                },
-                Coordinate {
-                    lat_e7: 523_500_000,
-                    lon_e7: 135_400_000,
-                },
-                Coordinate {
-                    lat_e7: 523_900_000,
-                    lon_e7: 135_400_000,
-                },
-                Coordinate {
-                    lat_e7: 523_900_000,
-                    lon_e7: 134_800_000,
-                },
-            ],
-            fee: Cents(1_000),
-            when: ChargedWhen::AtStartOrEnd,
-        }
-    }
-}
-
-#[cfg(test)]
-mod tests {
-    use super::fixtures::*;
-    use super::*;
-
-    const TO_BER: Ends = Ends {
-        start: ALEXANDERPLATZ,
-        end: BER_T1,
-    };
-    const FROM_BER: Ends = Ends {
-        start: BER_T1,
-        end: ALEXANDERPLATZ,
-    };
-    const IN_TOWN: Ends = Ends {
-        start: ALEXANDERPLATZ,
-        end: ALEXANDERPLATZ,
-    };
-
-    fn ber(when: ChargedWhen) -> ZoneFee {
-        ZoneFee { when, ..ber_fee() }
-    }
-
-    #[test]
-    fn at_end_applies_only_when_ending_inside() {
-        assert!(ber(ChargedWhen::AtEnd).applies(&TO_BER));
-        assert!(!ber(ChargedWhen::AtEnd).applies(&FROM_BER));
-    }
-
-    #[test]
-    fn at_start_applies_only_when_starting_inside() {
-        assert!(ber(ChargedWhen::AtStart).applies(&FROM_BER));
-        assert!(!ber(ChargedWhen::AtStart).applies(&TO_BER));
-    }
-
-    #[test]
-    fn at_start_or_end_applies_to_either_direction_only() {
-        let fee = ber(ChargedWhen::AtStartOrEnd);
-        assert!(fee.applies(&TO_BER));
-        assert!(fee.applies(&FROM_BER));
-        assert!(!fee.applies(&IN_TOWN));
-    }
-
-    #[test]
-    fn zone_with_too_few_points_never_applies() {
-        let fee = ZoneFee {
-            area: vec![BER_T1, ALEXANDERPLATZ],
-            ..ber_fee()
-        };
-        assert!(!fee.applies(&TO_BER));
-    }
-
-    #[test]
-    fn zone_fee_reads_from_json() {
-        let json = r#"{"name":"BER","area":[{"lat_e7":1,"lon_e7":2}],"fee":1000,"when":"at_end"}"#;
-        let fee: ZoneFee = serde_json::from_str(json).unwrap();
-        assert_eq!(fee.when, ChargedWhen::AtEnd);
-        assert_eq!(fee.fee, Cents(1_000));
-    }
-}
-```
-
-Append these tests inside the existing `mod tests` of `crates/core/src/catalogue.rs`:
-
-```rust
-    #[test]
-    fn rejects_zone_with_fewer_than_three_points() {
-        let mut c = catalogue();
-        c.providers[0].zone_fees[0].area.truncate(2);
-        assert!(
-            matches!(c.validate(), Err(CatalogueError::ZoneTooSmall { provider, .. }) if provider == "miles")
-        );
-    }
-
-    #[test]
-    fn rejects_negative_zone_fee() {
-        let mut c = catalogue();
-        c.providers[0].zone_fees[0].fee = Cents(-1);
-        assert!(
-            matches!(c.validate(), Err(CatalogueError::NegativeZoneFee { zone, .. }) if zone == "BER airport")
-        );
-    }
-
-    #[test]
-    fn provider_without_zone_fees_reads_as_none() {
-        let json = r#"{"id":"x","name":"X","android_package":"p","offers":[]}"#;
-        let provider: Provider = serde_json::from_str(json).unwrap();
-        assert!(provider.zone_fees.is_empty());
-    }
-```
-
-- [ ] **Step 2: Run the tests to see them fail**
-
-Run: `cargo test -p carsharing-core zone`
-Expected: compile errors naming the items Step 3 defines (`ZoneFee`, `ChargedWhen`, `Ends`,
-`zone_fees`, `ZoneTooSmall`, `NegativeZoneFee`).
-
-- [ ] **Step 3: Write the implementation**
-
-Insert at the top of `crates/core/src/zone.rs`:
-
-```rust
-//! Fees some providers charge when a trip starts or ends inside an area, e.g. an airport.
-
-use serde::{Deserialize, Serialize};
-
-use crate::geo::{Coordinate, polygon_contains};
-use crate::money::Cents;
-
-/// Where a trip starts and ends. Unknown for trips entered by hand as km and minutes.
-#[derive(Debug, Clone, Copy, PartialEq, Eq, Serialize, Deserialize)]
-pub struct Ends {
-    pub start: Coordinate,
-    pub end: Coordinate,
-}
-
-/// Which end of the trip must be inside the area for the fee to apply.
-#[derive(Debug, Clone, Copy, PartialEq, Eq, Serialize, Deserialize)]
-#[serde(rename_all = "snake_case")]
-pub enum ChargedWhen {
-    AtStart,
-    AtEnd,
-    AtStartOrEnd,
-}
-
-/// A fee for starting and/or ending a trip inside an area; charged at most once per trip.
-#[derive(Debug, Clone, PartialEq, Eq, Serialize, Deserialize)]
-pub struct ZoneFee {
-    /// Shown to the user, e.g. "BER airport".
-    pub name: String,
-    /// Polygon vertices in order; the last joins the first.
-    pub area: Vec<Coordinate>,
-    pub fee: Cents,
-    pub when: ChargedWhen,
-}
-
-/// A zone fee included in a quote.
-#[derive(Debug, Clone, PartialEq, Eq, Serialize, Deserialize)]
-pub struct ZoneCharge {
-    pub name: String,
-    pub fee: Cents,
-}
-
-impl ZoneFee {
-    /// Whether this fee is charged for a trip between `ends`.
-    pub fn applies(&self, ends: &Ends) -> bool {
-        let starts_inside = || polygon_contains(&self.area, ends.start);
-        let ends_inside = || polygon_contains(&self.area, ends.end);
-        match self.when {
-            ChargedWhen::AtStart => starts_inside(),
-            ChargedWhen::AtEnd => ends_inside(),
-            ChargedWhen::AtStartOrEnd => starts_inside() || ends_inside(),
-        }
-    }
-}
-```
-
-In `crates/core/src/catalogue.rs`:
-
-1. Add `use crate::zone::ZoneFee;` after `use crate::rate_card::RateCard;`.
-2. In `struct Provider`, after the `refuel_credit` field, add:
-
-```rust
-    /// Fees for starting or ending in particular areas, e.g. an airport.
-    #[serde(default)]
-    pub zone_fees: Vec<ZoneFee>,
-```
-
-3. In `enum CatalogueError`, after `NegativePrice`, add:
-
-```rust
-    #[error("zone `{zone}` of provider `{provider}` needs at least three points")]
-    ZoneTooSmall { provider: String, zone: String },
-    #[error("zone `{zone}` of provider `{provider}` has a negative fee")]
-    NegativeZoneFee { provider: String, zone: String },
-```
-
-4. In `Catalogue::validate`, right after the `NegativeRefuelCredit` check, add:
-
-```rust
-            for zone in &provider.zone_fees {
-                let names = || (provider.id.0.clone(), zone.name.clone());
-                if zone.area.len() < 3 {
-                    let (provider, zone) = names();
-                    return Err(CatalogueError::ZoneTooSmall { provider, zone });
-                }
-                if zone.fee < Cents::ZERO {
-                    let (provider, zone) = names();
-                    return Err(CatalogueError::NegativeZoneFee { provider, zone });
-                }
-            }
-```
-
-5. In `mod fixtures`, add `use crate::zone::fixtures::ber_fee;` and give the providers their
-   zone fees: `zone_fees: vec![ber_fee()],` after `refuel_credit: Some(Cents(500)),` (miles) and
-   `zone_fees: vec![],` after `refuel_credit: None,` (bolt).
-
-- [ ] **Step 4: Run the tests, lints and formatting**
-
-Run: `cargo fmt --all && cargo clippy --workspace --all-targets --locked -- -D warnings && cargo test -p carsharing-core`
-Expected: no warnings; all tests pass (the existing catalogue and compare tests are unaffected:
-nothing passes trip ends yet).
-
-- [ ] **Step 5: Commit**
-
-```bash
-git add crates/core/src/zone.rs crates/core/src/catalogue.rs crates/core/src/lib.rs
-git commit -m "feat(core): providers can define airport and zone fees as polygons" -m "Co-Authored-By: Claude Opus 5.5 <noreply@anthropic.com>"
-```
-
----
-
-### Task 4: Zone fees in the comparison
-
-`compare` takes the trip's ends when they are known and adds each provider's applicable zone
-fees. Zone fees are added **after** personal adjustments and the minimum charge and are never
-discounted (decision 27: they are surcharges for a place, not part of the driving price).
-
-**Files:**
-- Modify: `crates/core/src/compare.rs`
-
-**Interfaces:**
-- Consumes: `Ends`, `ZoneCharge`, `ZoneFee::applies`, `zone::fixtures` (Task 3); `Provider.zone_fees`
-  (Task 3)
-- Produces: `compare(&Catalogue, &Trip, Option<&Ends>, &Adjustments) -> Vec<Quote>` (new third
-  parameter); `Quote.zone_fees: Vec<ZoneCharge>` (included in `total`).
-
-- [ ] **Step 1: Update the existing calls and write the failing tests**
-
-Give every existing `compare(…)` call in the tests a `None` third argument (7 calls):
-
-```bash
-perl -0pi -e 's/(compare\(\s*&\w+(?:\(\))?,\s*&(?:TRIP|long|trip|Trip \{[^}]*\}),)/$1 None,/g' crates/core/src/compare.rs
-grep -c 'None,' crates/core/src/compare.rs
-```
-
-Expected: `7`.
-
-Then add to the `use` lines of `mod tests`:
-
-```rust
-    use crate::zone::ZoneFee;
-    use crate::zone::fixtures::{ALEXANDERPLATZ, BER_T1, ber_fee};
-```
-
-and append these tests inside `mod tests` (before the `proptest!` block):
-
-```rust
-    const TO_BER: Ends = Ends {
-        start: ALEXANDERPLATZ,
-        end: BER_T1,
-    };
-
-    #[test]
-    fn zone_fee_is_added_when_the_trip_ends_in_the_zone() {
-        let quotes = compare(&catalogue(), &TRIP, Some(&TO_BER), &Adjustments::default());
-        let miles = quotes.iter().find(|q| q.offer.0 == "miles.s").unwrap();
-        assert_eq!(miles.total, Cents(969 + 1_000));
-        assert_eq!(
-            miles.zone_fees,
-            [ZoneCharge {
-                name: "BER airport".into(),
-                fee: Cents(1_000)
-            }]
-        );
-        let bolt = quotes.iter().find(|q| q.offer.0 == "bolt.corsa").unwrap();
-        assert_eq!((bolt.total, bolt.zone_fees.len()), (Cents(473), 0));
-    }
-
-    #[test]
-    fn no_zone_fee_outside_the_zone_or_without_ends() {
-        let in_town = Ends {
-            start: ALEXANDERPLATZ,
-            end: ALEXANDERPLATZ,
-        };
-        for ends in [Some(&in_town), None] {
-            let quotes = compare(&catalogue(), &TRIP, ends, &Adjustments::default());
-            let miles = quotes.iter().find(|q| q.offer.0 == "miles.s").unwrap();
-            assert_eq!((miles.total, miles.zone_fees.len()), (Cents(969), 0));
-        }
-    }
-
-    #[test]
-    fn zone_fee_is_not_discounted() {
-        let adjustments = Adjustments {
-            discounts: vec![Discount::Percent {
-                provider: ProviderId("miles".into()),
-                off: Percent::from_basis_points(5_000).unwrap(),
-            }],
-            ..Adjustments::default()
-        };
-        let quotes = compare(&catalogue(), &TRIP, Some(&TO_BER), &adjustments);
-        let miles = quotes.iter().find(|q| q.offer.0 == "miles.s").unwrap();
-        // 969 × 0.5 = 484.5 → 485, plus the full €10 fee
-        assert_eq!(miles.total, Cents(485 + 1_000));
-    }
-
-    #[test]
-    fn zone_fee_is_charged_once_when_both_ends_are_inside() {
-        let at_ber = Ends {
-            start: BER_T1,
-            end: BER_T1,
-        };
-        let zero = Trip {
-            metres: 0,
-            seconds: 0,
-        };
-        let quotes = compare(&catalogue(), &zero, Some(&at_ber), &Adjustments::default());
-        let miles = quotes.iter().find(|q| q.offer.0 == "miles.s").unwrap();
-        assert_eq!(miles.total, Cents(100 + 1_000));
-    }
-
-    #[test]
-    fn several_zone_fees_add_up_in_catalogue_order() {
-        let mut c = catalogue();
-        c.providers[0].zone_fees.push(ZoneFee {
-            name: "Test zone".into(),
-            fee: Cents(200),
-            ..ber_fee()
-        });
-        let quotes = compare(&c, &TRIP, Some(&TO_BER), &Adjustments::default());
-        let miles = quotes.iter().find(|q| q.offer.0 == "miles.s").unwrap();
-        assert_eq!(miles.total, Cents(969 + 1_000 + 200));
-        let names: Vec<_> = miles.zone_fees.iter().map(|z| z.name.as_str()).collect();
-        assert_eq!(names, ["BER airport", "Test zone"]);
-    }
-```
-
-- [ ] **Step 2: Run the tests to see them fail**
-
-Run: `cargo test -p carsharing-core compare`
-Expected: compile errors: `compare` takes 3 arguments but 4 were supplied; `Ends`/`ZoneCharge`
-not found; no field `zone_fees` on `Quote`.
-
-- [ ] **Step 3: Write the implementation**
-
-Replace everything in `crates/core/src/compare.rs` above `#[cfg(test)]` with:
-
-```rust
-//! The comparison the app shows: every offer's cheapest price for one trip.
-
-use serde::{Deserialize, Serialize};
-
-use crate::adjustments::Adjustments;
-use crate::catalogue::{Catalogue, OfferId, Provider, ProviderId};
-use crate::money::Cents;
-use crate::usage::Trip;
-use crate::zone::{Ends, ZoneCharge};
-
-/// The best price of one offer for a trip.
-#[derive(Debug, Clone, PartialEq, Eq, Serialize, Deserialize)]
-pub struct Quote {
-    pub provider: ProviderId,
-    pub offer: OfferId,
-    pub offer_name: String,
-    /// The tariff that gave the lowest price, e.g. "Standard" or "3 h / 40 km".
-    pub card_label: String,
-    pub total: Cents,
-    /// Zone fees included in `total`, e.g. an airport fee.
-    pub zone_fees: Vec<ZoneCharge>,
-    /// The price comes from the user's own override, not the shared price.
-    pub overridden: bool,
-}
-
-/// Prices every offer of every provider and returns them cheapest first.
-///
-/// Each offer appears once, with its cheapest rate card; on a tie the first card wins. Zone fees
-/// apply only when `ends` is known (not for trips entered by hand); they are added after personal
-/// adjustments and the minimum charge and are never discounted. Equal totals are ordered by
-/// provider and offer id, so the result is deterministic.
-pub fn compare(
-    catalogue: &Catalogue,
-    trip: &Trip,
-    ends: Option<&Ends>,
-    adjustments: &Adjustments,
-) -> Vec<Quote> {
-    let mut quotes = Vec::new();
-    for provider in &catalogue.providers {
-        let zone_fees = zone_charges(provider, ends);
-        let zone_total: Cents = zone_fees.iter().map(|charge| charge.fee).sum();
-        for offer in &provider.offers {
-            let (cards, overridden) = adjustments.cards_for(offer);
-            let cheapest = cards
-                .iter()
-                .map(|card| (card, adjustments.price(provider, card, trip)))
-                .min_by_key(|(_, total)| *total);
-            if let Some((card, total)) = cheapest {
-                quotes.push(Quote {
-                    provider: provider.id.clone(),
-                    offer: offer.id.clone(),
-                    offer_name: offer.name.clone(),
-                    card_label: card.label.clone(),
-                    total: total + zone_total,
-                    zone_fees: zone_fees.clone(),
-                    overridden,
-                });
-            }
-        }
-    }
-    quotes.sort_by(|a, b| (a.total, &a.provider, &a.offer).cmp(&(b.total, &b.provider, &b.offer)));
-    quotes
-}
-
-/// The zone fees of `provider` that apply to a trip between `ends`.
-fn zone_charges(provider: &Provider, ends: Option<&Ends>) -> Vec<ZoneCharge> {
-    let Some(ends) = ends else {
-        return Vec::new();
-    };
-    provider
-        .zone_fees
-        .iter()
-        .filter(|zone| zone.applies(ends))
-        .map(|zone| ZoneCharge {
-            name: zone.name.clone(),
-            fee: zone.fee,
-        })
-        .collect()
-}
-```
-
-- [ ] **Step 4: Run the tests, lints and formatting**
-
-Run: `cargo fmt --all && cargo clippy --workspace --all-targets --locked -- -D warnings && cargo test -p carsharing-core`
-Expected: no warnings; all tests pass, including the unchanged property test.
-
-- [ ] **Step 5: Commit**
-
-```bash
-git add crates/core/src/compare.rs
-git commit -m "feat(core): compare adds zone fees when the trip's ends are known" -m "Co-Authored-By: Claude Opus 5.5 <noreply@anthropic.com>"
-```
-
----
-
-### Task 5: Days and vote weighting
+### Task 3: Days and vote weighting
 
 The acceptance rule of spec §7.3 and the weights of §7.4 as pure functions. The server stores
 the votes and calls these; the app never decides acceptance itself.
@@ -1828,18 +1243,19 @@ git commit -m "feat(core): vote weights and the report acceptance rule" -m "Co-A
 
 ---
 
-### Task 6: When to ask, and price freshness
+### Task 4: When to ask, and price freshness
 
 Spec §7.2: ask at most once a week per install, and only when there is a pending report or a
 price not confirmed recently. §7.5: show how many days ago a price was confirmed. Decision 30:
-"recently" = 14 days.
+"recently" = 14 days. Both numbers are constants and the tests are written against the constants,
+so tuning either is a one-line change (it reaches users with the next app release).
 
 **Files:**
 - Create: `crates/core/src/confirmation.rs`
 - Modify: `crates/core/src/lib.rs`
 
 **Interfaces:**
-- Consumes: `Day`, `Day::days_since` (Task 5)
+- Consumes: `Day`, `Day::days_since` (Task 3)
 - Produces: `ASK_INTERVAL_DAYS = 7`, `STALE_AFTER_DAYS = 14`;
   `should_ask(today: Day, last_asked: Option<Day>, pending_report: bool, last_confirmed:
   Option<Day>) -> bool`; `confirmed_days_ago(today: Day, last_confirmed: Option<Day>) ->
@@ -1864,8 +1280,12 @@ mod tests {
 
     const TODAY: Day = Day(20_000);
 
-    fn days_ago(days: i32) -> Option<Day> {
-        Some(Day(TODAY.0 - days))
+    fn days_ago(days: u32) -> Option<Day> {
+        Some(Day(TODAY.0 - i32::try_from(days).unwrap()))
+    }
+
+    fn days_ahead(days: i32) -> Option<Day> {
+        Some(Day(TODAY.0 + days))
     }
 
     #[test]
@@ -1879,22 +1299,22 @@ mod tests {
     }
 
     #[test]
-    fn asks_at_most_once_a_week() {
-        assert!(!should_ask(TODAY, days_ago(3), true, None));
-        assert!(!should_ask(TODAY, days_ago(6), true, None));
-        assert!(should_ask(TODAY, days_ago(7), true, None));
+    fn asks_at_most_once_per_interval() {
+        assert!(!should_ask(TODAY, days_ago(0), true, None));
+        assert!(!should_ask(TODAY, days_ago(ASK_INTERVAL_DAYS - 1), true, None));
+        assert!(should_ask(TODAY, days_ago(ASK_INTERVAL_DAYS), true, None));
     }
 
     #[test]
     fn does_not_ask_about_a_recently_confirmed_price() {
-        assert!(!should_ask(TODAY, None, false, days_ago(5)));
-        assert!(!should_ask(TODAY, None, false, days_ago(13)));
-        assert!(should_ask(TODAY, None, false, days_ago(14)));
+        assert!(!should_ask(TODAY, None, false, days_ago(0)));
+        assert!(!should_ask(TODAY, None, false, days_ago(STALE_AFTER_DAYS - 1)));
+        assert!(should_ask(TODAY, None, false, days_ago(STALE_AFTER_DAYS)));
     }
 
     #[test]
     fn a_last_asked_date_in_the_future_does_not_block_asking() {
-        assert!(should_ask(TODAY, days_ago(-400), true, None));
+        assert!(should_ask(TODAY, days_ahead(400), true, None));
     }
 
     #[test]
@@ -1902,7 +1322,7 @@ mod tests {
         assert_eq!(confirmed_days_ago(TODAY, days_ago(2)), Some(2));
         assert_eq!(confirmed_days_ago(TODAY, None), None);
         // Confirmed "in the future" (clock skew) shows as today.
-        assert_eq!(confirmed_days_ago(TODAY, days_ago(-3)), Some(0));
+        assert_eq!(confirmed_days_ago(TODAY, days_ahead(3)), Some(0));
     }
 }
 ```
@@ -1963,7 +1383,7 @@ git commit -m "feat(core): confirmation timing and price freshness" -m "Co-Autho
 
 ---
 
-### Task 7: Decisions, spec, README, roadmap, final verification
+### Task 5: Decisions, spec, README, roadmap, final verification
 
 **Files:**
 - Modify: `docs/DECISIONS.md`, `docs/specs/2026-10-19-carsharing-compare-design.md`,
@@ -1978,7 +1398,7 @@ git commit -m "feat(core): confirmation timing and price freshness" -m "Co-Autho
 Append to the table in `docs/DECISIONS.md` (use the date the task runs):
 
 ```markdown
-| 27 | 2026-10-19 | Pricing | Zone/airport fees are polygons in the provider data, charged once per trip, added **after** personal adjustments and the minimum, never discounted; only when start and end are known | Zone fees as a rate card component; discounting them | A fee for a place is not part of the driving price; polygons let new zones ship as data |
+| 27 | 2026-10-19 | Scope | Airport/zone fees are **not** in milestone 2; moved to a later milestone | Building them now with the link parsing | Owner decision: not needed yet (YAGNI) |
 | 28 | 2026-10-19 | Crowd prices | Vote weight = age points (20 new, +1/day, max 100) × smoothed accuracy `(matching+1)×100/(decided+2)` | Equal weights; age only | New installs weigh little; installs that voted against outcomes lose influence; integer-only |
 | 29 | 2026-10-19 | Crowd prices | Acceptance: ≥1 other install confirms with weight > 0, and reporter + weighted yes > weighted no; last vote per install counts; reporter's own votes ignored | Reporter excluded from the sum; every vote counts | Works from the second user; repeat votes and self-confirmation add nothing |
 | 30 | 2026-10-19 | Crowd prices | Ask at most every 7 days; a price is "not recently confirmed" after 14 days | 30 days | Prices change often (dynamic pricing); weekly asking stays unintrusive |
@@ -1998,8 +1418,7 @@ with
 
 ```markdown
 Order of application (fixed in the core and tested): override → subscription → percentage
-discount → fixed discount and refuel credit → minimum charge → zone fees (never discounted;
-decision 27).
+discount → fixed discount and refuel credit → minimum charge.
 ```
 
 - [ ] **Step 3: README and roadmap**
@@ -2007,8 +1426,11 @@ decision 27).
 In `README.md`, replace `Milestone 1 (pricing core) is done` with
 `Milestones 1 (pricing core) and 2 (destination input) are done`.
 
-In `docs/plans/ROADMAP.md`, change the milestone 2 row's plan cell from `—` to
-`` `02-destination-input.md` ✅ ``.
+In `docs/plans/ROADMAP.md`:
+- in the milestone 2 row, remove `airport/zone fees (e.g. MILES at BER) from start/destination
+  coordinates; ` from the Delivers cell and change the plan cell from `—` to
+  `` `02-destination-input.md` ✅ ``;
+- add a row after milestone 8: `| 9 | **Zone fees** | Airport/zone fees (e.g. MILES at BER) from start/destination coordinates | §5 | — |`.
 
 - [ ] **Step 4: Run the full verification**
 
@@ -2023,7 +1445,7 @@ gitleaks git --no-banner --redact --config .gitleaks.toml
 grep -rn "f32\|f64" crates/core/src || echo "no floats"
 ```
 
-Expected: no formatting differences, no warnings, 117 tests pass, cargo-deny
+Expected: no formatting differences, no warnings, 100 tests pass, cargo-deny
 `advisories ok, bans ok, licenses ok, sources ok`, `no leaks found`, `no floats`.
 
 - [ ] **Step 5: Commit**
