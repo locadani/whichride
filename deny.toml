@@ -15,6 +15,8 @@ allow = [
     "ISC",
     "Unicode-3.0",
     "Zlib",
+    # Mozilla CA root certificate data (webpki-roots), permissive
+    "CDLA-Permissive-2.0",
 ]
 
 [bans]
