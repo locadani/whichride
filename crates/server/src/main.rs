@@ -33,8 +33,7 @@ async fn main() -> ExitCode {
 }
 
 fn init_logging() {
-    let filter = tracing_subscriber::EnvFilter::try_from_default_env()
-        .unwrap_or_else(|_| tracing_subscriber::EnvFilter::new("info"));
+    let filter = whichride_server::log_filter(std::env::var("RUST_LOG").ok().as_deref());
     tracing_subscriber::fmt()
         .with_env_filter(filter)
         .with_ansi(std::io::IsTerminal::is_terminal(&std::io::stderr()))

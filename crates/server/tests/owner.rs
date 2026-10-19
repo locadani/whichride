@@ -56,6 +56,13 @@ async fn reverting_restores_the_previous_price() {
         .await
         .unwrap();
     assert_eq!(per_km(&app).await, 89);
+    let reverted: Vec<bool> = sqlx::query_scalar(
+        "SELECT reverted FROM price_history WHERE offer_id = 'miles.s' ORDER BY seq",
+    )
+    .fetch_all(&app.pool)
+    .await
+    .unwrap();
+    assert_eq!(reverted, [false, false, true]);
     let statuses: Vec<String> =
         sqlx::query_scalar("SELECT status FROM reports ORDER BY created_on, id")
             .fetch_all(&app.pool)
@@ -67,6 +74,26 @@ async fn reverting_restores_the_previous_price() {
         .await
         .unwrap();
     assert_eq!(per_km(&app).await, 79); // back to the seed
+}
+
+#[tokio::test]
+async fn reverting_restores_the_confirmation_date_of_the_restored_price() {
+    let Some(app) = TestApp::start().await else {
+        return;
+    };
+    app.set_today(TODAY + 3);
+    accepted(&app, 89).await;
+    app.set_today(TODAY + 8);
+    accepted(&app, 300).await;
+    owner::revert_offer(&app.pool, "miles.s", Day(TODAY + 9))
+        .await
+        .unwrap();
+    let confirmed: Option<i32> =
+        sqlx::query_scalar("SELECT confirmed_on FROM offers WHERE id = 'miles.s'")
+            .fetch_one(&app.pool)
+            .await
+            .unwrap();
+    assert_eq!(confirmed, Some(TODAY + 3));
 }
 
 #[tokio::test]

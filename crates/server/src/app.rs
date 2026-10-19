@@ -2,6 +2,9 @@
 
 use axum::extract::{DefaultBodyLimit, MatchedPath, Request};
 use axum::routing::{get, post};
+use std::any::Any;
+
+use axum::response::{IntoResponse, Response};
 use axum::{Router, middleware};
 use tower_http::catch_panic::CatchPanicLayer;
 use tower_http::request_id::{MakeRequestUuid, PropagateRequestIdLayer, SetRequestIdLayer};
@@ -30,9 +33,10 @@ pub fn router(state: AppState) -> Router {
         .route("/v1/autocomplete", post(crate::routing::post_autocomplete))
         .route("/v1/expand", post(crate::expand::post_expand))
         .fallback(|| async { ApiError::NotFound })
+        .method_not_allowed_fallback(|| async { ApiError::MethodNotAllowed })
         .with_state(state)
         .layer(DefaultBodyLimit::max(BODY_LIMIT_BYTES))
-        .layer(CatchPanicLayer::new())
+        .layer(CatchPanicLayer::custom(panic_response))
         .layer(PropagateRequestIdLayer::x_request_id())
         .layer(
             TraceLayer::new_for_http()
@@ -42,6 +46,13 @@ pub fn router(state: AppState) -> Router {
         )
         .layer(SetRequestIdLayer::x_request_id(MakeRequestUuid))
         .layer(middleware::map_request(drop_client_request_id))
+}
+
+/// A handler that panicked answers like any other failure; the panic message is not logged, as
+/// it could hold request data.
+fn panic_response(_: Box<dyn Any + Send + 'static>) -> Response {
+    tracing::error!("request handler panicked");
+    ApiError::internal("panic").into_response()
 }
 
 /// A client's own `x-request-id` would be logged and echoed back; it could carry anything
@@ -65,4 +76,20 @@ fn request_span(request: &Request) -> tracing::Span {
         .and_then(|value| value.to_str().ok())
         .unwrap_or("-");
     tracing::info_span!("request", method = %request.method(), route, id)
+}
+
+#[cfg(test)]
+mod tests {
+    use axum::body::to_bytes;
+    use axum::http::StatusCode;
+
+    use super::*;
+
+    #[tokio::test]
+    async fn a_panic_is_a_json_internal_error() {
+        let response = panic_response(Box::new("at 52.52,13.41"));
+        assert_eq!(response.status(), StatusCode::INTERNAL_SERVER_ERROR);
+        let body = to_bytes(response.into_body(), 1024).await.unwrap();
+        assert_eq!(&body[..], br#"{"error":"internal"}"#);
+    }
 }

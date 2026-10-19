@@ -93,7 +93,7 @@ impl Expander {
                 ExpandError::Unavailable
             })?;
         let status = response.status();
-        if status.is_server_error() {
+        if status.is_server_error() || status == reqwest::StatusCode::TOO_MANY_REQUESTS {
             tracing::warn!(status = status.as_u16(), "short link host failed");
             return Err(ExpandError::Unavailable);
         }

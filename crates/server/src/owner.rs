@@ -11,6 +11,8 @@ use uuid::Uuid;
 
 /// `price_history`: cards, from_day, report_id, reverted.
 type HistoryRow = (Json<Vec<RateCard>>, i32, Option<Uuid>, bool);
+/// `price_history`: seq, report_id, cards, from_day.
+type RevertRow = (i64, Option<Uuid>, Json<Vec<RateCard>>, i32);
 /// `offers`: name, cards, confirmed_on, locked, hidden.
 type OfferSummary = (String, Json<Vec<RateCard>>, Option<i32>, bool, bool);
 /// A report with its yes and no vote counts.
@@ -90,14 +92,18 @@ pub async fn revert_offer(pool: &PgPool, offer: &str, today: Day) -> anyhow::Res
         .fetch_optional(&mut *tx)
         .await?
         .with_context(|| format!("no offer {offer:?}"))?;
-    let history: Vec<(i64, Option<Uuid>, Json<Vec<RateCard>>)> = sqlx::query_as(
-        "SELECT seq, report_id, cards FROM price_history
+    let history: Vec<RevertRow> = sqlx::query_as(
+        "SELECT seq, report_id, cards, from_day FROM price_history
          WHERE offer_id = $1 AND NOT reverted ORDER BY seq DESC LIMIT 2",
     )
     .bind(offer)
     .fetch_all(&mut *tx)
     .await?;
-    let [(latest, latest_report, _), (_, _, previous)] = &history[..] else {
+    let [
+        (latest, latest_report, _, _),
+        (_, _, previous, previous_from),
+    ] = &history[..]
+    else {
         bail!("{offer} has only its first price; nothing to revert");
     };
     sqlx::query("UPDATE price_history SET reverted = true WHERE seq = $1")
@@ -118,9 +124,11 @@ pub async fn revert_offer(pool: &PgPool, offer: &str, today: Day) -> anyhow::Res
     .bind(today.0)
     .execute(&mut *tx)
     .await?;
-    sqlx::query("UPDATE offers SET cards = $2 WHERE id = $1")
+    // The restored price was last known right on the day it became the price.
+    sqlx::query("UPDATE offers SET cards = $2, confirmed_on = $3 WHERE id = $1")
         .bind(offer)
         .bind(previous)
+        .bind(previous_from)
         .execute(&mut *tx)
         .await?;
     tx.commit().await?;

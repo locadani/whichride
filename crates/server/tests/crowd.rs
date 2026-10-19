@@ -180,6 +180,25 @@ async fn reporting_the_current_price_confirms_it() {
 }
 
 #[tokio::test]
+async fn reporting_the_current_price_replaces_the_installs_pending_report() {
+    let Some(app) = TestApp::start().await else {
+        return;
+    };
+    let (a, b) = (app.register().await, app.register().await);
+    let (_, mine) = app.post_as(&a, "/v1/reports", &report(89)).await;
+    let (status, body) = app.post_as(&a, "/v1/reports", &report(79)).await;
+    assert_eq!(
+        (status, &body["status"]),
+        (StatusCode::OK, &json!("current"))
+    );
+    let (_, catalogue) = app.get("/v1/catalogue").await;
+    assert_eq!(catalogue["offers"][1]["pending"], Value::Null);
+    let (status, _) = vote(&app, &b, mine["report"].as_str().unwrap(), "yes").await;
+    assert_eq!(status, StatusCode::CONFLICT);
+    assert_eq!(record(&app, &a).await, (0, 0), "nobody is settled");
+}
+
+#[tokio::test]
 async fn a_new_report_replaces_the_same_installs_pending_one() {
     let Some(app) = TestApp::start().await else {
         return;

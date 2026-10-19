@@ -143,6 +143,7 @@ async fn report_on_offer(
         if voter_weight > Weight(0) {
             confirm(&mut tx, &offer.0, today).await?;
         }
+        supersede_own_reports(&mut tx, &offer.0, install, None, today).await?;
         tx.commit().await?;
         return Ok((
             StatusCode::OK,
@@ -163,17 +164,13 @@ async fn report_on_offer(
     .bind(SqlJson(cards))
     .fetch_optional(&mut *tx)
     .await?;
-    // An install's new report on an offer replaces its own earlier pending one (not the one it
-    // joins). Nobody is settled: the reporter changed their own mind.
-    sqlx::query(
-        "UPDATE reports SET status = 'superseded', decided_on = $3
-         WHERE offer_id = $1 AND reporter = $2 AND status = 'pending' AND id IS DISTINCT FROM $4",
+    supersede_own_reports(
+        &mut tx,
+        &offer.0,
+        install,
+        matching.as_ref().map(|report| report.id),
+        today,
     )
-    .bind(&offer.0)
-    .bind(install.id)
-    .bind(today.0)
-    .bind(matching.as_ref().map(|report| report.id))
-    .execute(&mut *tx)
     .await?;
     if let Some(report) = matching {
         let status = vote_on(&mut tx, &report, install, Answer::Yes, voter_weight, today).await?;
@@ -208,6 +205,29 @@ async fn report_on_offer(
             status: ReportStatus::Pending,
         }),
     ))
+}
+
+/// An install's new report on an offer (or its report of the current price) replaces its own
+/// earlier pending one, except the one it joins. Nobody is settled: the reporter changed their
+/// own mind.
+async fn supersede_own_reports(
+    tx: &mut Transaction<'_, Postgres>,
+    offer: &str,
+    install: &Install,
+    joined: Option<Uuid>,
+    today: Day,
+) -> Result<(), ApiError> {
+    sqlx::query(
+        "UPDATE reports SET status = 'superseded', decided_on = $3
+         WHERE offer_id = $1 AND reporter = $2 AND status = 'pending' AND id IS DISTINCT FROM $4",
+    )
+    .bind(offer)
+    .bind(install.id)
+    .bind(today.0)
+    .bind(joined)
+    .execute(&mut **tx)
+    .await?;
+    Ok(())
 }
 
 pub async fn post_vote(

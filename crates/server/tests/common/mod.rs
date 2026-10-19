@@ -327,28 +327,53 @@ pub async fn mock_verdict(server: &MockServer, token: &str, request_hash: &str) 
         .await;
 }
 
-/// Everything logged on this thread while the guard lives, at `trace` for the server's own
-/// targets and tower-http.
-pub fn capture_logs() -> (Arc<Mutex<Vec<u8>>>, tracing::subscriber::DefaultGuard) {
-    #[derive(Clone)]
-    struct Sink(Arc<Mutex<Vec<u8>>>);
-    impl Write for Sink {
-        fn write(&mut self, bytes: &[u8]) -> std::io::Result<usize> {
-            self.0.lock().unwrap().extend_from_slice(bytes);
-            Ok(bytes.len())
-        }
-        fn flush(&mut self) -> std::io::Result<()> {
-            Ok(())
-        }
+thread_local! {
+    static CAPTURE: std::cell::RefCell<Option<Arc<Mutex<Vec<u8>>>>> =
+        const { std::cell::RefCell::new(None) };
+}
+
+/// Stops capturing this thread's logs when dropped.
+pub struct CaptureGuard;
+
+impl Drop for CaptureGuard {
+    fn drop(&mut self) {
+        CAPTURE.with(|capture| capture.borrow_mut().take());
     }
+}
+
+/// Writes to the capture buffer of the current thread, if any.
+struct ThreadSink;
+
+impl Write for ThreadSink {
+    fn write(&mut self, bytes: &[u8]) -> std::io::Result<usize> {
+        CAPTURE.with(|capture| {
+            if let Some(buffer) = capture.borrow().as_ref() {
+                buffer.lock().unwrap().extend_from_slice(bytes);
+            }
+        });
+        Ok(bytes.len())
+    }
+    fn flush(&mut self) -> std::io::Result<()> {
+        Ok(())
+    }
+}
+
+/// Everything logged on this thread while the guard lives, at `trace` for the server's own
+/// targets and tower-http. One global subscriber serves every test: per-thread subscribers race
+/// with tracing's global callsite cache and sometimes lose the request span.
+pub fn capture_logs() -> (Arc<Mutex<Vec<u8>>>, CaptureGuard) {
+    static INIT: std::sync::Once = std::sync::Once::new();
+    INIT.call_once(|| {
+        let subscriber = tracing_subscriber::fmt()
+            .with_env_filter("whichride_server=trace,tower_http=trace")
+            // A timestamp such as 15:07:13.413 would match the coordinate fragment "13.41".
+            .without_time()
+            .with_ansi(false)
+            .with_writer(|| ThreadSink)
+            .finish();
+        tracing::subscriber::set_global_default(subscriber).expect("no other global subscriber");
+    });
     let buffer = Arc::new(Mutex::new(Vec::new()));
-    let sink = Sink(Arc::clone(&buffer));
-    let subscriber = tracing_subscriber::fmt()
-        .with_env_filter("whichride_server=trace,tower_http=trace")
-        // A timestamp such as 15:07:13.413 would match the coordinate fragment "13.41".
-        .without_time()
-        .with_ansi(false)
-        .with_writer(move || sink.clone())
-        .finish();
-    (buffer, tracing::subscriber::set_default(subscriber))
+    CAPTURE.with(|capture| *capture.borrow_mut() = Some(Arc::clone(&buffer)));
+    (buffer, CaptureGuard)
 }

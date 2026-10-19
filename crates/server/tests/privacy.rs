@@ -3,6 +3,7 @@ mod common;
 use axum::http::StatusCode;
 use common::{TestApp, capture_logs};
 use serde_json::json;
+use tower::ServiceExt;
 use wiremock::matchers::{method, path};
 use wiremock::{Mock, ResponseTemplate};
 
@@ -160,4 +161,29 @@ async fn failures_log_no_location_either() {
     // A path a client made up is logged as "unmatched", not as written.
     app.get("/v1/route/52.5219184,13.4132147").await;
     assert_clean(&logs.lock().unwrap());
+}
+
+#[tokio::test]
+async fn a_request_id_from_the_client_is_replaced() {
+    let Some(app) = TestApp::start().await else {
+        return;
+    };
+    let (logs, _guard) = capture_logs();
+    let response = app
+        .router
+        .clone()
+        .oneshot(
+            axum::http::Request::get("/v1/catalogue")
+                .header("x-request-id", "52.52,13.41")
+                .body(axum::body::Body::empty())
+                .unwrap(),
+        )
+        .await
+        .unwrap();
+    let id = response.headers()["x-request-id"].to_str().unwrap();
+    assert_ne!(id, "52.52,13.41");
+    assert!(uuid::Uuid::parse_str(id).is_ok(), "{id}");
+    let logs = String::from_utf8_lossy(&logs.lock().unwrap()).into_owned();
+    assert!(logs.contains(id), "the new ID is logged:\n{logs}");
+    assert!(!logs.contains("52.52"), "{logs}");
 }

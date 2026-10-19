@@ -109,6 +109,7 @@ pub async fn revert_offer(offer: &str) -> anyhow::Result<()> {
     let pool = owner_pool().await?;
     owner::revert_offer(&pool, offer, crate::system_today()).await?;
     println!("{offer}: reverted to its previous price");
+    println!("if the abuse may go on, consider lock-offer {offer} too");
     pool.close().await;
     Ok(())
 }

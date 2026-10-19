@@ -31,26 +31,14 @@ async fn unknown_paths_are_json_404s() {
 }
 
 #[tokio::test]
-async fn a_request_id_from_the_client_is_replaced() {
+async fn a_wrong_method_is_a_json_405() {
     let Some(app) = TestApp::start().await else {
         return;
     };
-    let (logs, _guard) = common::capture_logs();
-    let response = app
-        .router
-        .clone()
-        .oneshot(
-            Request::get("/v1/catalogue")
-                .header("x-request-id", "52.52,13.41")
-                .body(Body::empty())
-                .unwrap(),
-        )
-        .await
-        .unwrap();
-    let id = response.headers()["x-request-id"].to_str().unwrap();
-    assert_ne!(id, "52.52,13.41");
-    assert!(uuid::Uuid::parse_str(id).is_ok(), "{id}");
-    let logs = String::from_utf8_lossy(&logs.lock().unwrap()).into_owned();
-    assert!(logs.contains(id), "the new ID is logged:\n{logs}");
-    assert!(!logs.contains("52.52"), "{logs}");
+    let (status, body) = app.get("/v1/reports").await;
+    assert_eq!(status, StatusCode::METHOD_NOT_ALLOWED);
+    assert_eq!(body, serde_json::json!({"error": "method_not_allowed"}));
+    let (status, body) = app.post("/v1/catalogue", &serde_json::json!({})).await;
+    assert_eq!(status, StatusCode::METHOD_NOT_ALLOWED);
+    assert_eq!(body, serde_json::json!({"error": "method_not_allowed"}));
 }

@@ -157,3 +157,30 @@ async fn expansion_needs_a_registered_install() {
         .await;
     assert_eq!(status, StatusCode::UNAUTHORIZED);
 }
+
+#[tokio::test]
+async fn google_rate_limiting_us_is_route_service_busy() {
+    let Some(app) = TestApp::start().await else {
+        return;
+    };
+    let token = app.register().await;
+    for (id, status) in [("Limited", 429), ("Down", 503)] {
+        Mock::given(method("GET"))
+            .and(path(format!("/{id}")))
+            .respond_with(ResponseTemplate::new(status))
+            .mount(&app.upstream)
+            .await;
+        let url = format!("https://maps.app.goo.gl/{id}");
+        let (status, body) = app
+            .post_as(&token, "/v1/expand", &json!({"url": url}))
+            .await;
+        assert_eq!(
+            (status, body),
+            (
+                StatusCode::SERVICE_UNAVAILABLE,
+                json!({"error": "route_service_busy"})
+            ),
+            "{id}"
+        );
+    }
+}
