@@ -345,6 +345,8 @@ pub fn capture_logs() -> (Arc<Mutex<Vec<u8>>>, tracing::subscriber::DefaultGuard
     let sink = Sink(Arc::clone(&buffer));
     let subscriber = tracing_subscriber::fmt()
         .with_env_filter("whichride_server=trace,tower_http=trace")
+        // A timestamp such as 15:07:13.413 would match the coordinate fragment "13.41".
+        .without_time()
         .with_ansi(false)
         .with_writer(move || sink.clone())
         .finish();

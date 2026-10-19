@@ -221,3 +221,40 @@ async fn search_text_must_be_short_and_not_blank() {
         assert_eq!(status, StatusCode::BAD_REQUEST, "{text:?}");
     }
 }
+
+#[tokio::test]
+async fn search_upstream_trouble_means_route_service_busy() {
+    for (endpoint, upstream_path) in [
+        ("/v1/geocode", "/geocode/search"),
+        ("/v1/autocomplete", "/geocode/autocomplete"),
+    ] {
+        for upstream in [
+            ResponseTemplate::new(429),
+            ResponseTemplate::new(403).set_body_string("Daily quota reached"),
+            ResponseTemplate::new(500).set_body_string("<html>stack trace</html>"),
+            ResponseTemplate::new(200).set_delay(std::time::Duration::from_secs(2)),
+        ] {
+            let Some(app) = TestApp::start().await else {
+                return;
+            };
+            let token = app.register().await;
+            Mock::given(method("GET"))
+                .and(path(upstream_path))
+                .respond_with(upstream)
+                .expect(1)
+                .mount(&app.upstream)
+                .await;
+            let (status, body) = app
+                .post_as(&token, endpoint, &json!({"text": "Alexanderplatz"}))
+                .await;
+            assert_eq!(
+                (status, body),
+                (
+                    StatusCode::SERVICE_UNAVAILABLE,
+                    json!({"error": "route_service_busy"})
+                ),
+                "{endpoint}"
+            );
+        }
+    }
+}
