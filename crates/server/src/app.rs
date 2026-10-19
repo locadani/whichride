@@ -19,6 +19,12 @@ pub fn router(state: AppState) -> Router {
         .route("/health", get(|| async { "ok" }))
         .route("/v1/catalogue", get(crate::catalogue::get_catalogue))
         .route("/v1/installs", post(crate::installs::register))
+        .route("/v1/reports", post(crate::crowd::post_report))
+        .route("/v1/reports/{id}/votes", post(crate::crowd::post_vote))
+        .route(
+            "/v1/offers/{id}/confirmations",
+            post(crate::crowd::post_confirmation),
+        )
         .fallback(|| async { ApiError::NotFound })
         .with_state(state)
         .layer(DefaultBodyLimit::max(BODY_LIMIT_BYTES))

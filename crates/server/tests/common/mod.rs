@@ -174,6 +174,27 @@ impl TestApp {
         body["token"].as_str().unwrap().to_owned()
     }
 
+    pub async fn post_as(&self, token: &str, path: &str, body: &Value) -> (StatusCode, Value) {
+        let bearer = format!("Bearer {token}");
+        self.post_with(path, body, &[("authorization", bearer.as_str())])
+            .await
+    }
+
+    /// Gives an install a history, so its votes weigh more (or less) than a new install's.
+    pub async fn make_trusted(&self, token: &str, decided: i32, matching: i32, age_days: i32) {
+        sqlx::query(
+            "UPDATE installs SET decided_votes = $2, matching_votes = $3, first_seen = $4
+             WHERE token_hash = $1",
+        )
+        .bind(whichride_server::auth::hash_token(token).as_slice())
+        .bind(decided)
+        .bind(matching)
+        .bind(TODAY - age_days)
+        .execute(&self.pool)
+        .await
+        .unwrap();
+    }
+
     pub async fn send(&self, request: Request<Body>) -> (StatusCode, Value) {
         let response = self.router.clone().oneshot(request).await.unwrap();
         let status = response.status();
