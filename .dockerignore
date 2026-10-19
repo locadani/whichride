@@ -1,0 +1,9 @@
+target
+spikes
+docs
+infra
+.git
+.github
+.env
+.env.*
+**/*.md

@@ -3,6 +3,7 @@
 use std::sync::Arc;
 
 use anyhow::Context;
+use carsharing_core::Coordinate;
 use tokio::net::TcpListener;
 use tracing::{info, warn};
 
@@ -120,4 +121,26 @@ async fn shutdown_signal() {
         () = terminate => {},
     }
     info!("shutting down");
+}
+
+/// Alexanderplatz → Berlin Hauptbahnhof: public landmarks, not anyone's location.
+const CHECK_FROM: (i32, i32) = (525_219_184, 134_132_147);
+const CHECK_TO: (i32, i32) = (525_250_839, 133_694_195);
+
+pub async fn check_routing() -> anyhow::Result<()> {
+    let get = |name: &str| std::env::var(name).ok();
+    let key = get("ORS_API_KEY")
+        .filter(|k| !k.trim().is_empty())
+        .context("ORS_API_KEY is not set")?;
+    let base = get("ORS_BASE_URL").unwrap_or_else(|| ServeConfig::DEFAULT_ORS_BASE_URL.to_owned());
+    let ors = Ors::new(url::Url::parse(&base)?, key.trim().to_owned());
+    let from = Coordinate::new(CHECK_FROM.0, CHECK_FROM.1)?;
+    let to = Coordinate::new(CHECK_TO.0, CHECK_TO.1)?;
+    match ors.route(from, to).await {
+        Ok(trip) => {
+            println!("routing ok: {} m, {} s", trip.metres, trip.seconds);
+            Ok(())
+        }
+        Err(error) => anyhow::bail!("routing failed: {error:?}"),
+    }
 }

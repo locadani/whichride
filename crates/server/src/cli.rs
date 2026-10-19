@@ -28,6 +28,9 @@ pub enum Command {
     UnlockOffer { offer: String },
     /// Put back the offer's previous price and close its pending reports (abuse only).
     RevertOffer { offer: String },
+    /// Route between two Berlin landmarks through OpenRouteService, to check the key, TLS and
+    /// the network from inside the deployed image. Needs ORS_API_KEY; no database.
+    CheckRouting,
 }
 
 #[cfg(test)]
@@ -51,6 +54,11 @@ mod tests {
         assert_eq!(parse(&["serve"]).unwrap(), Command::Serve);
         assert_eq!(parse(&["migrate"]).unwrap(), Command::Migrate);
         assert!(parse(&["unknown"]).is_err());
+    }
+
+    #[test]
+    fn check_routing_parses() {
+        assert_eq!(parse(&["check-routing"]).unwrap(), Command::CheckRouting);
     }
 
     #[test]

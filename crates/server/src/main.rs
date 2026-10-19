@@ -16,6 +16,7 @@ async fn main() -> ExitCode {
             whichride_server::commands::set_locked(&offer, false).await
         }
         Command::RevertOffer { offer } => whichride_server::commands::revert_offer(&offer).await,
+        Command::CheckRouting => whichride_server::commands::check_routing().await,
     };
     match result {
         Ok(()) => ExitCode::SUCCESS,
