@@ -4,7 +4,7 @@ Which carsharing service is cheapest for this trip? Share a Google Maps link (or
 address) and the app compares what the trip costs with MILES, Bolt Drive and Free2move in
 Berlin, including your own discounts and subscriptions, then opens the provider's app.
 
-> **Status:** in development. Milestone 1 (pricing core) is done; see the
+> **Status:** in development. Milestones 1 (pricing core) and 2 (destination input) are done; see the
 > [roadmap](docs/plans/ROADMAP.md).
 
 ## Design
