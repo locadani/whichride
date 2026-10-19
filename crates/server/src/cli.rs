@@ -20,6 +20,14 @@ pub enum Command {
     Serve,
     /// Apply migrations and add new offers from the seed catalogue, then exit.
     Migrate,
+    /// Show an offer's price, history and pending reports.
+    ShowOffer { offer: String },
+    /// Stop all reports and votes on an offer (abuse only).
+    LockOffer { offer: String },
+    /// Allow reports and votes on an offer again.
+    UnlockOffer { offer: String },
+    /// Put back the offer's previous price and close its pending reports (abuse only).
+    RevertOffer { offer: String },
 }
 
 #[cfg(test)]
@@ -43,5 +51,22 @@ mod tests {
         assert_eq!(parse(&["serve"]).unwrap(), Command::Serve);
         assert_eq!(parse(&["migrate"]).unwrap(), Command::Migrate);
         assert!(parse(&["unknown"]).is_err());
+    }
+
+    #[test]
+    fn owner_commands_parse() {
+        assert_eq!(
+            parse(&["lock-offer", "bolt.corsa"]).unwrap(),
+            Command::LockOffer {
+                offer: "bolt.corsa".into()
+            }
+        );
+        assert_eq!(
+            parse(&["revert-offer", "bolt.corsa"]).unwrap(),
+            Command::RevertOffer {
+                offer: "bolt.corsa".into()
+            }
+        );
+        assert!(parse(&["lock-offer"]).is_err());
     }
 }

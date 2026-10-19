@@ -10,6 +10,12 @@ async fn main() -> ExitCode {
     let result = match cli.command {
         Command::Serve => whichride_server::commands::serve().await,
         Command::Migrate => whichride_server::commands::migrate().await,
+        Command::ShowOffer { offer } => whichride_server::commands::show_offer(&offer).await,
+        Command::LockOffer { offer } => whichride_server::commands::set_locked(&offer, true).await,
+        Command::UnlockOffer { offer } => {
+            whichride_server::commands::set_locked(&offer, false).await
+        }
+        Command::RevertOffer { offer } => whichride_server::commands::revert_offer(&offer).await,
     };
     match result {
         Ok(()) => ExitCode::SUCCESS,

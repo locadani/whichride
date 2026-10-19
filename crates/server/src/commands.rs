@@ -13,6 +13,7 @@ use crate::expand::Expander;
 use crate::integrity::{GoogleIntegrity, Integrity};
 use crate::limits::RateLimits;
 use crate::ors::Ors;
+use crate::owner;
 use crate::state::AppState;
 
 pub async fn serve() -> anyhow::Result<()> {
@@ -61,6 +62,36 @@ pub async fn migrate() -> anyhow::Result<()> {
         .context("cannot connect to the database")?;
     let providers = db::seed_catalogue().context("crates/server/catalogue.json is invalid")?;
     db::prepare(&pool, &providers, crate::system_today()).await?;
+    pool.close().await;
+    Ok(())
+}
+
+async fn owner_pool() -> anyhow::Result<sqlx::PgPool> {
+    let url = config::database_url(|name| std::env::var(name).ok())?;
+    db::connect(&url)
+        .await
+        .context("cannot connect to the database")
+}
+
+pub async fn show_offer(offer: &str) -> anyhow::Result<()> {
+    let pool = owner_pool().await?;
+    print!("{}", owner::show_offer(&pool, offer).await?);
+    pool.close().await;
+    Ok(())
+}
+
+pub async fn set_locked(offer: &str, locked: bool) -> anyhow::Result<()> {
+    let pool = owner_pool().await?;
+    owner::set_locked(&pool, offer, locked).await?;
+    println!("{offer}: {}", if locked { "locked" } else { "unlocked" });
+    pool.close().await;
+    Ok(())
+}
+
+pub async fn revert_offer(offer: &str) -> anyhow::Result<()> {
+    let pool = owner_pool().await?;
+    owner::revert_offer(&pool, offer, crate::system_today()).await?;
+    println!("{offer}: reverted to its previous price");
     pool.close().await;
     Ok(())
 }
