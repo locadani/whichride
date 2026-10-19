@@ -138,8 +138,8 @@ app update (unless the core needed a new component).
 | Refuel/charge credit | Toggle "I'll refuel" on a trip | Applies the provider's refuelling discount (shared data; not published on official pages, entered by users) |
 | Price override | User's own rate card for an offer | Used instead of the shared price; applied instantly |
 
-Order of application (to be fixed in the core and tested): override → subscription → percentage
-discount → fixed discount → minimum charge.
+Order of application (fixed in the core and tested): override → subscription → percentage
+discount → fixed discount and refuel credit → minimum charge.
 
 ---
 
