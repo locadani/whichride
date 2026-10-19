@@ -5,7 +5,7 @@
 
 use serde::{Deserialize, Serialize};
 
-use crate::catalogue::{Offer, OfferId, Provider, ProviderId};
+use crate::catalogue::{Offer, OfferId, Provider, ProviderId, validate_cards};
 use crate::money::{Cents, Percent};
 use crate::rate_card::{CardKind, Charges, RateCard};
 use crate::usage::Trip;
@@ -60,12 +60,13 @@ pub struct Adjustments {
 
 impl Adjustments {
     /// The rate cards to price an offer with, and whether they are the user's override.
-    /// An override without cards is ignored rather than hiding the offer.
+    /// An override without cards, or with cards that fail validation, is ignored rather than hiding
+    /// the offer or mispricing it.
     pub fn cards_for<'a>(&'a self, offer: &'a Offer) -> (&'a [RateCard], bool) {
         let found = self
             .overrides
             .iter()
-            .find(|o| o.offer == offer.id && !o.cards.is_empty());
+            .find(|o| o.offer == offer.id && validate_cards(&o.offer, &o.cards).is_ok());
         match found {
             Some(price_override) => (&price_override.cards, true),
             None => (&offer.cards, false),
@@ -90,7 +91,8 @@ impl Adjustments {
             } = discount
                 && *id == provider.id
             {
-                total = total - *amount;
+                // A negative amount would raise the price; treat it as invalid input.
+                total = total - (*amount).at_least_zero();
             }
         }
         if self.refuel
@@ -334,5 +336,37 @@ mod tests {
         let json = r#"{"discounts":[{"type":"amount","provider":"miles","amount":500}]}"#;
         let adjustments: Adjustments = serde_json::from_str(json).unwrap();
         assert_eq!(adjustments.discounts.len(), 1);
+    }
+
+    #[test]
+    fn override_with_invalid_cards_is_ignored() {
+        let offer = &bolt().offers[0];
+        let mut negative = per_minute_and_km_card();
+        negative.per_km = Cents(-1_000);
+        let adjustments = Adjustments {
+            overrides: vec![PriceOverride {
+                offer: offer.id.clone(),
+                cards: vec![negative],
+            }],
+            ..Adjustments::default()
+        };
+        assert_eq!(adjustments.cards_for(offer), (&offer.cards[..], false));
+    }
+
+    #[test]
+    fn negative_fixed_discounts_are_ignored() {
+        for amount in [Cents(-100_000), Cents(i64::MIN)] {
+            let adjustments = Adjustments {
+                discounts: vec![Discount::Amount {
+                    provider: bolt().id,
+                    amount,
+                }],
+                ..Adjustments::default()
+            };
+            assert_eq!(
+                adjustments.price(&bolt(), &per_minute_and_km_card(), &TRIP),
+                Cents(473)
+            );
+        }
     }
 }

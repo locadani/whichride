@@ -16,18 +16,22 @@ pub struct Cents(pub i64);
 impl Cents {
     pub const ZERO: Cents = Cents(0);
 
-    /// This price multiplied by a number of units.
+    /// This price multiplied by a number of units, saturating at the `i64` limits.
     pub fn times(self, units: u32) -> Cents {
-        Cents(self.0 * i64::from(units))
+        Cents(self.0.saturating_mul(i64::from(units)))
     }
 
-    /// `self × numerator ÷ denominator`, rounded half up to a whole cent.
+    /// `self × numerator ÷ denominator`, rounded half up to a whole cent, saturating at the `i64`
+    /// limits.
     pub fn scaled(self, numerator: u64, denominator: u64) -> Cents {
         assert!(denominator > 0, "denominator must be positive");
-        let product = i128::from(self.0) * i128::from(numerator);
+        let product = i128::from(self.0).saturating_mul(i128::from(numerator));
         let denominator = i128::from(denominator);
-        let rounded = (2 * product + denominator).div_euclid(2 * denominator);
-        Cents(i64::try_from(rounded).expect("amount fits in i64 cents"))
+        let rounded = product
+            .saturating_mul(2)
+            .saturating_add(denominator)
+            .div_euclid(2 * denominator);
+        Cents(rounded.clamp(i128::from(i64::MIN), i128::from(i64::MAX)) as i64)
     }
 
     /// This amount, or zero if it is negative.
@@ -39,14 +43,14 @@ impl Cents {
 impl Add for Cents {
     type Output = Cents;
     fn add(self, rhs: Cents) -> Cents {
-        Cents(self.0 + rhs.0)
+        Cents(self.0.saturating_add(rhs.0))
     }
 }
 
 impl Sub for Cents {
     type Output = Cents;
     fn sub(self, rhs: Cents) -> Cents {
-        Cents(self.0 - rhs.0)
+        Cents(self.0.saturating_sub(rhs.0))
     }
 }
 
@@ -161,5 +165,13 @@ mod tests {
             2_500
         );
         assert!(serde_json::from_str::<Percent>("12000").is_err());
+    }
+
+    #[test]
+    fn arithmetic_saturates_instead_of_overflowing() {
+        assert_eq!(Cents(i64::MAX).times(2), Cents(i64::MAX));
+        assert_eq!(Cents(i64::MAX) + Cents(1), Cents(i64::MAX));
+        assert_eq!(Cents(i64::MIN) - Cents(1), Cents(i64::MIN));
+        assert_eq!(Cents(i64::MAX).scaled(u64::MAX, 1), Cents(i64::MAX));
     }
 }
