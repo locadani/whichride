@@ -3,6 +3,7 @@
 //! owner's emergency-switch commands. Every price and voting rule comes from `carsharing-core`.
 
 pub mod app;
+pub mod catalogue;
 pub mod cli;
 pub mod commands;
 pub mod config;

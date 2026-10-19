@@ -17,6 +17,7 @@ pub const BODY_LIMIT_BYTES: usize = 16 * 1024;
 pub fn router(state: AppState) -> Router {
     Router::new()
         .route("/health", get(|| async { "ok" }))
+        .route("/v1/catalogue", get(crate::catalogue::get_catalogue))
         .fallback(|| async { ApiError::NotFound })
         .with_state(state)
         .layer(DefaultBodyLimit::max(BODY_LIMIT_BYTES))
