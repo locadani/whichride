@@ -1,8 +1,8 @@
 //! The HTTP router and its middleware.
 
-use axum::Router;
 use axum::extract::{DefaultBodyLimit, MatchedPath, Request};
 use axum::routing::{get, post};
+use axum::{Router, middleware};
 use tower_http::catch_panic::CatchPanicLayer;
 use tower_http::request_id::{MakeRequestUuid, PropagateRequestIdLayer, SetRequestIdLayer};
 use tower_http::trace::{DefaultOnResponse, TraceLayer};
@@ -41,6 +41,14 @@ pub fn router(state: AppState) -> Router {
                 .on_response(DefaultOnResponse::new().level(Level::INFO)),
         )
         .layer(SetRequestIdLayer::x_request_id(MakeRequestUuid))
+        .layer(middleware::map_request(drop_client_request_id))
+}
+
+/// A client's own `x-request-id` would be logged and echoed back; it could carry anything
+/// (a location, say), so every request gets a fresh ID instead.
+async fn drop_client_request_id(mut request: Request) -> Request {
+    request.headers_mut().remove("x-request-id");
+    request
 }
 
 /// The log span of a request: method, the *route template* (`/v1/reports/{id}/votes`, never the
