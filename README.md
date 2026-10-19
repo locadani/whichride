@@ -28,7 +28,7 @@ cargo clippy --workspace --all-targets -- -D warnings
 Run the server locally ([details](crates/server/README.md)):
 
 ```sh
-docker run -d --name whichride-pg --rm -p 5432:5432 -e POSTGRES_HOST_AUTH_METHOD=trust postgres:17-alpine
+docker run -d --name whichride-pg --rm -p 5432:5432 -e POSTGRES_HOST_AUTH_METHOD=trust -e POSTGRES_DB=whichride postgres:17-alpine
 export TEST_POSTGRES_URL=postgres://postgres@localhost:5432/postgres
 cargo test --workspace
 cp .env.example .env   # fill in ORS_API_KEY; then:

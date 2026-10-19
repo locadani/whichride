@@ -50,12 +50,21 @@ Copy `.env.example` to `.env` (git-ignored). The server reads only the environme
 | Variable | Needed | Meaning |
 |---|---|---|
 | `DATABASE_URL` | every command except `check-routing` | Postgres connection string |
-| `BIND_ADDR` | no | Listen address, default in `.env.example`: `127.0.0.1:8080` |
+| `BIND_ADDR` | no | Listen address, default `127.0.0.1:8080` |
 | `ORS_API_KEY` | `serve`, `check-routing` | OpenRouteService key (free from openrouteservice.org) |
 | `ORS_BASE_URL` | no | Override of `https://api.openrouteservice.org` |
-| `PLAY_INTEGRITY` | `serve` | `google` or `off`; `off` is refused on Cloud Run |
-| `ANDROID_PACKAGE` | when `PLAY_INTEGRITY=google` | Android application ID checked in integrity verdicts |
+| `PLAY_INTEGRITY` | no | `google` (default) or `off`; `off` is refused on Cloud Run |
+| `ANDROID_PACKAGE` | `serve`, unless `PLAY_INTEGRITY=off` | Android application ID checked in integrity verdicts |
 | `RUST_LOG` | no | Log filter, e.g. `info` |
+
+## Run locally
+
+```sh
+docker run -d --name whichride-pg --rm -p 5432:5432 -e POSTGRES_HOST_AUTH_METHOD=trust -e POSTGRES_DB=whichride postgres:17-alpine
+export TEST_POSTGRES_URL=postgres://postgres@localhost:5432/postgres   # tests create their own databases
+cp .env.example .env   # DATABASE_URL points at the `whichride` database; fill in ORS_API_KEY
+set -a; . ./.env; set +a; cargo run -p whichride-server -- serve
+```
 
 ## Owner commands
 

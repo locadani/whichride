@@ -191,7 +191,9 @@ Each offer shows when its price was last confirmed ("confirmed 2 days ago").
 - Routing: **OpenRouteService** (free plan with a hard daily limit; no card, no overage bill).
   Geocoding: OpenRouteService geocoder or Nominatim.
 - The app never holds the key. It calls **our server**, which adds the key and forwards the
-  request; the server also checks Play Integrity so only the real app can use the quota. (Integrity tokens are checked when an install registers and on every write; routing calls need the install's token — decision 33.)
+  request; the server also checks Play Integrity so only the real app can use the quota.
+  (Integrity tokens are checked when an install registers and on every write; routing calls need
+  the install's token, decision 33.)
 - Cloud Run with **max instances = 1**; per-install rate limits.
 - When the daily quota is used up or the server is unreachable, the app says "route service busy —
   enter km and minutes" and shows two fields; the comparison still works because it is calculated
