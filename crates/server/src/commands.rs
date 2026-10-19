@@ -10,6 +10,8 @@ use crate::app::router;
 use crate::config::{self, IntegrityMode, ServeConfig};
 use crate::db;
 use crate::integrity::{GoogleIntegrity, Integrity};
+use crate::limits::RateLimits;
+use crate::ors::Ors;
 use crate::state::AppState;
 
 pub async fn serve() -> anyhow::Result<()> {
@@ -34,6 +36,11 @@ pub async fn serve() -> anyhow::Result<()> {
         db: pool,
         providers: Arc::new(providers),
         integrity: Arc::new(integrity),
+        ors: Arc::new(Ors::new(
+            config.ors_base_url.clone(),
+            config.ors_api_key.clone(),
+        )),
+        limits: Arc::new(RateLimits::new()),
     };
     let listener = TcpListener::bind(config.bind_addr)
         .await

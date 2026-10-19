@@ -6,6 +6,8 @@ use carsharing_core::{Catalogue, Day};
 use sqlx::PgPool;
 
 use crate::integrity::Integrity;
+use crate::limits::RateLimits;
+use crate::ors::Ors;
 
 #[derive(Clone)]
 pub struct AppState {
@@ -16,4 +18,6 @@ pub struct AppState {
     /// from the database.
     pub providers: Arc<Catalogue>,
     pub integrity: Arc<Integrity>,
+    pub ors: Arc<Ors>,
+    pub limits: Arc<RateLimits>,
 }

@@ -2,9 +2,10 @@
 //! to it with a fixed clock, and request helpers.
 #![allow(dead_code)] // each test file uses a different subset
 
-use std::sync::Arc;
+use std::io::Write;
 use std::sync::atomic::{AtomicI32, AtomicU32, Ordering};
-use std::time::{SystemTime, UNIX_EPOCH};
+use std::sync::{Arc, Mutex};
+use std::time::{Duration, SystemTime, UNIX_EPOCH};
 
 use axum::Router;
 use axum::body::{Body, to_bytes};
@@ -16,7 +17,10 @@ use tower::ServiceExt;
 use whichride_server::app::router;
 use whichride_server::db;
 use whichride_server::integrity::Integrity;
+use whichride_server::limits::RateLimits;
+use whichride_server::ors::Ors;
 use whichride_server::state::AppState;
+use wiremock::MockServer;
 
 /// 2026-10-19.
 pub const TODAY: i32 = 20_745;
@@ -102,9 +106,25 @@ pub fn fixture_catalogue() -> Catalogue {
     Catalogue::from_json(include_str!("catalogue.json")).expect("valid fixture")
 }
 
+pub struct Options {
+    pub integrity: Integrity,
+    pub per_hour: Option<u32>,
+}
+
+impl Default for Options {
+    fn default() -> Options {
+        Options {
+            integrity: Integrity::Off,
+            per_hour: None,
+        }
+    }
+}
+
 pub struct TestApp {
     pub router: Router,
     pub pool: PgPool,
+    /// The fake OpenRouteService.
+    pub upstream: MockServer,
     today: Arc<AtomicI32>,
     // Last, so the pool closes before the database is dropped.
     _db: TestDatabase,
@@ -118,6 +138,14 @@ impl TestApp {
 
     /// As [`TestApp::start`], with the given integrity verification.
     pub async fn start_with_integrity(integrity: Integrity) -> Option<TestApp> {
+        TestApp::start_with(Options {
+            integrity,
+            ..Options::default()
+        })
+        .await
+    }
+
+    pub async fn start_with(options: Options) -> Option<TestApp> {
         let database = fresh_database().await?;
         let pool = db::connect(&database.url).await.expect("connect");
         let catalogue = fixture_catalogue();
@@ -126,15 +154,26 @@ impl TestApp {
             .expect("prepare");
         let today = Arc::new(AtomicI32::new(TODAY));
         let clock = Arc::clone(&today);
+        let upstream = MockServer::start().await;
+        let ors_base = url::Url::parse(&format!("{}/", upstream.uri())).unwrap();
         let state = AppState {
             today: Arc::new(move || Day(clock.load(Ordering::Relaxed))),
             db: pool.clone(),
             providers: Arc::new(catalogue),
-            integrity: Arc::new(integrity),
+            integrity: Arc::new(options.integrity),
+            ors: Arc::new(
+                Ors::new(ors_base, "test-key".into()).with_timeout(Duration::from_millis(500)),
+            ),
+            limits: Arc::new(
+                options
+                    .per_hour
+                    .map_or_else(RateLimits::new, RateLimits::with_per_hour),
+            ),
         };
         Some(TestApp {
             router: router(state),
             pool,
+            upstream,
             today,
             _db: database,
         })
@@ -207,4 +246,28 @@ impl TestApp {
         };
         (status, json)
     }
+}
+
+/// Everything logged on this thread while the guard lives, at `trace` for the server's own
+/// targets and tower-http.
+pub fn capture_logs() -> (Arc<Mutex<Vec<u8>>>, tracing::subscriber::DefaultGuard) {
+    #[derive(Clone)]
+    struct Sink(Arc<Mutex<Vec<u8>>>);
+    impl Write for Sink {
+        fn write(&mut self, bytes: &[u8]) -> std::io::Result<usize> {
+            self.0.lock().unwrap().extend_from_slice(bytes);
+            Ok(bytes.len())
+        }
+        fn flush(&mut self) -> std::io::Result<()> {
+            Ok(())
+        }
+    }
+    let buffer = Arc::new(Mutex::new(Vec::new()));
+    let sink = Sink(Arc::clone(&buffer));
+    let subscriber = tracing_subscriber::fmt()
+        .with_env_filter("whichride_server=trace,tower_http=trace")
+        .with_ansi(false)
+        .with_writer(move || sink.clone())
+        .finish();
+    (buffer, tracing::subscriber::set_default(subscriber))
 }

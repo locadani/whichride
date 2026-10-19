@@ -25,6 +25,9 @@ pub fn router(state: AppState) -> Router {
             "/v1/offers/{id}/confirmations",
             post(crate::crowd::post_confirmation),
         )
+        .route("/v1/route", post(crate::routing::post_route))
+        .route("/v1/geocode", post(crate::routing::post_geocode))
+        .route("/v1/autocomplete", post(crate::routing::post_autocomplete))
         .fallback(|| async { ApiError::NotFound })
         .with_state(state)
         .layer(DefaultBodyLimit::max(BODY_LIMIT_BYTES))
