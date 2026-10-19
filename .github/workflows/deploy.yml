@@ -79,7 +79,7 @@ jobs:
           exit-code: "1"
 
       # After the build: auth writes gha-creds-*.json into the workspace.
-      - uses: google-github-actions/auth@v3
+      - uses: google-github-actions/auth@7c6bc770dae815cd3e89ee6cdf493a5fab2cc093 # v3.0.0
         with:
           workload_identity_provider: ${{ secrets.GCP_WIF_PROVIDER }}
           service_account: ${{ secrets.GCP_DEPLOY_SA }}
@@ -88,7 +88,7 @@ jobs:
       - name: Refuse to deploy before the secrets are connected
         shell: bash
         run: |
-          service_json=$(gcloud run services describe "$SERVICE" --region "$REGION" --format=json) \
+          service_json=$(gcloud run services describe "$SERVICE" --region "$REGION" --format=json 2>/dev/null) \
             || { echo "Could not describe the service; refusing to deploy."; exit 1; }
           for name in DATABASE_URL ORS_API_KEY; do
             echo "$service_json" \
