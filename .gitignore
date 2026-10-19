@@ -1,0 +1,15 @@
+# Build output
+/target
+
+# Secrets and local config — never commit
+.env
+.env.*
+!.env.example
+
+# Agent scratch (plan ledgers, briefs)
+/.superpowers/
+
+# OS / editor
+.DS_Store
+.idea/
+.vscode/
