@@ -262,7 +262,6 @@ async fn implausible_reports_are_rejected() {
         json!({"offer": "miles.s", "cards": [long_label]}),
         json!({"offer": "miles.s", "cards": [empty_label]}),
         json!({"offer": "miles.s", "cards": [padded_label]}),
-        json!({"provider": "bolt", "name": "X", "cards": [card(89)]}),
         json!({"offer": "miles.s", "cards": [package]}),
         json!({"offer": "miles.s", "cards": [card(89)], "extra": 1}),
         json!({"offer": "miles.s", "provider": "miles", "name": "X", "cards": [card(89)]}),

@@ -24,6 +24,8 @@ use crate::state::AppState;
 
 pub const MAX_CARDS: usize = 5;
 pub const MAX_LABEL_CHARS: usize = 40;
+pub const MAX_NAME_CHARS: usize = 60;
+const MAX_ID_SLUG_CHARS: usize = 40;
 const MAX_BASE_FEE: Cents = Cents(50_000);
 const MAX_PER_UNIT: Cents = Cents(500);
 const MAX_MINIMUM: Cents = Cents(5_000);
@@ -101,7 +103,29 @@ pub async fn post_report(
             check_cards(&offer, &body.cards)?;
             report_on_offer(&state, &install, &offer, &body.cards, today).await
         }
-        // Proposals of new offers: Task 9.
+        (None, Some(provider), Some(name)) => {
+            let name = name.trim();
+            if name.is_empty() || name.chars().count() > MAX_NAME_CHARS {
+                return Err(ApiError::BadRequest);
+            }
+            if state.providers.provider(&provider).is_none() {
+                return Err(ApiError::NotFound);
+            }
+            let existing: Option<String> = sqlx::query_scalar(
+                "SELECT id FROM offers WHERE provider_id = $1 AND lower(name) = lower($2)",
+            )
+            .bind(&provider.0)
+            .bind(name)
+            .fetch_optional(&state.db)
+            .await?;
+            if let Some(offer) = existing {
+                let offer = OfferId(offer);
+                check_cards(&offer, &body.cards)?;
+                return report_on_offer(&state, &install, &offer, &body.cards, today).await;
+            }
+            check_cards(&OfferId(offer_id_for(&provider.0, name)), &body.cards)?;
+            propose(&state, &install, &provider, name, &body.cards, today).await
+        }
         _ => Err(ApiError::BadRequest),
     }
 }
@@ -247,9 +271,7 @@ pub async fn post_confirmation(
 pub(crate) struct ReportRow {
     pub id: Uuid,
     pub offer_id: Option<String>,
-    #[expect(dead_code, reason = "read when Task 9 accepts proposals")]
     pub proposed_provider: Option<String>,
-    #[expect(dead_code, reason = "read when Task 9 accepts proposals")]
     pub proposed_name: Option<String>,
     pub reporter: Uuid,
     pub reporter_weight: i32,
@@ -358,31 +380,35 @@ async fn votes_of(tx: &mut Transaction<'_, Postgres>, report: Uuid) -> Result<Ve
         .collect())
 }
 
-/// Makes a report the offer's price (Task 9 extends this to proposals), supersedes the other
-/// pending reports of the same offer, and settles every install involved (decision 39).
+/// Makes a report the price of its offer — creating the offer for a proposal — supersedes the
+/// other pending reports about the same thing, and settles every install involved
+/// (decision 39).
 pub(crate) async fn accept(
     tx: &mut Transaction<'_, Postgres>,
     report: &ReportRow,
     today: Day,
 ) -> Result<(), ApiError> {
-    let Some(offer) = &report.offer_id else {
-        return Err(ApiError::internal("accepting a proposal before Task 9"));
-    };
     sqlx::query("UPDATE reports SET status = 'accepted', decided_on = $2 WHERE id = $1")
         .bind(report.id)
         .bind(today.0)
         .execute(&mut **tx)
         .await?;
-    sqlx::query("UPDATE offers SET cards = $2, confirmed_on = $3 WHERE id = $1")
-        .bind(offer)
-        .bind(&report.cards)
-        .bind(today.0)
-        .execute(&mut **tx)
-        .await?;
+    let offer = match &report.offer_id {
+        Some(offer) => {
+            sqlx::query("UPDATE offers SET cards = $2, confirmed_on = $3 WHERE id = $1")
+                .bind(offer)
+                .bind(&report.cards)
+                .bind(today.0)
+                .execute(&mut **tx)
+                .await?;
+            offer.clone()
+        }
+        None => create_offer(tx, report, today).await?,
+    };
     sqlx::query(
         "INSERT INTO price_history (offer_id, cards, report_id, from_day) VALUES ($1, $2, $3, $4)",
     )
-    .bind(offer)
+    .bind(&offer)
     .bind(&report.cards)
     .bind(report.id)
     .bind(today.0)
@@ -391,14 +417,31 @@ pub(crate) async fn accept(
     let mut deltas = BTreeMap::new();
     settlement(tx, &mut deltas, report.id, report.reporter, true).await?;
 
-    let losers: Vec<(Uuid, Uuid)> = sqlx::query_as(
-        "UPDATE reports SET status = 'superseded', decided_on = $2
-         WHERE offer_id = $1 AND status = 'pending' RETURNING id, reporter",
-    )
-    .bind(offer)
-    .bind(today.0)
-    .fetch_all(&mut **tx)
-    .await?;
+    let losers: Vec<(Uuid, Uuid)> = match &report.offer_id {
+        Some(offer) => {
+            sqlx::query_as(
+                "UPDATE reports SET status = 'superseded', decided_on = $2
+                 WHERE offer_id = $1 AND status = 'pending' RETURNING id, reporter",
+            )
+            .bind(offer)
+            .bind(today.0)
+            .fetch_all(&mut **tx)
+            .await?
+        }
+        None => {
+            sqlx::query_as(
+                "UPDATE reports SET status = 'superseded', decided_on = $3
+                 WHERE offer_id IS NULL AND status = 'pending' AND proposed_provider = $1
+                     AND lower(proposed_name) = lower($2)
+                 RETURNING id, reporter",
+            )
+            .bind(&report.proposed_provider)
+            .bind(&report.proposed_name)
+            .bind(today.0)
+            .fetch_all(&mut **tx)
+            .await?
+        }
+    };
     for (loser, reporter) in losers {
         settlement(tx, &mut deltas, loser, reporter, false).await?;
     }
@@ -445,6 +488,144 @@ async fn apply_settlement(
     Ok(())
 }
 
+/// A stable offer ID from a provider and a model name: lowercase ASCII letters and digits,
+/// everything else as single dashes, at most 40 characters after the provider.
+pub fn offer_id_for(provider: &str, name: &str) -> String {
+    let mut slug = String::new();
+    for c in name.chars() {
+        if c.is_ascii_alphanumeric() {
+            slug.push(c.to_ascii_lowercase());
+        } else if !slug.is_empty() && !slug.ends_with('-') {
+            slug.push('-');
+        }
+    }
+    let slug: String = slug
+        .trim_end_matches('-')
+        .chars()
+        .take(MAX_ID_SLUG_CHARS)
+        .collect();
+    let slug = slug.trim_end_matches('-');
+    format!(
+        "{provider}.{}",
+        if slug.is_empty() { "offer" } else { slug }
+    )
+}
+
+async fn propose(
+    state: &AppState,
+    install: &Install,
+    provider: &ProviderId,
+    name: &str,
+    cards: &[RateCard],
+    today: Day,
+) -> Result<(StatusCode, Json<ReportOutcome>), ApiError> {
+    let mut tx = state.db.begin().await?;
+    lock_proposals(&mut tx, &provider.0).await?;
+    let voter_weight = weight(&install.record, today);
+    let matching: Option<ReportRow> = sqlx::query_as(
+        "SELECT id, offer_id, proposed_provider, proposed_name, reporter, reporter_weight,
+             cards, status
+         FROM reports
+         WHERE offer_id IS NULL AND status = 'pending' AND proposed_provider = $1
+             AND lower(proposed_name) = lower($2) AND cards = $3
+         ORDER BY created_on, id LIMIT 1 FOR UPDATE",
+    )
+    .bind(&provider.0)
+    .bind(name)
+    .bind(SqlJson(cards))
+    .fetch_optional(&mut *tx)
+    .await?;
+    // The install's own other pending proposal of this name is replaced (not the one it joins).
+    // Nobody is settled: the reporter changed their own mind.
+    sqlx::query(
+        "UPDATE reports SET status = 'superseded', decided_on = $4
+         WHERE offer_id IS NULL AND status = 'pending' AND reporter = $1
+             AND proposed_provider = $2 AND lower(proposed_name) = lower($3)
+             AND id IS DISTINCT FROM $5",
+    )
+    .bind(install.id)
+    .bind(&provider.0)
+    .bind(name)
+    .bind(today.0)
+    .bind(matching.as_ref().map(|report| report.id))
+    .execute(&mut *tx)
+    .await?;
+    if let Some(report) = matching {
+        let status = vote_on(&mut tx, &report, install, Answer::Yes, voter_weight, today).await?;
+        tx.commit().await?;
+        return Ok((
+            StatusCode::OK,
+            Json(ReportOutcome {
+                report: Some(report.id),
+                status,
+            }),
+        ));
+    }
+    let id = Uuid::new_v4();
+    sqlx::query(
+        "INSERT INTO reports (id, proposed_provider, proposed_name, reporter, reporter_weight,
+             cards, created_on)
+         VALUES ($1, $2, $3, $4, $5, $6, $7)",
+    )
+    .bind(id)
+    .bind(&provider.0)
+    .bind(name)
+    .bind(install.id)
+    .bind(weight_column(voter_weight))
+    .bind(SqlJson(cards))
+    .bind(today.0)
+    .execute(&mut *tx)
+    .await?;
+    tx.commit().await?;
+    Ok((
+        StatusCode::CREATED,
+        Json(ReportOutcome {
+            report: Some(id),
+            status: ReportStatus::Pending,
+        }),
+    ))
+}
+
+/// Creates the offer of an accepted proposal, with a free ID.
+async fn create_offer(
+    tx: &mut Transaction<'_, Postgres>,
+    report: &ReportRow,
+    today: Day,
+) -> Result<String, ApiError> {
+    let (Some(provider), Some(name)) = (&report.proposed_provider, &report.proposed_name) else {
+        return Err(ApiError::internal("proposal without provider or name"));
+    };
+    let base = offer_id_for(provider, name);
+    for attempt in 1..=100 {
+        let id = if attempt == 1 {
+            base.clone()
+        } else {
+            format!("{base}-{attempt}")
+        };
+        let inserted = sqlx::query(
+            "INSERT INTO offers (id, provider_id, name, cards, confirmed_on)
+             VALUES ($1, $2, $3, $4, $5) ON CONFLICT (id) DO NOTHING",
+        )
+        .bind(&id)
+        .bind(provider)
+        .bind(name)
+        .bind(&report.cards)
+        .bind(today.0)
+        .execute(&mut **tx)
+        .await?
+        .rows_affected();
+        if inserted == 1 {
+            sqlx::query("UPDATE reports SET offer_id = $2 WHERE id = $1")
+                .bind(report.id)
+                .bind(&id)
+                .execute(&mut **tx)
+                .await?;
+            return Ok(id);
+        }
+    }
+    Err(ApiError::internal("no free offer ID"))
+}
+
 fn answer_column(answer: Answer) -> &'static str {
     match answer {
         Answer::Yes => "yes",
@@ -459,4 +640,29 @@ fn weight_column(weight: Weight) -> i32 {
 /// The schema's CHECK keeps stored weights within 0–10000.
 fn weight_from_column(value: i32) -> Weight {
     Weight::try_from(u32::try_from(value).unwrap_or(0)).unwrap_or(Weight(0))
+}
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+
+    #[test]
+    fn offer_ids_are_lowercase_with_dashes() {
+        assert_eq!(offer_id_for("bolt", "Fiat 500e"), "bolt.fiat-500e");
+        assert_eq!(offer_id_for("bolt", "  VW  ID.3 "), "bolt.vw-id-3");
+        assert_eq!(
+            offer_id_for("free2move", "Peugeot e-208"),
+            "free2move.peugeot-e-208"
+        );
+    }
+
+    #[test]
+    fn offer_ids_survive_odd_names() {
+        assert_eq!(offer_id_for("bolt", "Škoda Enyaq"), "bolt.koda-enyaq");
+        assert_eq!(offer_id_for("bolt", "!!!"), "bolt.offer");
+        assert_eq!(
+            offer_id_for("bolt", &"a".repeat(100)).len(),
+            "bolt.".len() + 40
+        );
+    }
 }
