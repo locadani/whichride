@@ -4,5 +4,7 @@
 //! server all call the same functions, so their numbers can never disagree.
 
 pub mod money;
+pub mod usage;
 
 pub use money::{Cents, Percent, PercentError};
+pub use usage::{Rounding, Trip};
