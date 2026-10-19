@@ -6,11 +6,28 @@ use thiserror::Error;
 /// Units of 1e-7 degrees in one degree.
 const E7: i64 = 10_000_000;
 
-/// A point in 1e-7 degrees, the precision OpenStreetMap uses.
+/// A point in 1e-7 degrees, the precision OpenStreetMap uses. JSON goes through
+/// [`Coordinate::new`], so a point off the Earth cannot be read from a request.
 #[derive(Debug, Clone, Copy, PartialEq, Eq, Hash, Serialize, Deserialize)]
+#[serde(try_from = "RawCoordinate")]
 pub struct Coordinate {
     pub lat_e7: i32,
     pub lon_e7: i32,
+}
+
+/// The JSON shape of a [`Coordinate`] before its range is checked.
+#[derive(Deserialize)]
+struct RawCoordinate {
+    lat_e7: i32,
+    lon_e7: i32,
+}
+
+impl TryFrom<RawCoordinate> for Coordinate {
+    type Error = CoordinateError;
+
+    fn try_from(raw: RawCoordinate) -> Result<Coordinate, CoordinateError> {
+        Coordinate::new(raw.lat_e7, raw.lon_e7)
+    }
 }
 
 #[derive(Debug, Clone, PartialEq, Eq, Error)]
@@ -175,5 +192,44 @@ mod tests {
             serde_json::to_string(&at(1, -2)).unwrap(),
             r#"{"lat_e7":1,"lon_e7":-2}"#
         );
+    }
+
+    #[test]
+    fn json_round_trips() {
+        let point = at(525_219_184, 134_132_147);
+        let json = serde_json::to_string(&point).unwrap();
+        assert_eq!(json, r#"{"lat_e7":525219184,"lon_e7":134132147}"#);
+        assert_eq!(serde_json::from_str::<Coordinate>(&json).unwrap(), point);
+    }
+
+    #[test]
+    fn json_accepts_the_limits() {
+        let json = r#"{"lat_e7":-900000000,"lon_e7":1800000000}"#;
+        assert_eq!(
+            serde_json::from_str::<Coordinate>(json).unwrap(),
+            at(-900_000_000, 1_800_000_000)
+        );
+    }
+
+    #[test]
+    fn json_rejects_points_off_the_earth() {
+        for json in [
+            r#"{"lat_e7":900000001,"lon_e7":0}"#,
+            r#"{"lat_e7":0,"lon_e7":-1800000001}"#,
+            r#"{"lat_e7":2147483647,"lon_e7":0}"#,
+        ] {
+            assert!(serde_json::from_str::<Coordinate>(json).is_err(), "{json}");
+        }
+    }
+
+    #[test]
+    fn json_rejects_missing_or_non_integer_fields() {
+        for json in [
+            r#"{"lat_e7":0}"#,
+            r#"{"lat_e7":52.5,"lon_e7":13}"#,
+            r#"{"lat_e7":"0","lon_e7":0}"#,
+        ] {
+            assert!(serde_json::from_str::<Coordinate>(json).is_err(), "{json}");
+        }
     }
 }

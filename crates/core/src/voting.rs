@@ -4,6 +4,7 @@
 use std::collections::HashMap;
 
 use serde::{Deserialize, Serialize};
+use thiserror::Error;
 
 use crate::day::Day;
 
@@ -14,10 +15,31 @@ pub struct InstallId(pub String);
 
 /// How much one install's vote counts, from 0 to [`MAX_WEIGHT`].
 #[derive(Debug, Clone, Copy, PartialEq, Eq, PartialOrd, Ord, Hash, Serialize, Deserialize)]
-#[serde(transparent)]
+#[serde(try_from = "u32", into = "u32")]
 pub struct Weight(pub u32);
 
 pub const MAX_WEIGHT: Weight = Weight(10_000);
+
+#[derive(Debug, Clone, Copy, PartialEq, Eq, Error)]
+#[error("weight {0} is above the maximum of 10000")]
+pub struct WeightError(pub u32);
+
+impl TryFrom<u32> for Weight {
+    type Error = WeightError;
+
+    fn try_from(value: u32) -> Result<Weight, WeightError> {
+        if value > MAX_WEIGHT.0 {
+            return Err(WeightError(value));
+        }
+        Ok(Weight(value))
+    }
+}
+
+impl From<Weight> for u32 {
+    fn from(weight: Weight) -> u32 {
+        weight.0
+    }
+}
 
 /// Age points of a brand-new install; one more per day, up to [`MAX_AGE_POINTS`].
 const NEW_INSTALL_POINTS: u32 = 20;
@@ -197,5 +219,29 @@ mod tests {
     #[test]
     fn answers_use_lowercase_json() {
         assert_eq!(serde_json::to_string(&Answer::No).unwrap(), r#""no""#);
+    }
+
+    #[test]
+    fn weight_json_is_a_plain_number() {
+        assert_eq!(serde_json::to_string(&Weight(1_000)).unwrap(), "1000");
+        assert_eq!(
+            serde_json::from_str::<Weight>("1000").unwrap(),
+            Weight(1_000)
+        );
+        assert_eq!(serde_json::from_str::<Weight>("10000").unwrap(), MAX_WEIGHT);
+    }
+
+    #[test]
+    fn weight_json_above_the_maximum_is_rejected() {
+        assert!(serde_json::from_str::<Weight>("10001").is_err());
+        assert!(serde_json::from_str::<Weight>("4294967295").is_err());
+        assert!(serde_json::from_str::<Weight>("-1").is_err());
+        assert_eq!(Weight::try_from(10_001), Err(WeightError(10_001)));
+    }
+
+    #[test]
+    fn a_vote_with_an_oversized_weight_is_rejected() {
+        let json = r#"{"install":"b","answer":"yes","weight":99999}"#;
+        assert!(serde_json::from_str::<Vote>(json).is_err());
     }
 }

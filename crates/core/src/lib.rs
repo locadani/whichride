@@ -25,4 +25,6 @@ pub use link::{Destination, LinkError, parse_destination};
 pub use money::{Cents, Percent, PercentError};
 pub use rate_card::{CardKind, Charges, RateCard};
 pub use usage::{Rounding, Trip};
-pub use voting::{Answer, InstallId, InstallRecord, Vote, Weight, is_accepted, weight};
+pub use voting::{
+    Answer, InstallId, InstallRecord, Vote, Weight, WeightError, is_accepted, weight,
+};
