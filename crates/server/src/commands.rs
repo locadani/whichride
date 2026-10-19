@@ -7,8 +7,9 @@ use tokio::net::TcpListener;
 use tracing::{info, warn};
 
 use crate::app::router;
-use crate::config::{self, ServeConfig};
+use crate::config::{self, IntegrityMode, ServeConfig};
 use crate::db;
+use crate::integrity::{GoogleIntegrity, Integrity};
 use crate::state::AppState;
 
 pub async fn serve() -> anyhow::Result<()> {
@@ -19,10 +20,20 @@ pub async fn serve() -> anyhow::Result<()> {
         .context("cannot connect to the database")?;
     let providers = db::seed_catalogue().context("crates/server/catalogue.json is invalid")?;
     db::prepare(&pool, &providers, crate::system_today()).await?;
+    let integrity = match &config.integrity {
+        IntegrityMode::Google { package } => {
+            Integrity::Google(GoogleIntegrity::new(package.clone()))
+        }
+        IntegrityMode::Off => {
+            warn!("PLAY_INTEGRITY=off: writes are not checked (local development only)");
+            Integrity::Off
+        }
+    };
     let state = AppState {
         today: Arc::new(crate::system_today),
         db: pool,
         providers: Arc::new(providers),
+        integrity: Arc::new(integrity),
     };
     let listener = TcpListener::bind(config.bind_addr)
         .await

@@ -9,6 +9,8 @@ pub mod commands;
 pub mod config;
 pub mod db;
 pub mod error;
+pub mod http;
+pub mod integrity;
 pub mod state;
 
 use std::time::{SystemTime, UNIX_EPOCH};

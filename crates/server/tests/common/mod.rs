@@ -15,6 +15,7 @@ use sqlx::{AssertSqlSafe, Connection, PgConnection, PgPool};
 use tower::ServiceExt;
 use whichride_server::app::router;
 use whichride_server::db;
+use whichride_server::integrity::Integrity;
 use whichride_server::state::AppState;
 
 /// 2026-10-19.
@@ -112,6 +113,11 @@ pub struct TestApp {
 impl TestApp {
     /// The app on a fresh, migrated and seeded database, with today = [`TODAY`].
     pub async fn start() -> Option<TestApp> {
+        TestApp::start_with_integrity(Integrity::Off).await
+    }
+
+    /// As [`TestApp::start`], with the given integrity verification.
+    pub async fn start_with_integrity(integrity: Integrity) -> Option<TestApp> {
         let database = fresh_database().await?;
         let pool = db::connect(&database.url).await.expect("connect");
         let catalogue = fixture_catalogue();
@@ -124,6 +130,7 @@ impl TestApp {
             today: Arc::new(move || Day(clock.load(Ordering::Relaxed))),
             db: pool.clone(),
             providers: Arc::new(catalogue),
+            integrity: Arc::new(integrity),
         };
         Some(TestApp {
             router: router(state),
