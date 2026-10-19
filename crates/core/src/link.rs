@@ -49,7 +49,19 @@ pub fn parse_destination(input: &str) -> Result<Destination, LinkError> {
     if input.len() > MAX_INPUT_BYTES {
         return Err(LinkError::TooLong);
     }
-    let link = find_link(input).ok_or(LinkError::NoLink)?;
+    let mut first_error = None;
+    for link in find_links(input) {
+        match parse_link(link) {
+            Ok(destination) => return Ok(destination),
+            Err(error) => {
+                first_error.get_or_insert(error);
+            }
+        }
+    }
+    Err(first_error.unwrap_or(LinkError::NoLink))
+}
+
+fn parse_link(link: &str) -> Result<Destination, LinkError> {
     if starts_with_ignore_case(link, "geo:") {
         return parse_geo(&link["geo:".len()..]);
     }
@@ -63,13 +75,34 @@ pub fn parse_destination(input: &str) -> Result<Destination, LinkError> {
     parse_google_maps(&url)
 }
 
-/// The first whitespace-separated word that starts like a web link or a `geo:` URI.
-fn find_link(input: &str) -> Option<&str> {
-    input.split_whitespace().find(|word| {
-        ["https://", "http://", "geo:"]
+/// Every link in the text, in order: each word from its first `https://`, `http://` or `geo:`,
+/// without punctuation stuck to its end (as in "(https://…)." pasted from a chat).
+fn find_links(input: &str) -> impl Iterator<Item = &str> {
+    input.split_whitespace().filter_map(|word| {
+        let lowercase = word.to_ascii_lowercase();
+        let start = ["https://", "http://", "geo:"]
             .iter()
-            .any(|scheme| starts_with_ignore_case(word, scheme))
+            .filter_map(|scheme| lowercase.find(scheme))
+            .min()?;
+        Some(trim_trailing_punctuation(&word[start..]))
     })
+}
+
+/// Removes `.,;:!?]>"'` and unmatched `)` from the end; a `)` that closes a `(` in the link,
+/// like a `geo:` label, is kept.
+fn trim_trailing_punctuation(mut link: &str) -> &str {
+    loop {
+        let trimmed = match link.chars().last() {
+            Some('.' | ',' | ';' | ':' | '!' | '?' | ']' | '>' | '"' | '\'') => {
+                &link[..link.len() - 1]
+            }
+            Some(')') if link.matches('(').count() < link.matches(')').count() => {
+                &link[..link.len() - 1]
+            }
+            _ => return link,
+        };
+        link = trimmed;
+    }
 }
 
 fn starts_with_ignore_case(text: &str, prefix: &str) -> bool {
@@ -166,8 +199,13 @@ fn parse_google_maps(url: &Url) -> Result<Destination, LinkError> {
 /// `geo:` URIs (RFC 5870 plus Android's `?q=` extension). `geo:0,0` means "no position".
 fn parse_geo(rest: &str) -> Result<Destination, LinkError> {
     let (position, query) = rest.split_once('?').unwrap_or((rest, ""));
+    // `lat,lon[,altitude][;parameters]`: only latitude and longitude matter.
     let position = position.split(';').next().unwrap_or_default();
-    let at = match Coordinate::parse_pair(position) {
+    let position = match position.splitn(3, ',').collect::<Vec<_>>()[..] {
+        [lat, lon, ..] => format!("{lat},{lon}"),
+        _ => position.to_owned(),
+    };
+    let at = match Coordinate::parse_pair(&position) {
         Ok(at) => Some(at).filter(|at| at.lat_e7 != 0 || at.lon_e7 != 0),
         Err(CoordinateError::OutOfRange) => return Err(LinkError::InvalidCoordinates),
         Err(CoordinateError::NotAPair) => None,
@@ -507,6 +545,57 @@ mod tests {
         assert_eq!(
             serde_json::to_value(Destination::ShortLink { url: "u".into() }).unwrap(),
             serde_json::json!({"type": "short_link", "url": "u"})
+        );
+    }
+
+    #[test]
+    fn punctuation_around_the_link_is_ignored() {
+        let expected = Ok(Destination::ShortLink {
+            url: "https://maps.app.goo.gl/AbC123".into(),
+        });
+        for text in [
+            "https://maps.app.goo.gl/AbC123.",
+            "(https://maps.app.goo.gl/AbC123)",
+            "<https://maps.app.goo.gl/AbC123>",
+            "Link:https://maps.app.goo.gl/AbC123",
+            "\"https://maps.app.goo.gl/AbC123\",",
+        ] {
+            assert_eq!(parse(text), expected, "{text}");
+        }
+        // A bracketed label that belongs to the link is kept.
+        assert_eq!(
+            parse("(geo:0,0?q=52.5219,13.4132(Alexanderplatz))"),
+            Ok(coordinates(
+                525_219_000,
+                134_132_000,
+                Some("Alexanderplatz")
+            ))
+        );
+    }
+
+    #[test]
+    fn a_later_maps_link_wins_over_an_earlier_other_link() {
+        assert_eq!(
+            parse("via https://example.com https://maps.app.goo.gl/AbC123"),
+            Ok(Destination::ShortLink {
+                url: "https://maps.app.goo.gl/AbC123".into()
+            })
+        );
+        assert_eq!(
+            parse("via https://example.com"),
+            Err(LinkError::NotGoogleMaps)
+        );
+    }
+
+    #[test]
+    fn geo_uris_with_altitude() {
+        assert_eq!(
+            parse("geo:52.5,13.4,100"),
+            Ok(coordinates(525_000_000, 134_000_000, None))
+        );
+        assert_eq!(
+            parse("geo:52.5,13.4,100;u=5"),
+            Ok(coordinates(525_000_000, 134_000_000, None))
         );
     }
 }
