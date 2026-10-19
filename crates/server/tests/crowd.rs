@@ -430,8 +430,9 @@ async fn checks_run_bearer_then_body_then_integrity() {
         .unwrap();
 
     let send = |bearer: Option<&str>| {
-        let mut request =
-            axum::http::Request::post("/v1/reports").header("content-type", "application/json");
+        let mut request = axum::http::Request::post("/v1/reports")
+            .header("content-type", "application/json")
+            .header("x-integrity-token", "dummy");
         if let Some(token) = bearer {
             request = request.header("authorization", format!("Bearer {token}"));
         }
