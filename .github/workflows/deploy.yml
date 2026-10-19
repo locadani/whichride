@@ -1,0 +1,111 @@
+name: Deploy
+
+# Only a push to main: the deploy account trusts deploy.yml on main, and other triggers can
+# run this file as if it came from main (infra/README.md, "Rules for the deploy workflow").
+on:
+  push:
+    branches: [main]
+    paths-ignore:
+      - "docs/**"
+      - "**/*.md"
+      - "infra/**"
+      - "spikes/**"
+
+permissions:
+  contents: read
+
+concurrency:
+  group: deploy-production
+  cancel-in-progress: false
+
+jobs:
+  gate:
+    name: Deploy prerequisites
+    runs-on: ubuntu-latest
+    outputs:
+      ready: ${{ steps.check.outputs.ready }}
+    steps:
+      - id: check
+        env:
+          GCP_PROJECT_ID: ${{ secrets.GCP_PROJECT_ID }}
+        run: |
+          if [ -n "$GCP_PROJECT_ID" ]; then
+            echo "ready=true" >> "$GITHUB_OUTPUT"
+          else
+            echo "GCP secrets are not set; skipping the deploy."
+            echo "ready=false" >> "$GITHUB_OUTPUT"
+          fi
+
+  deploy:
+    name: Build, scan, deploy
+    needs: gate
+    if: needs.gate.outputs.ready == 'true'
+    runs-on: ubuntu-latest
+    permissions:
+      contents: read
+      id-token: write
+    env:
+      PROJECT_ID: ${{ secrets.GCP_PROJECT_ID }}
+      REGION: ${{ vars.GCP_REGION }}
+      SERVICE: whichride
+    steps:
+      - uses: actions/checkout@v7
+        with:
+          persist-credentials: false
+
+      # Pinned to commits: this job can obtain the deploy login token.
+      - uses: docker/setup-buildx-action@f87e5991a6d7451dcb8d9637bfbc97413f497069 # v4.4.1
+
+      # The tag carries no project ID: the build summary and record are public on this repo.
+      - name: Build
+        uses: docker/build-push-action@c3c9e263c25d99ce0380d002d59b67737d91b0dc # v7.4.0
+        env:
+          DOCKER_BUILD_SUMMARY: false
+          DOCKER_BUILD_RECORD_UPLOAD: false
+        with:
+          context: .
+          load: true
+          tags: whichride:${{ github.sha }}
+          cache-from: type=gha
+          cache-to: type=gha,mode=max
+
+      - name: Scan the image and the crates compiled into it
+        # Pinned to a commit, not a tag: a third-party action's tags can be moved.
+        uses: aquasecurity/trivy-action@ed142fd0673e97e23eac54620cfb913e5ce36c25 # v0.36.0
+        with:
+          image-ref: whichride:${{ github.sha }}
+          severity: CRITICAL,HIGH
+          ignore-unfixed: true
+          exit-code: "1"
+
+      # After the build: auth writes gha-creds-*.json into the workspace.
+      - uses: google-github-actions/auth@v3
+        with:
+          workload_identity_provider: ${{ secrets.GCP_WIF_PROVIDER }}
+          service_account: ${{ secrets.GCP_DEPLOY_SA }}
+
+      # Without DATABASE_URL the image has no database; without ORS_API_KEY it cannot route.
+      - name: Refuse to deploy before the secrets are connected
+        shell: bash
+        run: |
+          service_json=$(gcloud run services describe "$SERVICE" --region "$REGION" --format=json) \
+            || { echo "Could not describe the service; refusing to deploy."; exit 1; }
+          for name in DATABASE_URL ORS_API_KEY; do
+            echo "$service_json" \
+              | jq -e --arg name "$name" '.spec.template.spec.containers[0].env[]? | select(.name == $name)' > /dev/null \
+              || { echo "$name is not attached yet (infra/README.md, first-time setup)."; exit 1; }
+          done
+
+      - name: Push
+        run: |
+          gcloud auth configure-docker "$REGION-docker.pkg.dev" --quiet
+          docker tag "whichride:$GITHUB_SHA" "$REGION-docker.pkg.dev/$PROJECT_ID/whichride/whichride:$GITHUB_SHA"
+          docker push "$REGION-docker.pkg.dev/$PROJECT_ID/whichride/whichride:$GITHUB_SHA"
+
+      # Only the image changes; every other setting is owned by Terraform.
+      # --no-user-output-enabled keeps errors but drops the "Service URL" line, which can contain
+      # the project number; this log is public.
+      - name: Deploy
+        run: |
+          gcloud run services update "$SERVICE" --region "$REGION" --quiet --no-user-output-enabled \
+            --image "$REGION-docker.pkg.dev/$PROJECT_ID/whichride/whichride:$GITHUB_SHA"
