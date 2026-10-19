@@ -1,7 +1,7 @@
 # Infrastructure
 
 whichride's Google Cloud setup, as Terraform: its own Google Cloud project and its own Neon project
-(decision 40 of the milestone 3 plan). Adapted from the infrastructure of the
+([decision 40](../docs/DECISIONS.md)). Adapted from the infrastructure of the
 sibling repository smoke-tracker, plus `secret_env` in the module for the OpenRouteService key.
 
 ## What is automatic and what is manual
