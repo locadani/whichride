@@ -243,6 +243,11 @@ async fn implausible_reports_are_rejected() {
         card["label"] = "".into();
         card
     };
+    let padded_label = {
+        let mut card = card(89);
+        card["label"] = "Standard ".into();
+        card
+    };
     let package = {
         let mut card = card(89);
         card["kind"] = "package".into();
@@ -256,6 +261,8 @@ async fn implausible_reports_are_rejected() {
         json!({"offer": "miles.s", "cards": vec![card(89); 6]}),
         json!({"offer": "miles.s", "cards": [long_label]}),
         json!({"offer": "miles.s", "cards": [empty_label]}),
+        json!({"offer": "miles.s", "cards": [padded_label]}),
+        json!({"provider": "bolt", "name": "X", "cards": [card(89)]}),
         json!({"offer": "miles.s", "cards": [package]}),
         json!({"offer": "miles.s", "cards": [card(89)], "extra": 1}),
         json!({"offer": "miles.s", "provider": "miles", "name": "X", "cards": [card(89)]}),
@@ -433,4 +440,27 @@ async fn checks_run_bearer_then_body_then_integrity() {
     assert_eq!(send(None).await.0, StatusCode::UNAUTHORIZED);
     assert_eq!(send(Some("known")).await.0, StatusCode::BAD_REQUEST);
     server.verify().await;
+}
+
+#[tokio::test]
+async fn joining_another_report_supersedes_the_installs_own_and_settles_it_once() {
+    let Some(app) = TestApp::start().await else {
+        return;
+    };
+    let (a, b) = (app.register().await, app.register().await);
+    let (_, mine) = app.post_as(&a, "/v1/reports", &report(99)).await;
+    app.post_as(&b, "/v1/reports", &report(89)).await;
+    let (status, body) = app.post_as(&a, "/v1/reports", &report(89)).await;
+    assert_eq!(
+        (status, &body["status"]),
+        (StatusCode::OK, &json!("accepted"))
+    );
+    let (status, body) = vote(&app, &b, mine["report"].as_str().unwrap(), "yes").await;
+    assert_eq!(
+        (status, body),
+        (StatusCode::CONFLICT, json!({"error": "report_closed"}))
+    );
+    assert_eq!(per_km(&app).await, 89);
+    assert_eq!(record(&app, &a).await, (1, 1));
+    assert_eq!(record(&app, &b).await, (1, 1));
 }

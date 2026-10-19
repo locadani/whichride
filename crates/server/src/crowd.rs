@@ -1,6 +1,9 @@
 //! Crowd prices (spec §7): reports, votes and confirmations. The rules are the core's
 //! (`weight`, `is_accepted`, `settle`); this module stores them and serialises concurrent
-//! requests by locking the offer row first (see the plan's Task 8).
+//! requests by locking the offer row first (see the plan's Task 8). `installs` rows are locked
+//! last, in id order, so settlements of different offers cannot deadlock.
+
+use std::collections::BTreeMap;
 
 use axum::Json;
 use axum::extract::{Path, State};
@@ -72,7 +75,8 @@ pub fn check_cards(offer: &OfferId, cards: &[RateCard]) -> Result<(), ApiError> 
     validate_cards(offer, cards).map_err(|_| ApiError::BadRequest)?;
     for card in cards {
         let label = card.label.trim();
-        let plausible = !label.is_empty()
+        let plausible = label == card.label
+            && !label.is_empty()
             && label.chars().count() <= MAX_LABEL_CHARS
             && card.base_fee <= MAX_BASE_FEE
             && card.per_km <= MAX_PER_UNIT
@@ -137,6 +141,18 @@ async fn report_on_offer(
     .bind(SqlJson(cards))
     .fetch_optional(&mut *tx)
     .await?;
+    // An install's new report on an offer replaces its own earlier pending one (not the one it
+    // joins). Nobody is settled: the reporter changed their own mind.
+    sqlx::query(
+        "UPDATE reports SET status = 'superseded', decided_on = $3
+         WHERE offer_id = $1 AND reporter = $2 AND status = 'pending' AND id IS DISTINCT FROM $4",
+    )
+    .bind(&offer.0)
+    .bind(install.id)
+    .bind(today.0)
+    .bind(matching.as_ref().map(|report| report.id))
+    .execute(&mut *tx)
+    .await?;
     if let Some(report) = matching {
         let status = vote_on(&mut tx, &report, install, Answer::Yes, voter_weight, today).await?;
         tx.commit().await?;
@@ -149,16 +165,6 @@ async fn report_on_offer(
         ));
     }
 
-    // An install's new report on an offer replaces its own earlier pending one.
-    sqlx::query(
-        "UPDATE reports SET status = 'superseded', decided_on = $3
-         WHERE offer_id = $1 AND reporter = $2 AND status = 'pending'",
-    )
-    .bind(&offer.0)
-    .bind(install.id)
-    .bind(today.0)
-    .execute(&mut *tx)
-    .await?;
     let id = Uuid::new_v4();
     sqlx::query(
         "INSERT INTO reports (id, offer_id, reporter, reporter_weight, cards, created_on)
@@ -382,7 +388,8 @@ pub(crate) async fn accept(
     .bind(today.0)
     .execute(&mut **tx)
     .await?;
-    settle_report(tx, report.id, report.reporter, true).await?;
+    let mut deltas = BTreeMap::new();
+    settlement(tx, &mut deltas, report.id, report.reporter, true).await?;
 
     let losers: Vec<(Uuid, Uuid)> = sqlx::query_as(
         "UPDATE reports SET status = 'superseded', decided_on = $2
@@ -393,15 +400,16 @@ pub(crate) async fn accept(
     .fetch_all(&mut **tx)
     .await?;
     for (loser, reporter) in losers {
-        settle_report(tx, loser, reporter, false).await?;
+        settlement(tx, &mut deltas, loser, reporter, false).await?;
     }
-    Ok(())
+    apply_settlement(tx, &deltas).await
 }
 
-/// Adds one decided vote to every install involved in a report, and a matching one to those
-/// who were right (core `settle`).
-pub(crate) async fn settle_report(
+/// Adds the settlement of one report (core `settle`) to `deltas`: one decided vote for every
+/// install involved, and a matching one for those who were right.
+async fn settlement(
     tx: &mut Transaction<'_, Postgres>,
+    deltas: &mut BTreeMap<Uuid, (i32, i32)>,
     report: Uuid,
     reporter: Uuid,
     accepted: bool,
@@ -409,13 +417,28 @@ pub(crate) async fn settle_report(
     let votes = votes_of(tx, report).await?;
     for (install, was_right) in settle(&InstallId(reporter.to_string()), &votes, accepted) {
         let install = Uuid::parse_str(&install.0).map_err(|e| ApiError::internal(e.to_string()))?;
+        let entry = deltas.entry(install).or_insert((0, 0));
+        entry.0 += 1;
+        entry.1 += i32::from(was_right);
+    }
+    Ok(())
+}
+
+/// Applies settlement deltas in install-id order, so concurrent settlements of different
+/// offers lock the same `installs` rows in the same order.
+async fn apply_settlement(
+    tx: &mut Transaction<'_, Postgres>,
+    deltas: &BTreeMap<Uuid, (i32, i32)>,
+) -> Result<(), ApiError> {
+    for (install, (decided, matching)) in deltas {
         sqlx::query(
-            "UPDATE installs SET decided_votes = decided_votes + 1,
-                 matching_votes = matching_votes + $2
+            "UPDATE installs SET decided_votes = decided_votes + $2,
+                 matching_votes = matching_votes + $3
              WHERE id = $1",
         )
         .bind(install)
-        .bind(i32::from(was_right))
+        .bind(decided)
+        .bind(matching)
         .execute(&mut **tx)
         .await?;
     }
