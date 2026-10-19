@@ -26,5 +26,5 @@ pub use money::{Cents, Percent, PercentError};
 pub use rate_card::{CardKind, Charges, RateCard};
 pub use usage::{Rounding, Trip};
 pub use voting::{
-    Answer, InstallId, InstallRecord, Vote, Weight, WeightError, is_accepted, weight,
+    Answer, InstallId, InstallRecord, Vote, Weight, WeightError, is_accepted, settle, weight,
 };

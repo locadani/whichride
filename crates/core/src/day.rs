@@ -8,6 +8,14 @@ use serde::{Deserialize, Serialize};
 pub struct Day(pub i32);
 
 impl Day {
+    pub const SECONDS_PER_DAY: i64 = 86_400;
+
+    /// The UTC day containing this Unix time; dates beyond `i32` days saturate.
+    pub fn from_unix_seconds(seconds: i64) -> Day {
+        let days = seconds.div_euclid(Self::SECONDS_PER_DAY);
+        Day(i32::try_from(days).unwrap_or(if days < 0 { i32::MIN } else { i32::MAX }))
+    }
+
     /// Whole days from `earlier` to `self`; zero if `earlier` is later (a wrong device clock).
     pub fn days_since(self, earlier: Day) -> u32 {
         u32::try_from(i64::from(self.0) - i64::from(earlier.0)).unwrap_or(0)
@@ -32,5 +40,27 @@ mod tests {
     #[test]
     fn extreme_dates_do_not_overflow() {
         assert_eq!(Day(i32::MAX).days_since(Day(i32::MIN)), u32::MAX);
+    }
+
+    #[test]
+    fn days_from_unix_seconds() {
+        assert_eq!(Day::from_unix_seconds(0), Day(0));
+        assert_eq!(Day::from_unix_seconds(86_399), Day(0));
+        assert_eq!(Day::from_unix_seconds(86_400), Day(1));
+        // 2026-10-19T12:00:00Z
+        assert_eq!(Day::from_unix_seconds(1_792_411_200), Day(20_745));
+    }
+
+    #[test]
+    fn days_before_1970_round_down() {
+        assert_eq!(Day::from_unix_seconds(-1), Day(-1));
+        assert_eq!(Day::from_unix_seconds(-86_400), Day(-1));
+        assert_eq!(Day::from_unix_seconds(-86_401), Day(-2));
+    }
+
+    #[test]
+    fn extreme_seconds_saturate() {
+        assert_eq!(Day::from_unix_seconds(i64::MAX), Day(i32::MAX));
+        assert_eq!(Day::from_unix_seconds(i64::MIN), Day(i32::MIN));
     }
 }

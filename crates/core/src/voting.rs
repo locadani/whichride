@@ -82,19 +82,25 @@ pub fn weight(install: &InstallRecord, today: Day) -> Weight {
     Weight(u32::try_from(u64::from(age_points) * accuracy).unwrap_or(MAX_WEIGHT.0))
 }
 
+/// Each install's last vote, in no particular order; the reporter's own votes are left out.
+fn last_votes<'a>(reporter: &InstallId, votes: &'a [Vote]) -> HashMap<&'a InstallId, &'a Vote> {
+    let mut last = HashMap::new();
+    for vote in votes.iter().filter(|vote| &vote.install != reporter) {
+        last.insert(&vote.install, vote);
+    }
+    last
+}
+
 /// Whether a price report is accepted: at least one install other than the reporter confirmed it
 /// with a weight above zero, and the reporter's weight plus the weighted yes votes exceed the
 /// weighted no votes. Votes are in the order they were cast; only each install's last vote
 /// counts, and the reporter's own votes are ignored.
 pub fn is_accepted(reporter: &InstallId, reporter_weight: Weight, votes: &[Vote]) -> bool {
-    let mut last_votes: HashMap<&InstallId, &Vote> = HashMap::new();
-    for vote in votes.iter().filter(|vote| &vote.install != reporter) {
-        last_votes.insert(&vote.install, vote);
-    }
+    let latest = last_votes(reporter, votes);
     let mut yes = u64::from(reporter_weight.0);
     let mut no = 0;
     let mut confirmed = false;
-    for vote in last_votes.values() {
+    for vote in latest.values() {
         let weight = u64::from(vote.weight.0);
         match vote.answer {
             Answer::Yes => {
@@ -105,6 +111,25 @@ pub fn is_accepted(reporter: &InstallId, reporter_weight: Weight, votes: &[Vote]
         }
     }
     confirmed && yes > no
+}
+
+/// Who was right once a report is decided, to update each install's [`InstallRecord`]: the
+/// reporter was right if the report was accepted; a voter was right if its last vote was yes on
+/// an accepted report or no on one that was not. The reporter comes first, then voters by ID.
+pub fn settle(reporter: &InstallId, votes: &[Vote], accepted: bool) -> Vec<(InstallId, bool)> {
+    let mut voters: Vec<(InstallId, bool)> = last_votes(reporter, votes)
+        .into_values()
+        .map(|vote| {
+            (
+                vote.install.clone(),
+                (vote.answer == Answer::Yes) == accepted,
+            )
+        })
+        .collect();
+    voters.sort();
+    let mut settled = vec![(reporter.clone(), accepted)];
+    settled.extend(voters);
+    settled
 }
 
 #[cfg(test)]
@@ -243,5 +268,44 @@ mod tests {
     fn a_vote_with_an_oversized_weight_is_rejected() {
         let json = r#"{"install":"b","answer":"yes","weight":99999}"#;
         assert!(serde_json::from_str::<Vote>(json).is_err());
+    }
+
+    fn right(install: &str, was_right: bool) -> (InstallId, bool) {
+        (InstallId(install.into()), was_right)
+    }
+
+    #[test]
+    fn settling_an_accepted_report() {
+        let votes = [vote("c", Answer::No, 1_000), vote("b", Answer::Yes, 1_000)];
+        assert_eq!(
+            settle(&reporter(), &votes, true),
+            vec![right("reporter", true), right("b", true), right("c", false)]
+        );
+    }
+
+    #[test]
+    fn settling_a_report_that_lost() {
+        let votes = [vote("b", Answer::Yes, 1_000), vote("c", Answer::No, 1_000)];
+        assert_eq!(
+            settle(&reporter(), &votes, false),
+            vec![
+                right("reporter", false),
+                right("b", false),
+                right("c", true)
+            ]
+        );
+    }
+
+    #[test]
+    fn settling_uses_the_last_vote_and_ignores_the_reporters_votes() {
+        let votes = [
+            vote("b", Answer::No, 1_000),
+            vote("reporter", Answer::No, 1_000),
+            vote("b", Answer::Yes, 1_000),
+        ];
+        assert_eq!(
+            settle(&reporter(), &votes, true),
+            vec![right("reporter", true), right("b", true)]
+        );
     }
 }
