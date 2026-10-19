@@ -7,13 +7,22 @@ use tokio::net::TcpListener;
 use tracing::{info, warn};
 
 use crate::app::router;
-use crate::config::ServeConfig;
+use crate::config::{self, ServeConfig};
+use crate::db;
 use crate::state::AppState;
 
 pub async fn serve() -> anyhow::Result<()> {
-    let config = ServeConfig::from_lookup(|name| std::env::var(name).ok())?;
+    let get = |name: &str| std::env::var(name).ok();
+    let config = ServeConfig::from_lookup(get)?;
+    let pool = db::connect(&config::database_url(get)?)
+        .await
+        .context("cannot connect to the database")?;
+    let providers = db::seed_catalogue().context("crates/server/catalogue.json is invalid")?;
+    db::prepare(&pool, &providers, crate::system_today()).await?;
     let state = AppState {
         today: Arc::new(crate::system_today),
+        db: pool,
+        providers: Arc::new(providers),
     };
     let listener = TcpListener::bind(config.bind_addr)
         .await
@@ -26,7 +35,14 @@ pub async fn serve() -> anyhow::Result<()> {
 }
 
 pub async fn migrate() -> anyhow::Result<()> {
-    anyhow::bail!("the database arrives in Task 4")
+    let get = |name: &str| std::env::var(name).ok();
+    let pool = db::connect(&config::database_url(get)?)
+        .await
+        .context("cannot connect to the database")?;
+    let providers = db::seed_catalogue().context("crates/server/catalogue.json is invalid")?;
+    db::prepare(&pool, &providers, crate::system_today()).await?;
+    pool.close().await;
+    Ok(())
 }
 
 /// Resolves on Ctrl-C, or on SIGTERM (what Cloud Run and `docker stop` send).

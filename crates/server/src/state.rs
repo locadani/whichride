@@ -2,10 +2,15 @@
 
 use std::sync::Arc;
 
-use carsharing_core::Day;
+use carsharing_core::{Catalogue, Day};
+use sqlx::PgPool;
 
 #[derive(Clone)]
 pub struct AppState {
     /// Today's date; tests replace the clock.
     pub today: Arc<dyn Fn() -> Day + Send + Sync>,
+    pub db: PgPool,
+    /// The seed catalogue: provider names, packages and refuel credits. Offers and prices come
+    /// from the database.
+    pub providers: Arc<Catalogue>,
 }
