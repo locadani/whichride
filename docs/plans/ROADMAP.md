@@ -7,7 +7,7 @@ written only when the previous milestone is done, so it builds on real code inst
 | # | Milestone | Delivers | Spec sections | Plan |
 |---|---|---|---|---|
 | 0 | **Feasibility spike** | Compose app calling Rust via UniFFI on a real phone | §13 | `spikes/uniffi-android/README.md` ✅ |
-| 1 | **Foundation & pricing core** | Git repo, Cargo workspace, secret protection, CI + security workflows; pure `carsharing-core` crate: money, usage charges, rate cards and packages, personal adjustments, provider catalogue, `compare()` | §2, §3, §5, §6, §10, §13 | `01-foundation-and-pricing-core.md` |
+| 1 | **Foundation & pricing core** | Git repo, Cargo workspace, secret protection, CI + security workflows; pure `carsharing-core` crate: money, usage charges, rate cards and packages, personal adjustments, provider catalogue, `compare()` | §2, §3, §5, §6, §10, §13 | `01-foundation-and-pricing-core.md` ✅ |
 | 2 | **Destination input** | Core: Google Maps link parsing (long links, `geo:` URIs, coordinates vs place names), short-link detection; airport/zone fees (e.g. MILES at BER) from start/destination coordinates; voting rules (§7.3–7.5) as pure functions | §4, §7 | — |
 | 3 | **Server** | Axum server: provider catalogue + seed file with owner-entered prices, routing/geocoding/autocomplete proxy (OpenRouteService), short-link expansion, install registration, reports and votes, Play Integrity verification, emergency-switch CLI, Postgres (Neon), Dockerfile, Cloud Run deploy | §5.1, §7, §8, §9 | — |
 | 4 | **Design system** | `design/tokens.json` + `logo.svg` → Style Dictionary → Android theme and `tokens.css`; contrast check in CI | §10.5 | — |
