@@ -242,15 +242,22 @@ impl GoogleIntegrity {
             .send()
             .await
             .map_err(|_| IntegrityError::Unavailable)?;
-        if response.status().is_client_error() {
-            return Err(IntegrityError::Refused("token"));
+        let status = response.status();
+        match status.as_u16() {
+            // The token itself is bad.
+            400 | 404 => return Err(IntegrityError::Refused("token")),
+            // Our credentials were rejected: forget the access token, it is not the app's fault.
+            401 | 403 => {
+                *self.access.lock().await = None;
+                return Err(IntegrityError::Unavailable);
+            }
+            _ if !status.is_success() => return Err(IntegrityError::Unavailable),
+            _ => {}
         }
         let decoded: DecodeResponse = response
-            .error_for_status()
-            .map_err(|_| IntegrityError::Unavailable)?
             .json()
             .await
-            .map_err(|_| IntegrityError::Refused("token"))?;
+            .map_err(|_| IntegrityError::Unavailable)?;
         Ok(decoded.token_payload_external)
     }
 }
@@ -454,6 +461,53 @@ mod tests {
         mock_metadata(&server, 1).await;
         Mock::given(method("POST"))
             .respond_with(ResponseTemplate::new(503))
+            .mount(&server)
+            .await;
+        let integrity = Integrity::Google(google(&server).await);
+        assert_eq!(
+            integrity.verify(Some("tok"), "h").await,
+            Err(IntegrityError::Unavailable)
+        );
+    }
+
+    #[tokio::test]
+    async fn rejected_credentials_are_not_the_apps_fault_and_are_not_cached() {
+        let server = MockServer::start().await;
+        mock_metadata(&server, 2).await;
+        Mock::given(method("POST"))
+            .respond_with(ResponseTemplate::new(403))
+            .mount(&server)
+            .await;
+        let integrity = Integrity::Google(google(&server).await);
+        for _ in 0..2 {
+            assert_eq!(
+                integrity.verify(Some("tok"), "h").await,
+                Err(IntegrityError::Unavailable)
+            );
+        }
+    }
+
+    #[tokio::test]
+    async fn an_exhausted_quota_is_unavailable() {
+        let server = MockServer::start().await;
+        mock_metadata(&server, 1).await;
+        Mock::given(method("POST"))
+            .respond_with(ResponseTemplate::new(429))
+            .mount(&server)
+            .await;
+        let integrity = Integrity::Google(google(&server).await);
+        assert_eq!(
+            integrity.verify(Some("tok"), "h").await,
+            Err(IntegrityError::Unavailable)
+        );
+    }
+
+    #[tokio::test]
+    async fn an_unparseable_answer_is_unavailable() {
+        let server = MockServer::start().await;
+        mock_metadata(&server, 1).await;
+        Mock::given(method("POST"))
+            .respond_with(ResponseTemplate::new(200).set_body_json(serde_json::json!({})))
             .mount(&server)
             .await;
         let integrity = Integrity::Google(google(&server).await);
