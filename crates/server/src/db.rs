@@ -20,12 +20,38 @@ pub async fn connect(url: &str) -> sqlx::Result<PgPool> {
     PgPoolOptions::new().max_connections(5).connect(url).await
 }
 
-/// Migrates, then adds the seed catalogue's new offers.
+/// Migrates, then adds the seed catalogue's new offers. Refuses, before writing anything, a
+/// seed that still has placeholder prices: they would be served as real ones.
 pub async fn prepare(pool: &PgPool, seed: &Catalogue, today: Day) -> anyhow::Result<()> {
+    check_seed(seed)?;
     MIGRATOR.run(pool).await?;
     let added = seed_offers(pool, seed, today).await?;
     if added > 0 {
         tracing::info!(added, "offers added from the seed catalogue");
+    }
+    Ok(())
+}
+
+/// A seed offer with a placeholder ID, or a card without any price, is not the owner's real
+/// catalogue.
+pub fn check_seed(seed: &Catalogue) -> anyhow::Result<()> {
+    for offer in seed.providers.iter().flat_map(|provider| &provider.offers) {
+        if offer.id.0.contains("pending-owner-prices") {
+            anyhow::bail!(
+                "the seed catalogue is still a placeholder ({}); enter the real prices in \
+                 crates/server/catalogue.json first",
+                offer.id.0
+            );
+        }
+        for card in &offer.cards {
+            if card.base_fee.0 == 0 && card.per_km.0 == 0 && card.per_minute.0 == 0 {
+                anyhow::bail!(
+                    "seed card {:?} of {} has no price (base_fee, per_km and per_minute are 0)",
+                    card.label,
+                    offer.id.0
+                );
+            }
+        }
     }
     Ok(())
 }

@@ -68,6 +68,46 @@ async fn migrations_run_twice_without_error() {
     db::MIGRATOR.run(&app.pool).await.unwrap();
 }
 
+async fn tables(pool: &sqlx::PgPool) -> i64 {
+    sqlx::query_scalar(
+        "SELECT count(*) FROM information_schema.tables WHERE table_schema = 'public'",
+    )
+    .fetch_one(pool)
+    .await
+    .unwrap()
+}
+
+#[tokio::test]
+async fn a_placeholder_seed_catalogue_is_refused_before_anything_is_written() {
+    let Some(database) = common::fresh_database().await else {
+        return;
+    };
+    let pool = db::connect(&database.url).await.unwrap();
+
+    let mut placeholder = fixture_catalogue();
+    placeholder.providers[0].offers[0].id =
+        carsharing_core::OfferId("miles.pending-owner-prices".into());
+    let error = db::prepare(&pool, &placeholder, Day(TODAY))
+        .await
+        .unwrap_err();
+    assert!(error.to_string().contains("placeholder"), "{error}");
+
+    let mut free = fixture_catalogue();
+    let card = &mut free.providers[1].offers[0].cards[0];
+    card.base_fee = carsharing_core::Cents(0);
+    card.per_km = carsharing_core::Cents(0);
+    card.per_minute = carsharing_core::Cents(0);
+    let error = db::prepare(&pool, &free, Day(TODAY)).await.unwrap_err();
+    assert!(error.to_string().contains("bolt.corsa"), "{error}");
+
+    assert_eq!(tables(&pool).await, 0, "nothing was migrated or seeded");
+    db::prepare(&pool, &fixture_catalogue(), Day(TODAY))
+        .await
+        .unwrap();
+    assert!(tables(&pool).await > 0);
+    pool.close().await;
+}
+
 #[test]
 fn the_real_seed_catalogue_is_valid() {
     let catalogue = db::seed_catalogue().expect("crates/server/catalogue.json is valid");

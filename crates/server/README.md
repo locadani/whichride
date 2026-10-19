@@ -82,6 +82,9 @@ whichride-server check-routing          # route two Berlin landmarks; checks key
 
 ## Seed catalogue
 
-`catalogue.json` is currently a placeholder; the owner's real prices are pending. The ignored
-test `the_real_seed_catalogue_has_owner_prices` fails until they are entered. Seeding only adds
-offers the database does not have yet; crowd prices are never overwritten.
+`catalogue.json` is currently a placeholder; the owner's real prices are pending. Until they are
+entered, `serve` and `migrate` refuse to run: they stop, before migrating or writing anything,
+when an offer ID contains `pending-owner-prices` or a card has `base_fee`, `per_km` and
+`per_minute` all 0. The ignored test `the_real_seed_catalogue_has_owner_prices` fails until then
+too (un-ignore it when the prices land). Seeding only adds offers the database does not have yet;
+crowd prices are never overwritten.

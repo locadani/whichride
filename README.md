@@ -35,6 +35,9 @@ cp .env.example .env   # fill in ORS_API_KEY; then:
 set -a; . ./.env; set +a; cargo run -p whichride-server -- serve
 ```
 
+Until the owner's real prices replace the placeholder `crates/server/catalogue.json`, `serve` and
+`migrate` refuse to start (nothing is written to the database); the tests use their own catalogue.
+
 ## Licence
 
 MIT
