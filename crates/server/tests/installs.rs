@@ -1,10 +1,13 @@
 mod common;
 
 use axum::http::StatusCode;
-use common::{TODAY, TestApp, google_integrity, integrity_token, mock_verdict, registration};
+use common::{
+    Options, TODAY, TestApp, google_integrity, integrity_token, mock_verdict, registration,
+};
 use serde_json::json;
 use whichride_server::auth;
 use whichride_server::integrity::request_hash;
+use whichride_server::limits::Kind;
 use wiremock::MockServer;
 
 #[tokio::test]
@@ -157,4 +160,54 @@ async fn a_registration_token_is_accepted_once() {
         .await
         .unwrap();
     assert_eq!(installs, 1);
+}
+
+#[tokio::test]
+async fn registrations_are_capped_for_everyone_together() {
+    let Some(app) = TestApp::start_with(Options {
+        limits: vec![(Kind::Register, 2)],
+        ..Options::default()
+    })
+    .await
+    else {
+        return;
+    };
+    app.register().await;
+    app.register().await;
+    let (status, body) = app.post("/v1/installs", &registration()).await;
+    assert_eq!(
+        (status, body),
+        (
+            StatusCode::TOO_MANY_REQUESTS,
+            json!({"error": "too_many_requests"})
+        )
+    );
+}
+
+#[tokio::test]
+async fn the_registration_cap_is_checked_before_asking_google() {
+    let server = MockServer::start().await;
+    let integrity = google_integrity(&server).await;
+    let first = integrity_token("first");
+    let hash = request_hash("POST", "/v1/installs", None, NONCE_BODY.as_bytes());
+    mock_verdict(&server, &first, &hash).await;
+    let Some(app) = TestApp::start_with(Options {
+        integrity,
+        limits: vec![(Kind::Register, 1)],
+        ..Options::default()
+    })
+    .await
+    else {
+        return;
+    };
+    assert_eq!(register_with(&app, &first).await, StatusCode::CREATED);
+    let requests_before = server.received_requests().await.unwrap().len();
+    assert_eq!(
+        register_with(&app, &integrity_token("second")).await,
+        StatusCode::TOO_MANY_REQUESTS
+    );
+    assert_eq!(
+        server.received_requests().await.unwrap().len(),
+        requests_before
+    );
 }

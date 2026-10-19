@@ -19,7 +19,7 @@ use whichride_server::app::router;
 use whichride_server::db;
 use whichride_server::expand::Expander;
 use whichride_server::integrity::{GoogleIntegrity, Integrity};
-use whichride_server::limits::RateLimits;
+use whichride_server::limits::{Kind, RateLimits};
 use whichride_server::ors::Ors;
 use whichride_server::state::AppState;
 use wiremock::matchers::{body_json, method, path};
@@ -111,7 +111,10 @@ pub fn fixture_catalogue() -> Catalogue {
 
 pub struct Options {
     pub integrity: Integrity,
+    /// One hourly limit for every kind.
     pub per_hour: Option<u32>,
+    /// Hourly limits of single kinds.
+    pub limits: Vec<(Kind, u32)>,
 }
 
 impl Default for Options {
@@ -119,6 +122,7 @@ impl Default for Options {
         Options {
             integrity: Integrity::Off,
             per_hour: None,
+            limits: Vec::new(),
         }
     }
 }
@@ -168,9 +172,12 @@ impl TestApp {
                 Ors::new(ors_base, "test-key".into()).with_timeout(Duration::from_millis(500)),
             ),
             limits: Arc::new(
-                options
-                    .per_hour
-                    .map_or_else(RateLimits::new, RateLimits::with_per_hour),
+                options.limits.iter().fold(
+                    options
+                        .per_hour
+                        .map_or_else(RateLimits::new, RateLimits::with_per_hour),
+                    |limits, &(kind, per_hour)| limits.with_limit(kind, per_hour),
+                ),
             ),
             expander: Arc::new(Expander::with_origin(
                 url::Url::parse(&upstream.uri()).unwrap(),

@@ -16,6 +16,7 @@ use uuid::Uuid;
 use crate::app::BODY_LIMIT_BYTES;
 use crate::error::ApiError;
 use crate::integrity::{TOKEN_HEADER, request_hash};
+use crate::limits::{self, Kind};
 use crate::state::AppState;
 
 const TOKEN_BYTES: usize = 32;
@@ -61,10 +62,12 @@ pub async fn find_install(pool: &PgPool, token: &str) -> sqlx::Result<Option<Ins
     }))
 }
 
-/// A JSON body with a valid integrity token for this exact request.
+/// A JSON body with a valid integrity token for this exact request. Registration's extractor:
+/// it counts against the hourly registration limit before Google is asked.
 pub struct Attested<T>(pub T);
 
-/// A JSON body from a registered install, with a valid integrity token for this exact request.
+/// A JSON body from a registered install, with a valid integrity token for this exact request
+/// of this install. Counts against the install's hourly write limit before Google is asked.
 pub struct Signed<T> {
     pub install: Install,
     pub body: T,
@@ -82,6 +85,7 @@ impl<T: DeserializeOwned + Send> FromRequest<AppState> for Attested<T> {
     async fn from_request(request: Request, state: &AppState) -> Result<Self, ApiError> {
         let (parts, bytes) = split(request).await?;
         let body = parse(&bytes)?;
+        limits::check_registration(state)?;
         attest(&parts, &bytes, None, state).await?;
         Ok(Attested(body))
     }
@@ -94,6 +98,7 @@ impl<T: DeserializeOwned + Send> FromRequest<AppState> for Signed<T> {
         let (parts, bytes) = split(request).await?;
         let install = authenticate(&parts, state).await?;
         let body = parse(&bytes)?;
+        limits::check(state, &install, Kind::Write)?;
         attest(&parts, &bytes, Some(install.id), state).await?;
         Ok(Signed { install, body })
     }

@@ -167,12 +167,32 @@ impl Integrity {
         let token = token
             .filter(|token| !token.is_empty() && token.len() <= MAX_TOKEN_BYTES)
             .ok_or(IntegrityError::Missing)?;
+        // Not worth a call to Google, whose daily allowance is small.
+        if !looks_like_a_token(token) {
+            return Err(IntegrityError::Refused("format"));
+        }
         let seen = Sha256::digest(token.as_bytes()).into();
         google.seen().check(&seen, Instant::now())?;
         let verdict = google.decode(token).await?;
         check(&verdict, &google.package, expected_hash, now_millis())?;
         google.seen().insert(seen, Instant::now())
     }
+}
+
+/// Play Integrity tokens are JWE compact: five non-empty base64url parts separated by dots.
+fn looks_like_a_token(token: &str) -> bool {
+    let mut parts = 0;
+    for part in token.split('.') {
+        parts += 1;
+        let base64url = !part.is_empty()
+            && part
+                .bytes()
+                .all(|b| b.is_ascii_alphanumeric() || b == b'-' || b == b'_');
+        if !base64url {
+            return false;
+        }
+    }
+    parts == 5
 }
 
 /// The SHA-256 of every token accepted recently, so each token is accepted once.
@@ -602,6 +622,43 @@ mod tests {
             integrity.verify(Some(&huge), "h").await,
             Err(IntegrityError::Missing)
         );
+    }
+
+    #[tokio::test]
+    async fn a_token_not_shaped_like_one_is_refused_without_asking_google() {
+        let server = MockServer::start().await;
+        mock_metadata(&server, 0).await;
+        Mock::given(method("POST"))
+            .respond_with(ResponseTemplate::new(500))
+            .expect(0)
+            .mount(&server)
+            .await;
+        let integrity = Integrity::Google(google(&server).await);
+        for token in [
+            "tok",
+            "a.b.c.d",
+            "a.b.c.d.e.f",
+            "a..c.d.e",
+            ".b.c.d.e",
+            "a.b.c.d.",
+            "a.b.c.d.e+",
+            "a.b.c.d.e=",
+            "a.b/c.d.e",
+            "a.b.c.d.é",
+        ] {
+            assert_eq!(
+                integrity.verify(Some(token), "h").await,
+                Err(IntegrityError::Refused("format")),
+                "{token}"
+            );
+        }
+    }
+
+    #[test]
+    fn real_tokens_are_jwe_compact() {
+        assert!(looks_like_a_token(TOKEN));
+        assert!(looks_like_a_token("A-z_09.b.c.d.e"));
+        assert!(!looks_like_a_token("a.b.c.d"));
     }
 
     #[tokio::test]

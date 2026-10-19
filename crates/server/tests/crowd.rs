@@ -1,10 +1,11 @@
 mod common;
 
 use axum::http::StatusCode;
-use common::{TODAY, TestApp, google_integrity, integrity_token, mock_verdict};
+use common::{Options, TODAY, TestApp, google_integrity, integrity_token, mock_verdict};
 use serde_json::{Value, json};
 use url::Url;
 use whichride_server::integrity::{GoogleIntegrity, Integrity, request_hash};
+use whichride_server::limits::Kind;
 use wiremock::matchers::{method, path};
 use wiremock::{Mock, MockServer, ResponseTemplate};
 
@@ -520,6 +521,48 @@ async fn a_signed_request_hash_must_include_the_install() {
     mock_verdict(&server, &token, &hash).await;
     assert_eq!(
         confirm_with(&app, "bearer-a", &token).await,
+        StatusCode::FORBIDDEN
+    );
+}
+
+#[tokio::test]
+async fn writes_have_an_hourly_limit_per_install_checked_before_asking_google() {
+    let server = MockServer::start().await;
+    let integrity = google_integrity(&server).await;
+    let Some(app) = TestApp::start_with(Options {
+        integrity,
+        limits: vec![(Kind::Write, 1)],
+        ..Options::default()
+    })
+    .await
+    else {
+        return;
+    };
+    let a = app.insert_install("bearer-a").await;
+    app.insert_install("bearer-b").await;
+    let first = integrity_token("first");
+    mock_verdict(
+        &server,
+        &first,
+        &request_hash("POST", CONFIRM, Some(a), YES.as_bytes()),
+    )
+    .await;
+    assert_eq!(
+        confirm_with(&app, "bearer-a", &first).await,
+        StatusCode::NO_CONTENT
+    );
+    let requests_before = server.received_requests().await.unwrap().len();
+    assert_eq!(
+        confirm_with(&app, "bearer-a", &integrity_token("second")).await,
+        StatusCode::TOO_MANY_REQUESTS
+    );
+    assert_eq!(
+        server.received_requests().await.unwrap().len(),
+        requests_before
+    );
+    // Another install has its own allowance.
+    assert_eq!(
+        confirm_with(&app, "bearer-b", &integrity_token("third")).await,
         StatusCode::FORBIDDEN
     );
 }
