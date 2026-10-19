@@ -1,20 +1,18 @@
 mod common;
 
 use axum::http::StatusCode;
-use common::{TODAY, TestApp};
+use common::{TODAY, TestApp, google_integrity, integrity_token, mock_verdict, registration};
 use serde_json::json;
-use url::Url;
 use whichride_server::auth;
-use whichride_server::integrity::{GoogleIntegrity, Integrity, request_hash};
-use wiremock::matchers::{method, path};
-use wiremock::{Mock, MockServer, ResponseTemplate};
+use whichride_server::integrity::request_hash;
+use wiremock::MockServer;
 
 #[tokio::test]
 async fn registering_returns_an_id_and_a_token() {
     let Some(app) = TestApp::start().await else {
         return;
     };
-    let (status, body) = app.post("/v1/installs", &json!({})).await;
+    let (status, body) = app.post("/v1/installs", &registration()).await;
     assert_eq!(status, StatusCode::CREATED);
     let token = body["token"].as_str().unwrap();
     assert_eq!(token.len(), 43);
@@ -32,7 +30,7 @@ async fn only_the_tokens_hash_is_stored() {
     let Some(app) = TestApp::start().await else {
         return;
     };
-    let (_, body) = app.post("/v1/installs", &json!({})).await;
+    let (_, body) = app.post("/v1/installs", &registration()).await;
     let token = body["token"].as_str().unwrap();
     let stored: Vec<u8> = sqlx::query_scalar("SELECT token_hash FROM installs")
         .fetch_one(&app.pool)
@@ -79,68 +77,84 @@ async fn a_body_that_is_not_json_is_a_bad_request() {
     assert_eq!(body, json!({"error": "bad_request"}));
 }
 
-async fn google_integrity(server: &MockServer, request_hash: &str) -> Integrity {
-    Mock::given(method("GET"))
-        .and(path(
-            "/computeMetadata/v1/instance/service-accounts/default/token",
-        ))
-        .respond_with(
-            ResponseTemplate::new(200)
-                .set_body_json(json!({"access_token": "ya29.test", "expires_in": 3599})),
-        )
-        .mount(server)
-        .await;
-    Mock::given(method("POST"))
-        .and(path("/v1/app.whichride:decodeIntegrityToken"))
-        .respond_with(ResponseTemplate::new(200).set_body_json(json!({
-            "tokenPayloadExternal": {
-                "requestDetails": {
-                    "requestPackageName": "app.whichride",
-                    "requestHash": request_hash,
-                    "timestampMillis": whichride_server::integrity::now_millis().to_string()
-                },
-                "appIntegrity": {"appRecognitionVerdict": "PLAY_RECOGNIZED"},
-                "deviceIntegrity": {"deviceRecognitionVerdict": ["MEETS_DEVICE_INTEGRITY"]}
-            }
-        })))
-        .mount(server)
-        .await;
-    let base = Url::parse(&format!("{}/", server.uri())).unwrap();
-    Integrity::Google(GoogleIntegrity::with_endpoints(
-        "app.whichride".into(),
-        base.clone(),
-        base,
-    ))
+#[tokio::test]
+async fn registration_needs_a_well_formed_nonce() {
+    let Some(app) = TestApp::start().await else {
+        return;
+    };
+    for body in [
+        json!({}),
+        json!({"nonce": "short"}),
+        json!({"nonce": "x".repeat(129)}),
+        json!({"nonce": "has spaces in it, sixteen+"}),
+        json!({"nonce": "abcdefghijklmnop", "extra": 1}),
+        json!({"nonce": 1234567890123456_u64}),
+    ] {
+        let (status, _) = app.post("/v1/installs", &body).await;
+        assert_eq!(status, StatusCode::BAD_REQUEST, "{body}");
+    }
+    for nonce in ["abcdefghijklmnop".to_owned(), "A-z_0".repeat(25) + "abc"] {
+        let (status, _) = app.post("/v1/installs", &json!({"nonce": nonce})).await;
+        assert_eq!(status, StatusCode::CREATED, "{nonce}");
+    }
+}
+
+const NONCE_BODY: &str = r#"{"nonce":"abcdefghijklmnop"}"#;
+
+async fn register_with(app: &TestApp, token: &str) -> StatusCode {
+    let request = axum::http::Request::post("/v1/installs")
+        .header("content-type", "application/json")
+        .header("x-integrity-token", token)
+        .body(axum::body::Body::from(NONCE_BODY))
+        .unwrap();
+    app.send(request).await.0
 }
 
 #[tokio::test]
 async fn with_google_integrity_registration_needs_a_token_for_this_request() {
     let server = MockServer::start().await;
-    let hash = request_hash("POST", "/v1/installs", b"{}");
-    let integrity = google_integrity(&server, &hash).await;
+    let integrity = google_integrity(&server).await;
+    let token = integrity_token("registration");
+    let hash = request_hash("POST", "/v1/installs", None, NONCE_BODY.as_bytes());
+    mock_verdict(&server, &token, &hash).await;
     let Some(app) = TestApp::start_with_integrity(integrity).await else {
         return;
     };
 
-    let (status, body) = app.post("/v1/installs", &json!({})).await;
+    let (status, body) = app.post("/v1/installs", &registration()).await;
     assert_eq!(status, StatusCode::FORBIDDEN);
     assert_eq!(body, json!({"error": "integrity_failed"}));
 
-    let (status, _) = app
-        .post_with("/v1/installs", &json!({}), &[("x-integrity-token", "tok")])
-        .await;
-    assert_eq!(status, StatusCode::CREATED);
+    assert_eq!(register_with(&app, &token).await, StatusCode::CREATED);
 }
 
 #[tokio::test]
 async fn a_token_bound_to_another_request_is_refused() {
     let server = MockServer::start().await;
-    let integrity = google_integrity(&server, "hash-of-something-else").await;
+    let integrity = google_integrity(&server).await;
+    let token = integrity_token("other");
+    mock_verdict(&server, &token, "hash-of-something-else").await;
     let Some(app) = TestApp::start_with_integrity(integrity).await else {
         return;
     };
-    let (status, _) = app
-        .post_with("/v1/installs", &json!({}), &[("x-integrity-token", "tok")])
-        .await;
-    assert_eq!(status, StatusCode::FORBIDDEN);
+    assert_eq!(register_with(&app, &token).await, StatusCode::FORBIDDEN);
+}
+
+#[tokio::test]
+async fn a_registration_token_is_accepted_once() {
+    let server = MockServer::start().await;
+    let integrity = google_integrity(&server).await;
+    let token = integrity_token("registration");
+    let hash = request_hash("POST", "/v1/installs", None, NONCE_BODY.as_bytes());
+    mock_verdict(&server, &token, &hash).await;
+    let Some(app) = TestApp::start_with_integrity(integrity).await else {
+        return;
+    };
+    assert_eq!(register_with(&app, &token).await, StatusCode::CREATED);
+    assert_eq!(register_with(&app, &token).await, StatusCode::FORBIDDEN);
+    let installs: i64 = sqlx::query_scalar("SELECT count(*) FROM installs")
+        .fetch_one(&app.pool)
+        .await
+        .unwrap();
+    assert_eq!(installs, 1);
 }

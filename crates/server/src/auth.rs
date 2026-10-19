@@ -82,7 +82,7 @@ impl<T: DeserializeOwned + Send> FromRequest<AppState> for Attested<T> {
     async fn from_request(request: Request, state: &AppState) -> Result<Self, ApiError> {
         let (parts, bytes) = split(request).await?;
         let body = parse(&bytes)?;
-        attest(&parts, &bytes, state).await?;
+        attest(&parts, &bytes, None, state).await?;
         Ok(Attested(body))
     }
 }
@@ -94,7 +94,7 @@ impl<T: DeserializeOwned + Send> FromRequest<AppState> for Signed<T> {
         let (parts, bytes) = split(request).await?;
         let install = authenticate(&parts, state).await?;
         let body = parse(&bytes)?;
-        attest(&parts, &bytes, state).await?;
+        attest(&parts, &bytes, Some(install.id), state).await?;
         Ok(Signed { install, body })
     }
 }
@@ -135,12 +135,18 @@ async fn authenticate(parts: &Parts, state: &AppState) -> Result<Install, ApiErr
         .ok_or(ApiError::Unauthorized)
 }
 
-async fn attest(parts: &Parts, body: &[u8], state: &AppState) -> Result<(), ApiError> {
+/// Checks the integrity token against this request; a registered install's ID is part of it.
+async fn attest(
+    parts: &Parts,
+    body: &[u8],
+    install: Option<Uuid>,
+    state: &AppState,
+) -> Result<(), ApiError> {
     let token = parts
         .headers
         .get(TOKEN_HEADER)
         .and_then(|value| value.to_str().ok());
-    let hash = request_hash(parts.method.as_str(), parts.uri.path(), body);
+    let hash = request_hash(parts.method.as_str(), parts.uri.path(), install, body);
     state.integrity.verify(token, &hash).await?;
     Ok(())
 }

@@ -14,14 +14,16 @@ use carsharing_core::{Catalogue, Day};
 use serde_json::Value;
 use sqlx::{AssertSqlSafe, Connection, PgConnection, PgPool};
 use tower::ServiceExt;
+use uuid::Uuid;
 use whichride_server::app::router;
 use whichride_server::db;
 use whichride_server::expand::Expander;
-use whichride_server::integrity::Integrity;
+use whichride_server::integrity::{GoogleIntegrity, Integrity};
 use whichride_server::limits::RateLimits;
 use whichride_server::ors::Ors;
 use whichride_server::state::AppState;
-use wiremock::MockServer;
+use wiremock::matchers::{body_json, method, path};
+use wiremock::{Mock, MockServer, ResponseTemplate};
 
 /// 2026-10-19.
 pub const TODAY: i32 = 20_745;
@@ -212,9 +214,23 @@ impl TestApp {
 
     /// Registers a new install and returns its bearer token.
     pub async fn register(&self) -> String {
-        let (status, body) = self.post("/v1/installs", &serde_json::json!({})).await;
+        let (status, body) = self.post("/v1/installs", &registration()).await;
         assert_eq!(status, StatusCode::CREATED, "{body}");
         body["token"].as_str().unwrap().to_owned()
+    }
+
+    /// Adds an install straight to the database (for apps that check integrity with Google),
+    /// with this bearer token; returns its ID.
+    pub async fn insert_install(&self, token: &str) -> Uuid {
+        let id = Uuid::new_v4();
+        sqlx::query("INSERT INTO installs (id, token_hash, first_seen) VALUES ($1, $2, $3)")
+            .bind(id)
+            .bind(whichride_server::auth::hash_token(token).as_slice())
+            .bind(TODAY)
+            .execute(&self.pool)
+            .await
+            .unwrap();
+        id
     }
 
     pub async fn post_as(&self, token: &str, path: &str, body: &Value) -> (StatusCode, Value) {
@@ -250,6 +266,58 @@ impl TestApp {
         };
         (status, json)
     }
+}
+
+/// A registration body with a fresh nonce.
+pub fn registration() -> Value {
+    serde_json::json!({"nonce": Uuid::new_v4().simple().to_string()})
+}
+
+/// Something shaped like a Play Integrity token (JWE compact: five base64url parts).
+pub fn integrity_token(name: &str) -> String {
+    format!("eyJhbGciOiJBMjU2S1cifQ.{name}.iv.ciphertext.tag")
+}
+
+/// Google's integrity service on `server`: the metadata server answers, and no token decodes
+/// until [`mock_verdict`] says what it means.
+pub async fn google_integrity(server: &MockServer) -> Integrity {
+    Mock::given(method("GET"))
+        .and(path(
+            "/computeMetadata/v1/instance/service-accounts/default/token",
+        ))
+        .respond_with(
+            ResponseTemplate::new(200).set_body_json(
+                serde_json::json!({"access_token": "ya29.test", "expires_in": 3599}),
+            ),
+        )
+        .mount(server)
+        .await;
+    let base = url::Url::parse(&format!("{}/", server.uri())).unwrap();
+    Integrity::Google(GoogleIntegrity::with_endpoints(
+        "app.whichride".into(),
+        base.clone(),
+        base,
+    ))
+}
+
+/// Google decodes `token` to a good verdict for the request with this hash.
+pub async fn mock_verdict(server: &MockServer, token: &str, request_hash: &str) {
+    Mock::given(method("POST"))
+        .and(path("/v1/app.whichride:decodeIntegrityToken"))
+        .and(body_json(serde_json::json!({"integrityToken": token})))
+        .respond_with(ResponseTemplate::new(200).set_body_json(serde_json::json!({
+            "tokenPayloadExternal": {
+                "requestDetails": {
+                    "requestPackageName": "app.whichride",
+                    "requestHash": request_hash,
+                    "timestampMillis": whichride_server::integrity::now_millis().to_string()
+                },
+                "appIntegrity": {"appRecognitionVerdict": "PLAY_RECOGNIZED"},
+                "deviceIntegrity": {"deviceRecognitionVerdict": ["MEETS_DEVICE_INTEGRITY"]}
+            }
+        })))
+        .mount(server)
+        .await;
 }
 
 /// Everything logged on this thread while the guard lives, at `trace` for the server's own

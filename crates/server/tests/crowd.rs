@@ -1,10 +1,10 @@
 mod common;
 
 use axum::http::StatusCode;
-use common::{TODAY, TestApp};
+use common::{TODAY, TestApp, google_integrity, integrity_token, mock_verdict};
 use serde_json::{Value, json};
 use url::Url;
-use whichride_server::integrity::{GoogleIntegrity, Integrity};
+use whichride_server::integrity::{GoogleIntegrity, Integrity, request_hash};
 use wiremock::matchers::{method, path};
 use wiremock::{Mock, MockServer, ResponseTemplate};
 
@@ -463,4 +463,63 @@ async fn joining_another_report_supersedes_the_installs_own_and_settles_it_once(
     assert_eq!(per_km(&app).await, 89);
     assert_eq!(record(&app, &a).await, (1, 1));
     assert_eq!(record(&app, &b).await, (1, 1));
+}
+
+const CONFIRM: &str = "/v1/offers/miles.s/confirmations";
+const YES: &str = r#"{"answer":"yes"}"#;
+
+async fn confirm_with(app: &TestApp, bearer: &str, token: &str) -> StatusCode {
+    let request = axum::http::Request::post(CONFIRM)
+        .header("content-type", "application/json")
+        .header("authorization", format!("Bearer {bearer}"))
+        .header("x-integrity-token", token)
+        .body(axum::body::Body::from(YES))
+        .unwrap();
+    app.send(request).await.0
+}
+
+#[tokio::test]
+async fn an_integrity_token_is_good_for_one_install_and_one_request() {
+    let server = MockServer::start().await;
+    let integrity = google_integrity(&server).await;
+    let Some(app) = TestApp::start_with_integrity(integrity).await else {
+        return;
+    };
+    let a = app.insert_install("bearer-a").await;
+    app.insert_install("bearer-b").await;
+    let token = integrity_token("for-a");
+    let hash = request_hash("POST", CONFIRM, Some(a), YES.as_bytes());
+    mock_verdict(&server, &token, &hash).await;
+
+    // Another install sending the same vote with A's token is refused.
+    assert_eq!(
+        confirm_with(&app, "bearer-b", &token).await,
+        StatusCode::FORBIDDEN
+    );
+    assert_eq!(
+        confirm_with(&app, "bearer-a", &token).await,
+        StatusCode::NO_CONTENT
+    );
+    // And A cannot use it twice.
+    assert_eq!(
+        confirm_with(&app, "bearer-a", &token).await,
+        StatusCode::FORBIDDEN
+    );
+}
+
+#[tokio::test]
+async fn a_signed_request_hash_must_include_the_install() {
+    let server = MockServer::start().await;
+    let integrity = google_integrity(&server).await;
+    let Some(app) = TestApp::start_with_integrity(integrity).await else {
+        return;
+    };
+    app.insert_install("bearer-a").await;
+    let token = integrity_token("unbound");
+    let hash = request_hash("POST", CONFIRM, None, YES.as_bytes());
+    mock_verdict(&server, &token, &hash).await;
+    assert_eq!(
+        confirm_with(&app, "bearer-a", &token).await,
+        StatusCode::FORBIDDEN
+    );
 }

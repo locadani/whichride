@@ -10,10 +10,34 @@ use crate::auth::{Attested, hash_token, new_token};
 use crate::error::ApiError;
 use crate::state::AppState;
 
-/// Registration carries nothing; the body exists so the integrity token can be bound to it.
+/// Registration carries only a random nonce from the app, so that every registration is a
+/// different request and its integrity token is bound to it (decision 44).
 #[derive(Debug, Deserialize)]
 #[serde(deny_unknown_fields)]
-pub struct RegisterRequest {}
+pub struct RegisterRequest {
+    pub nonce: Nonce,
+}
+
+/// 16 to 128 characters of `[A-Za-z0-9_-]`. Checked while parsing, before Google is asked.
+#[derive(Debug, Deserialize)]
+#[serde(try_from = "String")]
+pub struct Nonce(pub String);
+
+impl TryFrom<String> for Nonce {
+    type Error = &'static str;
+
+    fn try_from(value: String) -> Result<Nonce, &'static str> {
+        let well_formed = (16..=128).contains(&value.len())
+            && value
+                .bytes()
+                .all(|b| b.is_ascii_alphanumeric() || b == b'_' || b == b'-');
+        if well_formed {
+            Ok(Nonce(value))
+        } else {
+            Err("a nonce is 16 to 128 characters of A-Z, a-z, 0-9, _ and -")
+        }
+    }
+}
 
 #[derive(Debug, Serialize)]
 pub struct Registered {

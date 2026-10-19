@@ -1,6 +1,8 @@
 //! Play Integrity (spec §7.4): a write is accepted only from a genuine app on a genuine device,
 //! and only for the exact request the app asked Google to vouch for.
 
+use std::collections::{HashSet, VecDeque};
+use std::sync::Mutex as SyncMutex;
 use std::time::{Duration, Instant, SystemTime, UNIX_EPOCH};
 
 use serde::Deserialize;
@@ -8,6 +10,7 @@ use sha2::{Digest, Sha256};
 use thiserror::Error;
 use tokio::sync::Mutex;
 use url::Url;
+use uuid::Uuid;
 
 use crate::error::ApiError;
 
@@ -23,14 +26,25 @@ const MAX_FUTURE_MILLIS: i64 = 60 * 1000;
 
 const SCOPE: &str = "https://www.googleapis.com/auth/playintegrity";
 
-/// Lowercase hex SHA-256 of `"{method} {path}\n"` followed by the body. The app sets it as the
-/// token's `requestHash`, so a token is good for this one request only.
-pub fn request_hash(method: &str, path: &str, body: &[u8]) -> String {
+/// How long an accepted token is remembered: longer than any verdict for it stays fresh.
+const SEEN_FOR: Duration = Duration::from_millis((MAX_AGE_MILLIS + MAX_FUTURE_MILLIS) as u64);
+/// The most tokens remembered at once; when full, new verifications are refused rather than
+/// letting the memory grow.
+const MAX_SEEN: usize = 100_000;
+
+/// Lowercase hex SHA-256 of `"{method} {path}\n"`, then — for a registered install's request —
+/// its ID (lowercase, hyphenated) and `"\n"`, then the body. The app sets it as the token's
+/// `requestHash`, so a token is good for this one request of this one install (decision 44).
+pub fn request_hash(method: &str, path: &str, install: Option<Uuid>, body: &[u8]) -> String {
     let mut hasher = Sha256::new();
     hasher.update(method.as_bytes());
     hasher.update(b" ");
     hasher.update(path.as_bytes());
     hasher.update(b"\n");
+    if let Some(install) = install {
+        hasher.update(install.hyphenated().to_string().as_bytes());
+        hasher.update(b"\n");
+    }
     hasher.update(body);
     hex::encode(hasher.finalize())
 }
@@ -153,8 +167,64 @@ impl Integrity {
         let token = token
             .filter(|token| !token.is_empty() && token.len() <= MAX_TOKEN_BYTES)
             .ok_or(IntegrityError::Missing)?;
+        let seen = Sha256::digest(token.as_bytes()).into();
+        google.seen().check(&seen, Instant::now())?;
         let verdict = google.decode(token).await?;
-        check(&verdict, &google.package, expected_hash, now_millis())
+        check(&verdict, &google.package, expected_hash, now_millis())?;
+        google.seen().insert(seen, Instant::now())
+    }
+}
+
+/// The SHA-256 of every token accepted recently, so each token is accepted once.
+struct SeenTokens {
+    capacity: usize,
+    hashes: HashSet<[u8; 32]>,
+    /// In the order accepted, with the moment each may be forgotten.
+    expiry: VecDeque<(Instant, [u8; 32])>,
+}
+
+impl SeenTokens {
+    fn new(capacity: usize) -> SeenTokens {
+        SeenTokens {
+            capacity,
+            hashes: HashSet::new(),
+            expiry: VecDeque::new(),
+        }
+    }
+
+    #[cfg(test)]
+    fn len(&self) -> usize {
+        self.hashes.len()
+    }
+
+    fn forget_expired(&mut self, now: Instant) {
+        while let Some((expires, hash)) = self.expiry.front().copied()
+            && expires <= now
+        {
+            self.expiry.pop_front();
+            self.hashes.remove(&hash);
+        }
+    }
+
+    /// Before asking Google: a token seen before is refused, and nothing is verified while full.
+    fn check(&mut self, hash: &[u8; 32], now: Instant) -> Result<(), IntegrityError> {
+        self.forget_expired(now);
+        if self.hashes.contains(hash) {
+            return Err(IntegrityError::Refused("replayed"));
+        }
+        if self.hashes.len() >= self.capacity {
+            tracing::warn!("too many integrity tokens to remember");
+            return Err(IntegrityError::Unavailable);
+        }
+        Ok(())
+    }
+
+    /// After a good verdict; checks again, as another request may have used the token since.
+    fn insert(&mut self, hash: [u8; 32], now: Instant) -> Result<(), IntegrityError> {
+        self.check(&hash, now)?;
+        self.hashes.insert(hash);
+        self.expiry.push_back((now + SEEN_FOR, hash));
+        Ok(())
     }
 }
 
@@ -166,6 +236,7 @@ pub struct GoogleIntegrity {
     api_base: Url,
     metadata_base: Url,
     access: Mutex<Option<(String, Instant)>>,
+    seen: SyncMutex<SeenTokens>,
 }
 
 #[derive(Deserialize)]
@@ -197,7 +268,14 @@ impl GoogleIntegrity {
             api_base,
             metadata_base,
             access: Mutex::new(None),
+            seen: SyncMutex::new(SeenTokens::new(MAX_SEEN)),
         }
+    }
+
+    fn seen(&self) -> std::sync::MutexGuard<'_, SeenTokens> {
+        self.seen
+            .lock()
+            .unwrap_or_else(|poisoned| poisoned.into_inner())
     }
 
     async fn access_token(&self) -> Result<String, IntegrityError> {
@@ -270,6 +348,9 @@ mod tests {
     use super::*;
 
     const PACKAGE: &str = "app.whichride";
+    /// Shaped like a real token (JWE compact).
+    const TOKEN: &str = "eyJhbGciOiJBMjU2S1cifQ.key.iv.ciphertext.tag";
+    const OTHER_TOKEN: &str = "eyJhbGciOiJBMjU2S1cifQ.key2.iv.ciphertext.tag";
     const NOW: i64 = 1_792_411_200_000;
 
     fn verdict_json(hash: &str, timestamp: i64) -> serde_json::Value {
@@ -296,18 +377,101 @@ mod tests {
         serde_json::from_value(verdict_json(hash, timestamp)).unwrap()
     }
 
+    const INSTALL: &str = "123e4567-e89b-42d3-a456-426614174000";
+
     #[test]
-    fn the_request_hash_covers_method_path_and_body() {
-        let hash = request_hash("POST", "/v1/reports", br#"{"a":1}"#);
+    fn the_request_hash_covers_method_path_install_and_body() {
+        let install = Uuid::parse_str(INSTALL).unwrap();
+        let hash = request_hash("POST", "/v1/reports", Some(install), br#"{"a":1}"#);
         assert_eq!(hash.len(), 64);
-        assert_eq!(hash, request_hash("POST", "/v1/reports", br#"{"a":1}"#));
-        assert_ne!(hash, request_hash("POST", "/v1/reports", br#"{"a":2}"#));
-        assert_ne!(hash, request_hash("POST", "/v1/installs", br#"{"a":1}"#));
-        // Known value, so the Android implementation can be checked against it.
         assert_eq!(
-            request_hash("POST", "/v1/installs", b"{}"),
-            "9bc58881cd740b3aa0d48e5698ed16bb88cd9949784c69f48fd4f918787a1099"
+            hash,
+            request_hash("POST", "/v1/reports", Some(install), br#"{"a":1}"#)
         );
+        assert_ne!(
+            hash,
+            request_hash("POST", "/v1/reports", Some(install), br#"{"a":2}"#)
+        );
+        assert_ne!(
+            hash,
+            request_hash("POST", "/v1/installs", Some(install), br#"{"a":1}"#)
+        );
+        assert_ne!(
+            hash,
+            request_hash("POST", "/v1/reports", Some(Uuid::new_v4()), br#"{"a":1}"#)
+        );
+        assert_ne!(
+            hash,
+            request_hash("POST", "/v1/reports", None, br#"{"a":1}"#)
+        );
+    }
+
+    /// Known values computed independently, so the Android implementation can be checked
+    /// against them:
+    /// `printf 'POST /v1/installs\n{"nonce":"abcdefghijklmnop"}' | shasum -a 256` and
+    /// `printf 'POST /v1/offers/miles.s/confirmations\n123e4567-e89b-42d3-a456-426614174000\n{"answer":"yes"}' | shasum -a 256`.
+    #[test]
+    fn the_request_hash_has_known_values() {
+        assert_eq!(
+            request_hash(
+                "POST",
+                "/v1/installs",
+                None,
+                br#"{"nonce":"abcdefghijklmnop"}"#
+            ),
+            "c59b7c5ccbba73f1c1f2c526838ae9486eaaf2ac726b320a170aad41b31565c3"
+        );
+        assert_eq!(
+            request_hash(
+                "POST",
+                "/v1/offers/miles.s/confirmations",
+                Some(Uuid::parse_str(INSTALL).unwrap()),
+                br#"{"answer":"yes"}"#
+            ),
+            "78a4418304e69be8eebd247ac4e93fc97b3fca818a814017cfef1d82be803413"
+        );
+    }
+
+    #[test]
+    fn a_token_is_seen_until_it_expires() {
+        let start = Instant::now();
+        let mut seen = SeenTokens::new(10);
+        let token = [1u8; 32];
+        assert_eq!(seen.check(&token, start), Ok(()));
+        assert_eq!(seen.insert(token, start), Ok(()));
+        assert_eq!(
+            seen.check(&token, start + Duration::from_secs(60)),
+            Err(IntegrityError::Refused("replayed"))
+        );
+        assert_eq!(
+            seen.insert(token, start + Duration::from_secs(60)),
+            Err(IntegrityError::Refused("replayed"))
+        );
+        // Long after any verdict for it could still be fresh, it is forgotten.
+        let later = start + SEEN_FOR + Duration::from_secs(1);
+        assert_eq!(seen.check(&token, later), Ok(()));
+        assert_eq!(seen.len(), 0);
+    }
+
+    #[test]
+    fn a_full_cache_refuses_new_tokens_instead_of_growing() {
+        let start = Instant::now();
+        let mut seen = SeenTokens::new(2);
+        assert_eq!(seen.insert([1; 32], start), Ok(()));
+        assert_eq!(seen.insert([2; 32], start), Ok(()));
+        assert_eq!(
+            seen.check(&[3; 32], start),
+            Err(IntegrityError::Unavailable)
+        );
+        assert_eq!(
+            seen.insert([3; 32], start),
+            Err(IntegrityError::Unavailable)
+        );
+        assert_eq!(seen.len(), 2);
+        // Expired entries make room again.
+        let later = start + SEEN_FOR + Duration::from_secs(1);
+        assert_eq!(seen.insert([3; 32], later), Ok(()));
+        assert_eq!(seen.len(), 1);
     }
 
     #[test]
@@ -402,22 +566,22 @@ mod tests {
         let server = MockServer::start().await;
         mock_metadata(&server, 1).await;
         let now = now_millis();
-        Mock::given(method("POST"))
-            .and(path(format!("/v1/{PACKAGE}:decodeIntegrityToken")))
-            .and(header("authorization", "Bearer ya29.test"))
-            .and(body_json(serde_json::json!({"integrityToken": "tok"})))
-            .respond_with(
-                ResponseTemplate::new(200).set_body_json(
+        for token in [TOKEN, OTHER_TOKEN] {
+            Mock::given(method("POST"))
+                .and(path(format!("/v1/{PACKAGE}:decodeIntegrityToken")))
+                .and(header("authorization", "Bearer ya29.test"))
+                .and(body_json(serde_json::json!({ "integrityToken": token })))
+                .respond_with(ResponseTemplate::new(200).set_body_json(
                     serde_json::json!({"tokenPayloadExternal": verdict_json("h", now)}),
-                ),
-            )
-            .expect(2)
-            .mount(&server)
-            .await;
+                ))
+                .expect(1)
+                .mount(&server)
+                .await;
+        }
         let integrity = Integrity::Google(google(&server).await);
-        assert_eq!(integrity.verify(Some("tok"), "h").await, Ok(()));
+        assert_eq!(integrity.verify(Some(TOKEN), "h").await, Ok(()));
         // The access token is cached: the metadata server is asked once.
-        assert_eq!(integrity.verify(Some("tok"), "h").await, Ok(()));
+        assert_eq!(integrity.verify(Some(OTHER_TOKEN), "h").await, Ok(()));
     }
 
     #[tokio::test]
@@ -450,7 +614,7 @@ mod tests {
             .await;
         let integrity = Integrity::Google(google(&server).await);
         assert_eq!(
-            integrity.verify(Some("bad"), "h").await,
+            integrity.verify(Some(TOKEN), "h").await,
             Err(IntegrityError::Refused("token"))
         );
     }
@@ -465,7 +629,7 @@ mod tests {
             .await;
         let integrity = Integrity::Google(google(&server).await);
         assert_eq!(
-            integrity.verify(Some("tok"), "h").await,
+            integrity.verify(Some(TOKEN), "h").await,
             Err(IntegrityError::Unavailable)
         );
     }
@@ -481,7 +645,7 @@ mod tests {
         let integrity = Integrity::Google(google(&server).await);
         for _ in 0..2 {
             assert_eq!(
-                integrity.verify(Some("tok"), "h").await,
+                integrity.verify(Some(TOKEN), "h").await,
                 Err(IntegrityError::Unavailable)
             );
         }
@@ -497,7 +661,7 @@ mod tests {
             .await;
         let integrity = Integrity::Google(google(&server).await);
         assert_eq!(
-            integrity.verify(Some("tok"), "h").await,
+            integrity.verify(Some(TOKEN), "h").await,
             Err(IntegrityError::Unavailable)
         );
     }
@@ -512,7 +676,7 @@ mod tests {
             .await;
         let integrity = Integrity::Google(google(&server).await);
         assert_eq!(
-            integrity.verify(Some("tok"), "h").await,
+            integrity.verify(Some(TOKEN), "h").await,
             Err(IntegrityError::Unavailable)
         );
     }
