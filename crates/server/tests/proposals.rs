@@ -244,6 +244,20 @@ async fn bad_proposals_are_rejected() {
         let (status, _) = app.post_as(&a, "/v1/reports", &proposal(name)).await;
         assert_eq!(status, StatusCode::BAD_REQUEST, "{name:?}");
     }
+    for name in [
+        "Fiat\u{0}500",
+        "Fiat\n500",
+        "Fiat\u{9b}500",
+        "Fiat\u{200e}500",
+        "Fiat\u{200f}500",
+        "Fiat\u{202b}500",
+        "Fiat\u{202d}500",
+        "Fiat\u{2066}500",
+        "Fiat\u{2068}500",
+    ] {
+        let (status, _) = app.post_as(&a, "/v1/reports", &proposal(name)).await;
+        assert_eq!(status, StatusCode::BAD_REQUEST, "{name:?}");
+    }
     let no_name = json!({"provider": "bolt", "cards": [card()]});
     assert_eq!(
         app.post_as(&a, "/v1/reports", &no_name).await.0,

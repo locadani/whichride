@@ -22,6 +22,20 @@ fn report(per_km: i64) -> Value {
     json!({"offer": "miles.s", "cards": [card(per_km)]})
 }
 
+/// Labels and names with control or bidirectional-formatting characters.
+const UNSAFE_TEXT: [&str; 10] = [
+    "Stan\u{0}dard",
+    "Stan\ndard",
+    "Stan\tdard",
+    "Stan\u{7f}dard",
+    "Stan\u{85}dard",
+    "Stan\u{200e}dard",
+    "Stan\u{200f}dard",
+    "Stan\u{202a}dard",
+    "Stan\u{202e}dard",
+    "Stan\u{2069}dard",
+];
+
 async fn per_km(app: &TestApp) -> i64 {
     let (_, body) = app.get("/v1/catalogue").await;
     body["catalogue"]["providers"][0]["offers"][1]["cards"][0]["per_km"]
@@ -270,6 +284,13 @@ async fn implausible_reports_are_rejected() {
     ] {
         let (status, response) = app.post_as(&a, "/v1/reports", &body).await;
         assert_eq!(status, StatusCode::BAD_REQUEST, "{body} → {response}");
+    }
+    for label in UNSAFE_TEXT {
+        let mut card = card(89);
+        card["label"] = label.into();
+        let body = json!({"offer": "miles.s", "cards": [card]});
+        let (status, _) = app.post_as(&a, "/v1/reports", &body).await;
+        assert_eq!(status, StatusCode::BAD_REQUEST, "{label:?}");
     }
     let (status, _) = app
         .post_as(

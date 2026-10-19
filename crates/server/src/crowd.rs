@@ -69,6 +69,15 @@ pub struct VoteOutcome {
     pub status: ReportStatus,
 }
 
+/// Text shown to other users must not carry control characters or bidirectional formatting
+/// (which can make a label read differently from what it is).
+pub fn is_safe_text(text: &str) -> bool {
+    !text.chars().any(|c| {
+        c.is_control()
+            || matches!(c, '\u{200e}' | '\u{200f}' | '\u{202a}'..='\u{202e}' | '\u{2066}'..='\u{2069}')
+    })
+}
+
 /// The rate cards of a report: valid for the core, labelled, and believable.
 pub fn check_cards(offer: &OfferId, cards: &[RateCard]) -> Result<(), ApiError> {
     if cards.is_empty() || cards.len() > MAX_CARDS {
@@ -80,6 +89,7 @@ pub fn check_cards(offer: &OfferId, cards: &[RateCard]) -> Result<(), ApiError> 
         let plausible = label == card.label
             && !label.is_empty()
             && label.chars().count() <= MAX_LABEL_CHARS
+            && is_safe_text(label)
             && card.base_fee <= MAX_BASE_FEE
             && card.per_km <= MAX_PER_UNIT
             && card.per_minute <= MAX_PER_UNIT
@@ -105,7 +115,7 @@ pub async fn post_report(
         }
         (None, Some(provider), Some(name)) => {
             let name = name.trim();
-            if name.is_empty() || name.chars().count() > MAX_NAME_CHARS {
+            if name.is_empty() || name.chars().count() > MAX_NAME_CHARS || !is_safe_text(name) {
                 return Err(ApiError::BadRequest);
             }
             if state.providers.provider(&provider).is_none() {
@@ -646,6 +656,18 @@ fn weight_from_column(value: i32) -> Weight {
 #[cfg(test)]
 mod tests {
     use super::*;
+
+    #[test]
+    fn safe_text_has_no_control_or_bidi_characters() {
+        assert!(is_safe_text("Škoda Enyaq — 10 €/h"));
+        for c in ['\u{0}', '\n', '\u{9f}', '\u{200e}', '\u{202c}', '\u{2067}'] {
+            assert!(!is_safe_text(&format!("a{c}b")), "{c:?}");
+        }
+        assert!(
+            is_safe_text("a\u{200d}b"),
+            "a zero-width joiner is fine (emoji)"
+        );
+    }
 
     #[test]
     fn offer_ids_are_lowercase_with_dashes() {
