@@ -11,6 +11,7 @@ pub mod config;
 pub mod crowd;
 pub mod db;
 pub mod error;
+pub mod expand;
 pub mod http;
 pub mod installs;
 pub mod integrity;

@@ -16,6 +16,7 @@ use sqlx::{AssertSqlSafe, Connection, PgConnection, PgPool};
 use tower::ServiceExt;
 use whichride_server::app::router;
 use whichride_server::db;
+use whichride_server::expand::Expander;
 use whichride_server::integrity::Integrity;
 use whichride_server::limits::RateLimits;
 use whichride_server::ors::Ors;
@@ -169,6 +170,9 @@ impl TestApp {
                     .per_hour
                     .map_or_else(RateLimits::new, RateLimits::with_per_hour),
             ),
+            expander: Arc::new(Expander::with_origin(
+                url::Url::parse(&upstream.uri()).unwrap(),
+            )),
         };
         Some(TestApp {
             router: router(state),

@@ -9,6 +9,7 @@ use tracing::{info, warn};
 use crate::app::router;
 use crate::config::{self, IntegrityMode, ServeConfig};
 use crate::db;
+use crate::expand::Expander;
 use crate::integrity::{GoogleIntegrity, Integrity};
 use crate::limits::RateLimits;
 use crate::ors::Ors;
@@ -41,6 +42,7 @@ pub async fn serve() -> anyhow::Result<()> {
             config.ors_api_key.clone(),
         )),
         limits: Arc::new(RateLimits::new()),
+        expander: Arc::new(Expander::new()),
     };
     let listener = TcpListener::bind(config.bind_addr)
         .await

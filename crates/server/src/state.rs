@@ -5,6 +5,7 @@ use std::sync::Arc;
 use carsharing_core::{Catalogue, Day};
 use sqlx::PgPool;
 
+use crate::expand::Expander;
 use crate::integrity::Integrity;
 use crate::limits::RateLimits;
 use crate::ors::Ors;
@@ -20,4 +21,5 @@ pub struct AppState {
     pub integrity: Arc<Integrity>,
     pub ors: Arc<Ors>,
     pub limits: Arc<RateLimits>,
+    pub expander: Arc<Expander>,
 }
