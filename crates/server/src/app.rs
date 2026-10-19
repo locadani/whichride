@@ -2,7 +2,7 @@
 
 use axum::Router;
 use axum::extract::{DefaultBodyLimit, MatchedPath, Request};
-use axum::routing::get;
+use axum::routing::{get, post};
 use tower_http::catch_panic::CatchPanicLayer;
 use tower_http::request_id::{MakeRequestUuid, PropagateRequestIdLayer, SetRequestIdLayer};
 use tower_http::trace::{DefaultOnResponse, TraceLayer};
@@ -18,6 +18,7 @@ pub fn router(state: AppState) -> Router {
     Router::new()
         .route("/health", get(|| async { "ok" }))
         .route("/v1/catalogue", get(crate::catalogue::get_catalogue))
+        .route("/v1/installs", post(crate::installs::register))
         .fallback(|| async { ApiError::NotFound })
         .with_state(state)
         .layer(DefaultBodyLimit::max(BODY_LIMIT_BYTES))

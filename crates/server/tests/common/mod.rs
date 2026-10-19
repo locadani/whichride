@@ -167,6 +167,13 @@ impl TestApp {
             .await
     }
 
+    /// Registers a new install and returns its bearer token.
+    pub async fn register(&self) -> String {
+        let (status, body) = self.post("/v1/installs", &serde_json::json!({})).await;
+        assert_eq!(status, StatusCode::CREATED, "{body}");
+        body["token"].as_str().unwrap().to_owned()
+    }
+
     pub async fn send(&self, request: Request<Body>) -> (StatusCode, Value) {
         let response = self.router.clone().oneshot(request).await.unwrap();
         let status = response.status();
