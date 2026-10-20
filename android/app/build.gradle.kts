@@ -37,6 +37,10 @@ android {
             proguardFiles(getDefaultProguardFile("proguard-android-optimize.txt"), "proguard-rules.pro")
         }
     }
+    androidResources {
+        // Android 13+ lists the app's languages in its per-app language settings (R16, R17).
+        generateLocaleConfig = true
+    }
     testOptions {
         unitTests.isIncludeAndroidResources = true
     }

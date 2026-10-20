@@ -1,6 +1,6 @@
 <?xml version="1.0" encoding="utf-8"?>
 <resources>
-    <string name="app_name">whichride</string>
+    <string name="app_name" translatable="false">whichride</string>
     <string name="back">Back</string>
     <string name="close">Close</string>
     <string name="licences">Licences</string>
