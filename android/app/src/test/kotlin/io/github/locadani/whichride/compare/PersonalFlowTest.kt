@@ -39,6 +39,7 @@ class PersonalFlowTest {
         priceLoader = SeedPrices(),
         hasLocationPermission = { true },
         personal = personal,
+        crowd = FakeCrowd(),
         today = { TODAY },
         newId = { "new" },
         now = { NOW },

@@ -22,6 +22,20 @@ import io.github.locadani.whichride.options.ChoiceStore
 import io.github.locadani.whichride.options.forProvider
 import io.github.locadani.whichride.options.replacingProvider
 import io.github.locadani.whichride.options.toggle as toggled
+import io.github.locadani.whichride.core.CardKind
+import io.github.locadani.whichride.core.RateCard
+import io.github.locadani.whichride.core.dayOf
+import io.github.locadani.whichride.crowd.Answer
+import io.github.locadani.whichride.crowd.Built
+import io.github.locadani.whichride.crowd.Crowd
+import io.github.locadani.whichride.crowd.PriceForm
+import io.github.locadani.whichride.crowd.PricePurpose
+import io.github.locadani.whichride.crowd.build
+import io.github.locadani.whichride.crowd.priceForm
+import io.github.locadani.whichride.personal.droppingOverridesEqualTo
+import io.github.locadani.whichride.personal.overrideCards
+import io.github.locadani.whichride.personal.withOverride
+import io.github.locadani.whichride.personal.withoutOverride
 import io.github.locadani.whichride.personal.DealForm
 import io.github.locadani.whichride.personal.Personal
 import io.github.locadani.whichride.personal.PersonalStore
@@ -64,11 +78,13 @@ class CompareViewModel(
     private val priceLoader: PriceLoader,
     private val hasLocationPermission: () -> Boolean,
     private val personal: PersonalStore,
+    private val crowd: Crowd,
+    private val crowdEnabled: Boolean = true,
     private val today: () -> Long = { LocalDate.now().toEpochDay() },
     private val newId: () -> String = { UUID.randomUUID().toString() },
     private val now: () -> Long = System::currentTimeMillis,
 ) : ViewModel() {
-    private val mutableState = MutableStateFlow(UiState(choices = store.load(), personal = personal.load(), today = today()))
+    private val mutableState = MutableStateFlow(UiState(choices = store.load(), personal = personal.load(), today = today(), crowdEnabled = crowdEnabled))
     val state: StateFlow<UiState> = mutableState.asStateFlow()
 
     private var prices: Prices? = null
@@ -79,6 +95,10 @@ class CompareViewModel(
     private var permissionAsked = false
     /** The last location fix, for search bias and the Maps link; memory only. */
     private var here: Coordinate? = null
+    /** The offer the user opened with Open <provider>; the question comes when they return (R12). */
+    private var opened: QuestionTarget? = null
+
+    private data class QuestionTarget(val offerId: String, val providerId: String, val offerName: String)
 
     init {
         viewModelScope.launch {
@@ -357,6 +377,9 @@ class CompareViewModel(
             mutableState.update { it.copy(usedOnce = used) }
         }
         launcher.openProvider(state.value.personal.appFor(provider))
+        if (crowdEnabled && state.value.priceSource == PriceSource.SERVER) {
+            opened = QuestionTarget(chosen.quote.offerId, provider.id, chosen.quote.offerName)
+        }
     }
 
     /**
@@ -386,6 +409,10 @@ class CompareViewModel(
         if (choices != state.value.choices) {
             mutableState.update { it.copy(choices = choices) }
             reprice()
+        }
+        opened?.let { target ->
+            opened = null
+            ask(target)
         }
     }
 
@@ -448,6 +475,136 @@ class CompareViewModel(
         reprice()
     }
 
+    // --- Crowd (§7, §5.1) --------------------------------------------------------------
+
+    /** "Price wrong? Tell us": the price form for the option on screen (R9). */
+    fun reportPrice() {
+        if (!state.value.canReport()) return
+        val quote = state.value.reportTarget() ?: return
+        val purpose = PricePurpose.Report(quote.offerId, quote.providerId, quote.offerName)
+        mutableState.update { it.copy(priceForm = priceForm(purpose, currentCards(quote.offerId), Locale.getDefault())) }
+        push(Screen.PriceForm)
+    }
+
+    /** "Car not listed? Add it" (§5.1, R14). */
+    fun proposeCar(providerId: String) {
+        mutableState.update { it.copy(priceForm = PriceForm(PricePurpose.Propose(providerId))) }
+        push(Screen.PriceForm)
+    }
+
+    fun onPriceForm(form: PriceForm) = mutableState.update { it.copy(priceForm = form.copy(invalid = emptySet())) }
+
+    fun savePrice() {
+        val form = state.value.priceForm ?: return
+        val question = state.value.question?.takeIf { it.step == QuestionStep.FIX }
+        val current = question?.question?.cards
+            ?: (form.purpose as? PricePurpose.Report)?.let { currentCards(it.offerId) }
+            ?: emptyList()
+        val template = (form.purpose as? PricePurpose.Propose)?.let { template(it.providerId) }
+        when (val built = form.build(current, template)) {
+            is Built.Invalid -> mutableState.update { it.copy(priceForm = form.copy(invalid = built.fields)) }
+            Built.Unchanged -> if (question != null) dontKnow() else closeForm()
+            is Built.Report -> {
+                val offerId = (form.purpose as PricePurpose.Report).offerId
+                savePersonal(state.value.personal.withOverride(offerId, built.cards))
+                if (question != null) {
+                    mutableState.update { it.copy(priceForm = null, question = question.copy(step = QuestionStep.CORRECTED)) }
+                } else {
+                    closeForm()
+                }
+                send(built.body, offerId, quiet = question != null)
+            }
+            is Built.Proposal -> {
+                closeForm()
+                send(built.body, offerId = null, quiet = false)
+            }
+        }
+    }
+
+    /** "Use the shared price" (R10). */
+    fun resetPrice(offerId: String) = savePersonal(state.value.personal.withoutOverride(offerId))
+
+    fun answerYes() {
+        val asked = state.value.question ?: return
+        mutableState.update { it.copy(question = asked.copy(step = QuestionStep.CONFIRMED)) }
+        viewModelScope.launch {
+            val reportId = asked.question.reportId
+            val result = if (reportId != null) crowd.vote(reportId, Answer.YES) else crowd.confirm(asked.question.offerId, Answer.YES)
+            if (result is ApiResult.Ok) refreshPrices()
+            else mutableState.update { it.copy(question = it.question?.copy(step = QuestionStep.NOT_SENT)) }
+        }
+    }
+
+    /** "No, fix it"; for a proposal, a plain no (R13). */
+    fun answerNo() {
+        val asked = state.value.question ?: return
+        if (asked.isProposal) return dontKnow()
+        val purpose = PricePurpose.Report(asked.question.offerId, asked.providerId, asked.offerName)
+        mutableState.update {
+            it.copy(question = asked.copy(step = QuestionStep.FIX), priceForm = priceForm(purpose, asked.question.cards, Locale.getDefault()))
+        }
+    }
+
+    /** "I don't know the numbers": a no on a pending report, nothing on a current price (decision 36). */
+    fun dontKnow() {
+        val asked = state.value.question ?: return
+        asked.question.reportId?.let { report -> viewModelScope.launch { crowd.vote(report, Answer.NO) } }
+        closeQuestion()
+    }
+
+    /** Skip and Close. */
+    fun closeQuestion() = mutableState.update { it.copy(question = null, priceForm = null) }
+
+    fun crowdMessageShown() = mutableState.update { it.copy(crowdMessage = null) }
+
+    private fun ask(target: QuestionTarget) {
+        val prices = prices ?: return
+        val nowSeconds = now() / 1_000
+        val question = prices.question(target.offerId, nowSeconds, state.value.personal.lastAskedDay) ?: return
+        savePersonal(state.value.personal.copy(lastAskedDay = dayOf(nowSeconds)))
+        mutableState.update { it.copy(question = QuestionState(question, target.providerId, target.offerName)) }
+    }
+
+    private fun send(body: String, offerId: String?, quiet: Boolean) {
+        viewModelScope.launch {
+            val result = crowd.report(body)
+            val message = when {
+                result is ApiResult.Ok && result.value.status == "current" -> {
+                    offerId?.let { savePersonal(state.value.personal.withoutOverride(it)) }
+                    CrowdMessage.ALREADY_CURRENT
+                }
+                result is ApiResult.Ok -> if (offerId == null) CrowdMessage.PROPOSED else CrowdMessage.SENT
+                result is ApiResult.Refused && result.code == "offer_locked" -> CrowdMessage.LOCKED
+                else -> CrowdMessage.NOT_SENT
+            }
+            if (!(quiet && message == CrowdMessage.SENT)) mutableState.update { it.copy(crowdMessage = message) }
+            if (result is ApiResult.Ok) refreshPrices()
+        }
+    }
+
+    private fun refreshPrices() {
+        viewModelScope.launch {
+            val fresh = priceLoader.load()
+            if (fresh.source == PriceSource.SERVER) usePrices(fresh.prices to fresh.source)
+        }
+    }
+
+    private fun closeForm() {
+        mutableState.update { it.copy(priceForm = null) }
+        if (state.value.screen == Screen.PriceForm) pop()
+    }
+
+    /** The cards the user sees for an offer: their own, else the shared ones. */
+    private fun currentCards(offerId: String) =
+        state.value.personal.overrideCards(offerId) ?: prices?.cards(offerId).orEmpty()
+
+    /** The provider's first standard card: a proposal copies its label and rounding (R14). */
+    private fun template(providerId: String): RateCard? {
+        val prices = prices ?: return null
+        return state.value.providers.firstOrNull { it.id == providerId }?.offers
+            ?.firstNotNullOfOrNull { offer -> prices.cards(offer.id).firstOrNull { it.kind == CardKind.STANDARD } }
+    }
+
     // --- Navigation --------------------------------------------------------------------
 
     /** System back; false when there is nothing left to go back to (the activity finishes). */
@@ -462,6 +619,7 @@ class CompareViewModel(
             it.copy(
                 stack = stack.dropLast(1), step = null, askLocation = false,
                 dealForm = if (stack.last() == Screen.DealEditor) null else it.dealForm,
+                priceForm = if (stack.last() == Screen.PriceForm) null else it.priceForm,
             )
         }
         return true
@@ -476,6 +634,15 @@ class CompareViewModel(
     private fun usePrices(loaded: Pair<Prices, PriceSource>) {
         prices = loaded.first
         mutableState.update { it.copy(priceSource = loaded.second, providers = loaded.first.providers()) }
+        if (loaded.second == PriceSource.SERVER) {
+            val caughtUp = state.value.personal.droppingOverridesEqualTo { loaded.first.cards(it) }
+            if (caughtUp != state.value.personal) {
+                personal.save(caughtUp)
+                mutableState.update { it.copy(personal = caughtUp) }
+            }
+        }
+        val offers = loaded.first.providers().flatMap { p -> p.offers.map { it.id } }
+        mutableState.update { it.copy(lockedOffers = offers.filterTo(mutableSetOf()) { id -> loaded.first.isLocked(id) }) }
         reprice()
     }
 
@@ -496,8 +663,10 @@ class CompareViewModel(
         }
     }
 
+    /** The provider's offers and its quoted proposals, so proposals belong to its choices (R14). */
     private fun offerIds(providerId: String): Set<String> =
-        state.value.providers.firstOrNull { it.id == providerId }?.offers?.mapTo(mutableSetOf()) { it.id }.orEmpty()
+        state.value.providers.firstOrNull { it.id == providerId }?.offers?.mapTo(mutableSetOf()) { it.id }.orEmpty() +
+            state.value.quotes.filter { it.providerId == providerId }.map { it.offerId }
 
     private fun providerOf(providerId: String) = state.value.providers.firstOrNull { it.id == providerId }
 

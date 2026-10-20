@@ -1,6 +1,9 @@
 package io.github.locadani.whichride.compare
 
 import io.github.locadani.whichride.core.Choice
+import io.github.locadani.whichride.crowd.Answer
+import io.github.locadani.whichride.crowd.Crowd
+import io.github.locadani.whichride.server.ReportOutcome
 import io.github.locadani.whichride.core.Coordinate
 import io.github.locadani.whichride.core.Destination
 import io.github.locadani.whichride.core.Prices
@@ -73,3 +76,34 @@ class FakePersonalStore(var saved: Personal = Personal()) : PersonalStore {
 const val NOW = 1_792_497_600_000L
 val TODAY: Long = java.time.LocalDate.of(2026, 10, 20).toEpochDay()
 const val COORDINATE_LINK = "https://www.google.com/maps/search/?api=1&query=52.502287,13.431605"
+
+class FakeCrowd : Crowd {
+    var reportResult: ApiResult<ReportOutcome> = ApiResult.Ok(ReportOutcome("22222222-2222-4222-8222-222222222222", "pending"))
+    var voteResult: ApiResult<Unit> = ApiResult.Ok(Unit)
+    val reports = mutableListOf<String>()
+    val votes = mutableListOf<Pair<String, Answer>>()
+    val confirmations = mutableListOf<Pair<String, Answer>>()
+    override suspend fun report(body: String) = reportResult.also { reports += body }
+    override suspend fun vote(reportId: String, answer: Answer) = voteResult.also { votes += reportId to answer }
+    override suspend fun confirm(offerId: String, answer: Answer) = voteResult.also { confirmations += offerId to answer }
+}
+
+const val PENDING_REPORT = "11111111-2222-4333-8444-555555555555"
+const val PROPOSAL_REPORT = "aaaaaaaa-bbbb-4ccc-8ddd-eeeeeeeeeeee"
+const val CARD_89 = """{"label":"Standard","kind":"standard","base_fee":100,"per_km":89,"per_minute":0,"km_rounding":"started_unit","minute_rounding":"started_unit"}"""
+
+/** A `GET /v1/catalogue` answer over the seed: MILES S has a pending report, never confirmed. */
+fun serverCatalogue(
+    offers: String = """[{"offer":"miles.s","confirmed_on":null,"locked":false,"pending":{"report":"$PENDING_REPORT","cards":[$CARD_89]}}]""",
+    proposals: String = "[]",
+) = """{"catalogue":$SEED,"offers":$offers,"proposals":$proposals}"""
+
+/** Prices as if the server answered: cached first, then from the server. */
+class ServerPrices(private val json: String = serverCatalogue()) : PriceLoader {
+    var loads = 0
+    override suspend fun offline() = LoadedPrices(Prices.fromServerResponse(json), PriceSource.CACHED)
+    override suspend fun load(): LoadedPrices {
+        loads++
+        return LoadedPrices(Prices.fromServerResponse(json), PriceSource.SERVER)
+    }
+}

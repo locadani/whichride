@@ -13,4 +13,5 @@ sealed interface Screen {
     data object Settings : Screen
     data object Deals : Screen
     data object DealEditor : Screen
+    data object PriceForm : Screen
 }

@@ -75,6 +75,8 @@ fun WhichrideNav(viewModel: CompareViewModel) {
                 )
                 Screen.Start -> StartScreen(state, onBack = { viewModel.back() }, viewModel::onStartQuery, viewModel::pickStart, viewModel::useMyLocation)
                 Screen.Licences -> LicencesScreen(onBack = { viewModel.back() })
+                // The price form arrives in the next commit (plan Task 12).
+                Screen.PriceForm -> Unit
                 Screen.Settings -> SettingsScreen(
                     state, onBack = { viewModel.back() }, viewModel::openDeals, viewModel::chooseApp,
                     viewModel::openLanguageSettings, viewModel::openLicences,

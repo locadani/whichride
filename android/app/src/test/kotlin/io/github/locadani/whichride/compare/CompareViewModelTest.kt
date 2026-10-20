@@ -44,6 +44,7 @@ class CompareViewModelTest {
         priceLoader = SeedPrices(),
         hasLocationPermission = { permission },
         personal = FakePersonalStore(),
+        crowd = FakeCrowd(),
         today = { TODAY },
         now = { NOW },
     ).also { advanceUntilIdle() }
