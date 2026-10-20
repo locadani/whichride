@@ -1,6 +1,7 @@
 package io.github.locadani.whichride.options
 
 import android.content.SharedPreferences
+import androidx.core.content.edit
 import io.github.locadani.whichride.core.Choice
 
 /**
@@ -26,10 +27,10 @@ class OptionsStore(private val prefs: SharedPreferences, private val now: () -> 
 
     override fun save(choices: Set<Choice>) {
         if (choices.isEmpty()) return clear()
-        prefs.edit().putStringSet(CHOICES, choices.mapTo(mutableSetOf(), ::encode)).putLong(CHANGED_AT, now()).apply()
+        prefs.edit { putStringSet(CHOICES, choices.mapTo(mutableSetOf(), ::encode)).putLong(CHANGED_AT, now()) }
     }
 
-    private fun clear() = prefs.edit().remove(CHOICES).remove(CHANGED_AT).apply()
+    private fun clear() = prefs.edit { remove(CHOICES).remove(CHANGED_AT) }
 
     private fun encode(choice: Choice) = when (choice) {
         is Choice.Offer -> "$OFFER${choice.offerId}"

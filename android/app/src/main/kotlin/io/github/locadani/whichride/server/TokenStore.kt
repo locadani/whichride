@@ -4,6 +4,7 @@ import android.content.SharedPreferences
 import android.security.keystore.KeyGenParameterSpec
 import android.security.keystore.KeyProperties
 import android.util.Base64
+import androidx.core.content.edit
 import java.security.KeyStore
 import javax.crypto.Cipher
 import javax.crypto.KeyGenerator
@@ -35,10 +36,10 @@ class KeystoreTokenStore(private val prefs: SharedPreferences) : TokenStore {
         cipher.init(Cipher.ENCRYPT_MODE, key())
         val data = cipher.doFinal(token.toByteArray(Charsets.UTF_8))
         val encoded = listOf(cipher.iv, data).joinToString(":") { Base64.encodeToString(it, Base64.NO_WRAP) }
-        prefs.edit().putString(KEY, encoded).apply()
+        prefs.edit { putString(KEY, encoded) }
     }
 
-    override fun clear() = prefs.edit().remove(KEY).apply()
+    override fun clear() = prefs.edit { remove(KEY) }
 
     private fun key(): SecretKey {
         val keyStore = KeyStore.getInstance(ANDROID_KEYSTORE).apply { load(null) }

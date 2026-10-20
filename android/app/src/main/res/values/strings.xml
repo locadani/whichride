@@ -1,4 +1,109 @@
 <?xml version="1.0" encoding="utf-8"?>
 <resources>
     <string name="app_name">whichride</string>
+    <string name="back">Back</string>
+    <string name="close">Close</string>
+    <string name="licences">Licences</string>
+
+    <string name="home_title">Where to?</string>
+    <string name="home_title_accent">to?</string>
+    <string name="start_my_location">Your location</string>
+    <string name="start_change">Change</string>
+    <string name="destination_label">Destination</string>
+    <string name="destination_hint">Address, place or Maps link</string>
+    <string name="maps_link_found">Google Maps link</string>
+    <string name="compare_this_trip">Compare this trip</string>
+    <string name="suggestions_unavailable">Suggestions need our route service, which isn\'t reachable now. Search the address anyway, or paste a Google Maps link.</string>
+    <string name="home_tip">Tip: in Google Maps, tap Share on a place and pick whichride.</string>
+    <string name="error_not_a_maps_link">That link isn\'t from Google Maps.</string>
+    <string name="error_no_destination">That link doesn\'t point to a place.</string>
+    <string name="error_not_found">We couldn\'t find that place.</string>
+    <string name="error_too_long">That text is too long to be a link.</string>
+
+    <string name="resolving_from_maps">from Google Maps</string>
+    <string name="resolving_unnamed">Your destination</string>
+    <string name="resolving_place">Finding the place…</string>
+    <string name="resolving_location">Finding your location…</string>
+    <string name="resolving_route">Calculating the route…</string>
+
+    <string name="manual_title_busy">Route service is busy</string>
+    <string name="manual_title_offline">Can\'t reach the route service</string>
+    <string name="manual_title_no_route">No route by car</string>
+    <string name="manual_title_no_location">We couldn\'t find your location</string>
+    <string name="manual_title_edit">Distance and time</string>
+    <string name="manual_body">Enter the distance and time from Google Maps. The comparison still works.</string>
+    <string name="trip_to">To %1$s</string>
+    <string name="manual_km">Distance (km)</string>
+    <string name="manual_minutes">Time (min)</string>
+    <string name="manual_km_invalid">Between 0.1 and 2000 km</string>
+    <string name="manual_minutes_invalid">Between 1 and 1440 minutes</string>
+    <string name="manual_choose_start">Choose a start</string>
+    <string name="compare">Compare</string>
+    <string name="open_in_maps">Open in Google Maps</string>
+
+    <string name="trip_line">%1$s km · %2$s min</string>
+    <string name="built_in_prices">built-in prices</string>
+    <string name="edit">Edit</string>
+    <string name="loading_prices">Loading prices…</string>
+    <string name="intro_title">Which cars are near you?</string>
+    <string name="intro_title_accent">near you?</string>
+    <string name="intro_body">Look in %1$s, then add the cars you see. We\'ll show which one is cheapest for this trip.</string>
+    <string name="list_or">%1$s or %2$s</string>
+    <string name="cheapest_of_options">Cheapest of your options</string>
+    <string name="any_car">Any car</string>
+    <string name="any_car_meta">cheapest is %1$s</string>
+    <string name="package_meta">%1$s package</string>
+    <string name="confirmed_today">confirmed today</string>
+    <plurals name="confirmed_days_ago">
+        <item quantity="one">confirmed %d day ago</item>
+        <item quantity="other">confirmed %d days ago</item>
+    </plurals>
+    <string name="not_confirmed">not confirmed yet</string>
+    <string name="built_in_price">built-in price</string>
+    <string name="price_difference">+%1$s</string>
+    <string name="remove_option">Remove %1$s %2$s</string>
+    <string name="add_cars">Add the cars near you</string>
+    <string name="add_more_cars">Add more cars</string>
+    <plurals name="cheaper_not_added">
+        <item quantity="one">%1$d car you did not add is cheaper: %2$s (%3$s).</item>
+        <item quantity="other">%1$d cars you did not add are cheaper, from %2$s (%3$s).</item>
+    </plurals>
+    <string name="nothing_cheaper">No car you did not add is cheaper.</string>
+    <string name="open_provider">Open %1$s</string>
+    <string name="add_cars_to_compare">Add cars to compare</string>
+
+    <string name="step_1">Step 1 of 2</string>
+    <string name="step_2">Step 2 of 2</string>
+    <string name="which_provider">Which provider?</string>
+    <plurals name="provider_offers">
+        <item quantity="one">%1$d car · from %2$s</item>
+        <item quantity="other">%1$d cars · from %2$s</item>
+    </plurals>
+    <plurals name="added_count">
+        <item quantity="one">%1$d added</item>
+        <item quantity="other">%1$d added</item>
+    </plurals>
+    <string name="which_cars">%1$s: which cars?</string>
+    <string name="which_cars_body">Tick every car you see nearby. Prices are for this trip.</string>
+    <string name="check_in">Check in %1$s</string>
+    <plurals name="filter_cars">
+        <item quantity="one">Filter %1$d car, e.g. polo</item>
+        <item quantity="other">Filter %1$d cars, e.g. polo</item>
+    </plurals>
+    <string name="any_provider_car">Any %1$s car</string>
+    <string name="any_car_sub">I don\'t know which model</string>
+    <string name="from_price">from %1$s</string>
+    <string name="no_car_matches">No %1$s car matches “%2$s”.</string>
+    <string name="done">Done</string>
+    <string name="add_any_car">Add any %1$s car</string>
+    <plurals name="add_n_cars">
+        <item quantity="one">Add %d car</item>
+        <item quantity="other">Add %d cars</item>
+    </plurals>
+
+    <string name="start_title">Start from</string>
+    <string name="start_hint">Address or place</string>
+    <string name="use_my_location">Use my location</string>
+
+    <string name="licences_body">whichride is open source under the MIT licence. It includes the Sora and JetBrains Mono fonts, under the SIL Open Font License 1.1.</string>
 </resources>

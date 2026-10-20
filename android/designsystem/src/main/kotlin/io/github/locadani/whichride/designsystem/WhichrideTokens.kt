@@ -77,6 +77,9 @@ object WhichrideTokens {
     object Size {
         val controlLg: Dp = 56.dp
         val controlMd: Dp = 48.dp
+        val monogram: Dp = 32.dp
+        val stroke: Dp = 1.dp
+        val strokeStrong: Dp = 2.dp
         val touchTarget: Dp = 48.dp
     }
 

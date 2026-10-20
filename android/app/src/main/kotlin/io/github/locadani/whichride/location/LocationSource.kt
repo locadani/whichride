@@ -31,7 +31,7 @@ class AndroidLocationSource(private val context: Context) : LocationSource {
         if (!hasLocationPermission(context)) return null
         val manager = context.getSystemService(LocationManager::class.java) ?: return null
         val provider = listOf(
-            LocationManager.FUSED_PROVIDER.takeIf { Build.VERSION.SDK_INT >= Build.VERSION_CODES.S },
+            if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.S) LocationManager.FUSED_PROVIDER else null,
             LocationManager.NETWORK_PROVIDER,
             LocationManager.GPS_PROVIDER,
         ).filterNotNull().firstOrNull { manager.isProviderEnabled(it) } ?: return null

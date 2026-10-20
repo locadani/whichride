@@ -18,7 +18,7 @@ fun mapsUrl(from: Coordinate?, to: MapsTarget): String {
     val destination = when (to) {
         is MapsTarget.Link -> return to.url
         is MapsTarget.At -> pair(to.at)
-        is MapsTarget.Query -> URLEncoder.encode(to.text, Charsets.UTF_8).replace("+", "%20")
+        is MapsTarget.Query -> URLEncoder.encode(to.text, "UTF-8").replace("+", "%20") // the Charset overload is API 33
     }
     val origin = from?.let { "&origin=${pair(it)}" }.orEmpty()
     return "https://www.google.com/maps/dir/?api=1$origin&destination=$destination&travelmode=driving"

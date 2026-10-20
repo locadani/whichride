@@ -3,7 +3,7 @@ package io.github.locadani.whichride.launch
 import android.content.ActivityNotFoundException
 import android.content.Context
 import android.content.Intent
-import android.net.Uri
+import androidx.core.net.toUri
 
 /** Opens other apps; the screens never build intents themselves. */
 interface Launcher {
@@ -22,12 +22,12 @@ class AndroidLauncher(private val context: Context) : Launcher {
     override fun openProvider(androidPackage: String) {
         val app = context.packageManager.getLaunchIntentForPackage(androidPackage)
         (app != null && start(app)) ||
-            start(Intent(Intent.ACTION_VIEW, Uri.parse("market://details?id=$androidPackage"))) ||
-            start(Intent(Intent.ACTION_VIEW, Uri.parse("https://play.google.com/store/apps/details?id=$androidPackage")))
+            start(Intent(Intent.ACTION_VIEW, "market://details?id=$androidPackage".toUri())) ||
+            start(Intent(Intent.ACTION_VIEW, "https://play.google.com/store/apps/details?id=$androidPackage".toUri()))
     }
 
     override fun openUrl(url: String) {
-        val uri = Uri.parse(url)
+        val uri = url.toUri()
         start(Intent(Intent.ACTION_VIEW, uri).setPackage(GOOGLE_MAPS)) || start(Intent(Intent.ACTION_VIEW, uri))
     }
 
