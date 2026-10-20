@@ -8,10 +8,9 @@ use std::collections::BTreeMap;
 use axum::Json;
 use axum::extract::{Path, State};
 use axum::http::StatusCode;
-use carsharing_core::catalogue::validate_cards;
 use carsharing_core::{
-    Answer, Cents, Day, InstallId, OfferId, ProviderId, RateCard, Vote, Weight, is_accepted,
-    settle, weight,
+    Answer, Day, InstallId, OfferId, ProviderId, RateCard, Vote, Weight, is_accepted, settle,
+    weight,
 };
 use serde::{Deserialize, Serialize};
 use sqlx::types::Json as SqlJson;
@@ -22,14 +21,7 @@ use crate::auth::{Install, Signed};
 use crate::error::ApiError;
 use crate::state::AppState;
 
-pub const MAX_CARDS: usize = 5;
-pub const MAX_LABEL_CHARS: usize = 40;
-pub const MAX_NAME_CHARS: usize = 60;
 const MAX_ID_SLUG_CHARS: usize = 40;
-const MAX_BASE_FEE: Cents = Cents(50_000);
-const MAX_PER_UNIT: Cents = Cents(500);
-const MAX_MINIMUM: Cents = Cents(5_000);
-const MAX_INCLUDED: u32 = 20_000;
 
 #[derive(Debug, Deserialize)]
 #[serde(deny_unknown_fields)]
@@ -69,38 +61,9 @@ pub struct VoteOutcome {
     pub status: ReportStatus,
 }
 
-/// Text shown to other users must not carry control characters or bidirectional formatting
-/// (which can make a label read differently from what it is).
-pub fn is_safe_text(text: &str) -> bool {
-    !text.chars().any(|c| {
-        c.is_control()
-            || matches!(c, '\u{200e}' | '\u{200f}' | '\u{202a}'..='\u{202e}' | '\u{2066}'..='\u{2069}')
-    })
-}
-
-/// The rate cards of a report: valid for the core, labelled, and believable.
+/// The rate cards of a report: the core's limits (shared with the app).
 pub fn check_cards(offer: &OfferId, cards: &[RateCard]) -> Result<(), ApiError> {
-    if cards.is_empty() || cards.len() > MAX_CARDS {
-        return Err(ApiError::BadRequest);
-    }
-    validate_cards(offer, cards).map_err(|_| ApiError::BadRequest)?;
-    for card in cards {
-        let label = card.label.trim();
-        let plausible = label == card.label
-            && !label.is_empty()
-            && label.chars().count() <= MAX_LABEL_CHARS
-            && is_safe_text(label)
-            && card.base_fee <= MAX_BASE_FEE
-            && card.per_km <= MAX_PER_UNIT
-            && card.per_minute <= MAX_PER_UNIT
-            && card.minimum <= MAX_MINIMUM
-            && card.included_km <= MAX_INCLUDED
-            && card.included_minutes <= MAX_INCLUDED;
-        if !plausible {
-            return Err(ApiError::BadRequest);
-        }
-    }
-    Ok(())
+    carsharing_core::report::check_cards(offer, cards).map_err(|_| ApiError::BadRequest)
 }
 
 pub async fn post_report(
@@ -114,10 +77,8 @@ pub async fn post_report(
             report_on_offer(&state, &install, &offer, &body.cards, today).await
         }
         (None, Some(provider), Some(name)) => {
-            let name = name.trim();
-            if name.is_empty() || name.chars().count() > MAX_NAME_CHARS || !is_safe_text(name) {
-                return Err(ApiError::BadRequest);
-            }
+            let name =
+                carsharing_core::report::check_name(&name).map_err(|_| ApiError::BadRequest)?;
             if state.providers.provider(&provider).is_none() {
                 return Err(ApiError::NotFound);
             }
@@ -676,18 +637,6 @@ fn weight_from_column(value: i32) -> Weight {
 #[cfg(test)]
 mod tests {
     use super::*;
-
-    #[test]
-    fn safe_text_has_no_control_or_bidi_characters() {
-        assert!(is_safe_text("Škoda Enyaq — 10 €/h"));
-        for c in ['\u{0}', '\n', '\u{9f}', '\u{200e}', '\u{202c}', '\u{2067}'] {
-            assert!(!is_safe_text(&format!("a{c}b")), "{c:?}");
-        }
-        assert!(
-            is_safe_text("a\u{200d}b"),
-            "a zero-width joiner is fine (emoji)"
-        );
-    }
 
     #[test]
     fn offer_ids_are_lowercase_with_dashes() {
