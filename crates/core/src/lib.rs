@@ -18,7 +18,7 @@ pub mod usage;
 pub mod voting;
 
 pub use adjustments::{Adjustments, Discount, PriceOverride, Subscription};
-pub use catalogue::{Catalogue, CatalogueError, Offer, OfferId, Provider, ProviderId};
+pub use catalogue::{Catalogue, CatalogueError, Offer, OfferId, Provider, ProviderApp, ProviderId};
 pub use compare::{Quote, compare};
 pub use confirmation::{confirmed_days_ago, should_ask};
 pub use day::Day;
