@@ -3,6 +3,12 @@ all-features = true
 
 [advisories]
 yanked = "deny"
+ignore = [
+    # basic-toml is unmaintained (no known vulnerability). It reaches us only through UniFFI's
+    # binding generator (askama), which runs at build time on our own uniffi.toml; it is not in
+    # the library the app ships. Drop this when UniFFI moves to `toml`.
+    { id = "RUSTSEC-2026-0374", reason = "build-time only, via uniffi_bindgen/askama" },
+]
 
 [licenses]
 confidence-threshold = 0.8
@@ -15,6 +21,8 @@ allow = [
     "ISC",
     "Unicode-3.0",
     "Zlib",
+    # UniFFI (file-level copyleft, used unmodified)
+    "MPL-2.0",
     # Mozilla CA root certificate data (webpki-roots), permissive
     "CDLA-Permissive-2.0",
 ]

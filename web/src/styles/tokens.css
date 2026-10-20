@@ -36,6 +36,9 @@
   --wr-radius-xxl: 28px;
   --wr-size-control-lg: 56px;
   --wr-size-control-md: 48px;
+  --wr-size-monogram: 32px;
+  --wr-size-stroke: 1px;
+  --wr-size-stroke-strong: 2px;
   --wr-size-touch-target: 48px;
   --wr-type-body-large: 400 1rem/1.5 var(--wr-font-text);
   --wr-type-body-large-tracking: 0em;

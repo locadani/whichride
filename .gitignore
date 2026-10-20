@@ -29,6 +29,7 @@ node_modules/
 
 # Android
 /android/.gradle/
+/android/buildSrc/.gradle/
 /android/**/build/
 /android/.kotlin/
 /android/local.properties

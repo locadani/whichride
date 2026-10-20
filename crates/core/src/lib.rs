@@ -11,6 +11,7 @@ pub mod day;
 pub mod geo;
 pub mod link;
 pub mod money;
+pub mod options;
 pub mod rate_card;
 pub mod usage;
 pub mod voting;
@@ -21,8 +22,9 @@ pub use compare::{Quote, compare};
 pub use confirmation::{confirmed_days_ago, should_ask};
 pub use day::Day;
 pub use geo::{Coordinate, CoordinateError};
-pub use link::{Destination, LinkError, parse_destination};
+pub use link::{Destination, LinkError, parse_destination, shared_label};
 pub use money::{Cents, Percent, PercentError};
+pub use options::{Choice, Options, RankedOption, options};
 pub use rate_card::{CardKind, Charges, RateCard};
 pub use usage::{Rounding, Trip};
 pub use voting::{

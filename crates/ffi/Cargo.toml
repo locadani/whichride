@@ -1,0 +1,25 @@
+[package]
+name = "whichride-ffi"
+version = "0.1.0"
+description = "UniFFI bindings of carsharing-core for the Android app"
+edition.workspace = true
+rust-version.workspace = true
+license.workspace = true
+publish.workspace = true
+repository.workspace = true
+
+[lib]
+name = "whichride_ffi"
+crate-type = ["cdylib", "lib"]
+
+[dependencies]
+carsharing-core.workspace = true
+serde.workspace = true
+serde_json.workspace = true
+thiserror.workspace = true
+uniffi.workspace = true
+
+# Not the workspace lints: UniFFI's macros expand to `unsafe` FFI glue, and the workspace
+# forbids `unsafe_code` (which can't be relaxed per item). This crate's own code has none.
+[lints.clippy]
+all = { level = "warn", priority = -1 }

@@ -61,6 +61,43 @@ pub fn parse_destination(input: &str) -> Result<Destination, LinkError> {
     Err(first_error.unwrap_or(LinkError::NoLink))
 }
 
+/// Longest place name kept from a share.
+pub const MAX_LABEL_CHARS: usize = 120;
+
+/// The place name a share carries next to its link: Google Maps shares
+/// "Markthalle Neun\n…\nhttps://maps.app.goo.gl/…". The first non-blank line that holds no
+/// link, without control or bidirectional-formatting characters (they could reorder what the
+/// screen shows), at most [`MAX_LABEL_CHARS`] characters.
+pub fn shared_label(input: &str) -> Option<String> {
+    if input.len() > MAX_INPUT_BYTES {
+        return None;
+    }
+    let line = input
+        .lines()
+        .map(str::trim)
+        .find(|line| !line.is_empty() && find_links(line).next().is_none())
+        .or_else(|| text_before_first_link(input))?;
+    let label: String = line
+        .chars()
+        .filter(|c| !c.is_control() && !is_bidi_format(*c))
+        .take(MAX_LABEL_CHARS)
+        .collect();
+    let label = label.trim();
+    (!label.is_empty()).then(|| label.to_owned())
+}
+
+/// "Markthalle Neun https://…" on one line: the words before the first link.
+fn text_before_first_link(input: &str) -> Option<&str> {
+    let link = find_links(input).next()?;
+    let start = link.as_ptr() as usize - input.as_ptr() as usize;
+    let before = input[..start].lines().last().unwrap_or_default().trim();
+    (!before.is_empty()).then_some(before)
+}
+
+fn is_bidi_format(c: char) -> bool {
+    matches!(c, '\u{061C}' | '\u{200E}' | '\u{200F}' | '\u{202A}'..='\u{202E}' | '\u{2066}'..='\u{2069}')
+}
+
 fn parse_link(link: &str) -> Result<Destination, LinkError> {
     if starts_with_ignore_case(link, "geo:") {
         return parse_geo(&link["geo:".len()..]);
@@ -637,6 +674,56 @@ mod tests {
         assert_eq!(
             parse("geo:52.5,13.4,100;u=5"),
             Ok(coordinates(525_000_000, 134_000_000, None))
+        );
+    }
+
+    #[test]
+    fn shared_label_is_the_first_line_without_a_link() {
+        assert_eq!(
+            shared_label(
+                "Markthalle Neun\nEisenbahnstraße 42, Berlin\n\nhttps://maps.app.goo.gl/x7Qa2Lm"
+            )
+            .as_deref(),
+            Some("Markthalle Neun")
+        );
+    }
+
+    #[test]
+    fn shared_label_skips_blank_lines_and_lines_with_links() {
+        assert_eq!(
+            shared_label("https://maps.app.goo.gl/x\n\n  Mauerpark  ").as_deref(),
+            Some("Mauerpark")
+        );
+    }
+
+    #[test]
+    fn shared_label_is_the_text_before_the_link_on_a_one_line_share() {
+        assert_eq!(
+            shared_label("Markthalle Neun https://maps.app.goo.gl/x7Qa2Lm").as_deref(),
+            Some("Markthalle Neun")
+        );
+        assert_eq!(
+            shared_label("  Mauerpark:  https://maps.app.goo.gl/x\nhttps://example.com").as_deref(),
+            Some("Mauerpark:")
+        );
+    }
+
+    #[test]
+    fn shared_label_is_none_for_a_bare_link() {
+        assert_eq!(shared_label("https://maps.app.goo.gl/x7Qa2Lm"), None);
+        assert_eq!(shared_label("   "), None);
+    }
+
+    #[test]
+    fn shared_label_drops_control_and_bidi_characters_and_is_bounded() {
+        assert_eq!(
+            shared_label("Mauer\u{202E}park\u{0007}").as_deref(),
+            Some("Mauerpark")
+        );
+        let long = "a".repeat(500);
+        assert_eq!(
+            shared_label(&long).map(|label| label.chars().count()),
+            Some(MAX_LABEL_CHARS)
         );
     }
 }

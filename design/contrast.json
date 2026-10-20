@@ -30,6 +30,7 @@
     { "fg": "accent", "bg": "surface", "kind": "non-text" },
     { "fg": "accent", "bg": "surface-low", "kind": "non-text" },
     { "fg": "outline", "bg": "surface-highest", "kind": "non-text" },
+    { "fg": "accent", "bg": "surface-highest", "kind": "non-text" },
     { "fg": "background", "bg": "on-surface", "kind": "text" },
     { "fg": "accent", "fgTheme": "other", "bg": "on-surface", "kind": "text" }
   ],
