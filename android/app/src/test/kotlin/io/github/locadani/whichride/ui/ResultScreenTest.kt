@@ -13,6 +13,7 @@ import androidx.test.ext.junit.runners.AndroidJUnit4
 import io.github.locadani.whichride.compare.Screen
 import io.github.locadani.whichride.compare.Target
 import io.github.locadani.whichride.compare.UiState
+import io.github.locadani.whichride.core.AppInfo
 import io.github.locadani.whichride.core.Choice
 import io.github.locadani.whichride.core.OfferInfo
 import io.github.locadani.whichride.core.Options
@@ -29,11 +30,11 @@ import org.junit.Test
 import org.junit.runner.RunWith
 
 fun quote(provider: String, offer: String, name: String, cents: Long, days: UInt? = 2u) =
-    Quote(provider, offer, name, "Standard", cents, false, days)
+    Quote(provider, offer, name, "Standard", cents, false, days, false)
 
 val PROVIDERS = listOf(
-    ProviderInfo("miles", "MILES", "com.driveby.app", listOf(OfferInfo("miles.s", "S"))),
-    ProviderInfo("bolt", "Bolt Drive", "ee.mtakso.client", listOf(OfferInfo("bolt.picanto", "Kia Picanto"), OfferInfo("bolt.polo", "VW Polo"))),
+    ProviderInfo("miles", "MILES", "com.driveby.app", listOf(OfferInfo("miles.s", "S")), listOf(AppInfo("MILES", "com.driveby.app"))),
+    ProviderInfo("bolt", "Bolt Drive", "ee.mtakso.client", listOf(OfferInfo("bolt.picanto", "Kia Picanto"), OfferInfo("bolt.polo", "VW Polo")), listOf(AppInfo("Bolt Drive", "ee.mtakso.client"))),
 )
 val QUOTES = listOf(quote("bolt", "bolt.picanto", "Kia Picanto", 790), quote("miles", "miles.s", "S", 849), quote("bolt", "bolt.polo", "VW Polo", 912))
 

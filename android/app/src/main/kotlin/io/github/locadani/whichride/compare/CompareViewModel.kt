@@ -2,6 +2,7 @@ package io.github.locadani.whichride.compare
 
 import androidx.lifecycle.ViewModel
 import androidx.lifecycle.viewModelScope
+import io.github.locadani.whichride.core.Adjustments
 import io.github.locadani.whichride.core.Choice
 import io.github.locadani.whichride.core.Coordinate
 import io.github.locadani.whichride.core.Destination
@@ -394,10 +395,10 @@ class CompareViewModel(
         val trip = state.value.trip
         if (prices == null || trip == null) return mutableState.update { it.copy(quotes = emptyList(), options = null) }
         val today = now() / 1_000
-        val options = prices.options(trip, state.value.choices.toList(), today)
+        val options = prices.options(trip, state.value.choices.toList(), NO_ADJUSTMENTS, today)
         mutableState.update {
             it.copy(
-                quotes = prices.quotes(trip, today),
+                quotes = prices.quotes(trip, NO_ADJUSTMENTS, today),
                 options = options,
                 selected = it.selected?.takeIf { s -> options.ranked.any { o -> o.choice == s } },
             )
@@ -423,3 +424,6 @@ private fun LinkException.toInputError() = when (this) {
     is LinkException.NoDestination, is LinkException.InvalidCoordinates -> InputError.NO_DESTINATION
     else -> InputError.NOT_A_MAPS_LINK
 }
+
+/** Personal adjustments arrive with the discounts screens (milestone 5b, Task 7). */
+private val NO_ADJUSTMENTS = Adjustments(emptyList(), emptyList(), emptyList(), emptyList(), false)

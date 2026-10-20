@@ -5,6 +5,7 @@ import androidx.compose.ui.test.onNodeWithText
 import androidx.compose.ui.test.performClick
 import androidx.test.ext.junit.runners.AndroidJUnit4
 import io.github.locadani.whichride.compare.Screen
+import io.github.locadani.whichride.core.AppInfo
 import io.github.locadani.whichride.core.Choice
 import io.github.locadani.whichride.core.OfferInfo
 import io.github.locadani.whichride.core.ProviderInfo
@@ -23,7 +24,7 @@ class CarsScreenTest {
 
     private fun show(offers: Int, draft: Set<Choice> = emptySet(), filter: String = "") {
         val names = models.take(offers)
-        val bolt = ProviderInfo("bolt", "Bolt Drive", "ee.mtakso.client", names.map { OfferInfo("bolt.${it.lowercase()}", it) })
+        val bolt = ProviderInfo("bolt", "Bolt Drive", "ee.mtakso.client", names.map { OfferInfo("bolt.${it.lowercase()}", it) }, listOf(AppInfo("Bolt Drive", "ee.mtakso.client")))
         val quotes = names.mapIndexed { i, name -> quote("bolt", "bolt.${name.lowercase()}", name, 790L + i * 10) }
         val state = resultState().copy(stack = listOf(Screen.Home, Screen.Result, Screen.Providers, Screen.Cars("bolt")),
             providers = listOf(bolt), quotes = quotes, draft = draft, carFilter = filter)
