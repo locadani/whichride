@@ -10,4 +10,7 @@ sealed interface Screen {
     data class Cars(val providerId: String) : Screen
     data object Start : Screen
     data object Licences : Screen
+    data object Settings : Screen
+    data object Deals : Screen
+    data object DealEditor : Screen
 }

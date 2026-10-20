@@ -10,6 +10,7 @@ import io.github.locadani.whichride.launch.AndroidLauncher
 import io.github.locadani.whichride.location.AndroidLocationSource
 import io.github.locadani.whichride.location.hasLocationPermission
 import io.github.locadani.whichride.options.OptionsStore
+import io.github.locadani.whichride.personal.FilePersonalStore
 import io.github.locadani.whichride.prices.PriceBook
 import io.github.locadani.whichride.server.Installs
 import io.github.locadani.whichride.server.IntegrityTokens
@@ -45,6 +46,7 @@ class AppContainer(private val app: Application) {
                 store = OptionsStore(prefs("options"), System::currentTimeMillis),
                 priceLoader = priceBook,
                 hasLocationPermission = { hasLocationPermission(app) },
+                personal = FilePersonalStore(File(app.filesDir, "personal.json")),
             )
         }
     }

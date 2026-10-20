@@ -7,6 +7,8 @@ import io.github.locadani.whichride.core.ProviderInfo
 import io.github.locadani.whichride.core.Quote
 import io.github.locadani.whichride.core.Trip
 import io.github.locadani.whichride.launch.MapsTarget
+import io.github.locadani.whichride.personal.DealForm
+import io.github.locadani.whichride.personal.Personal
 import io.github.locadani.whichride.prices.PriceSource
 import io.github.locadani.whichride.server.Place
 
@@ -56,6 +58,15 @@ data class UiState(
     val selected: Choice? = null,
     val draft: Set<Choice> = emptySet(),
     val carFilter: String = "",
+    // Personal (§6)
+    val personal: Personal = Personal(),
+    /** Epoch day in the phone's time zone, for "expired" labels. */
+    val today: Long = 0,
+    /** "I'll refuel or charge" for this trip (R6). */
+    val refuel: Boolean = false,
+    val dealForm: DealForm? = null,
+    /** Once discounts just used by Open <provider>, for the Undo snackbar (R5). */
+    val usedOnce: List<String> = emptyList(),
 ) {
     val screen: Screen get() = stack.last()
 }

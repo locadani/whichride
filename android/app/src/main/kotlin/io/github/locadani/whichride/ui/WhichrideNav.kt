@@ -53,6 +53,8 @@ fun WhichrideNav(viewModel: CompareViewModel) {
                 )
                 Screen.Start -> StartScreen(state, onBack = { viewModel.back() }, viewModel::onStartQuery, viewModel::pickStart, viewModel::useMyLocation)
                 Screen.Licences -> LicencesScreen(onBack = { viewModel.back() })
+                // Screens arrive in the next commit (plan Task 8).
+                Screen.Settings, Screen.Deals, Screen.DealEditor -> Unit
             }
         }
     }

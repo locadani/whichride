@@ -43,7 +43,9 @@ class CompareViewModelTest {
         store = store,
         priceLoader = SeedPrices(),
         hasLocationPermission = { permission },
-        now = { 1_792_497_600_000L },
+        personal = FakePersonalStore(),
+        today = { TODAY },
+        now = { NOW },
     ).also { advanceUntilIdle() }
 
     private val coordinateLink = "https://www.google.com/maps/search/?api=1&query=52.502287,13.431605"

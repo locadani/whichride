@@ -2,7 +2,6 @@ package io.github.locadani.whichride.compare
 
 import androidx.lifecycle.ViewModel
 import androidx.lifecycle.viewModelScope
-import io.github.locadani.whichride.core.Adjustments
 import io.github.locadani.whichride.core.Choice
 import io.github.locadani.whichride.core.Coordinate
 import io.github.locadani.whichride.core.Destination
@@ -23,6 +22,21 @@ import io.github.locadani.whichride.options.ChoiceStore
 import io.github.locadani.whichride.options.forProvider
 import io.github.locadani.whichride.options.replacingProvider
 import io.github.locadani.whichride.options.toggle as toggled
+import io.github.locadani.whichride.personal.DealForm
+import io.github.locadani.whichride.personal.Personal
+import io.github.locadani.whichride.personal.PersonalStore
+import io.github.locadani.whichride.personal.adjustments
+import io.github.locadani.whichride.personal.appFor
+import io.github.locadani.whichride.personal.restore
+import io.github.locadani.whichride.personal.toForm
+import io.github.locadani.whichride.personal.toggled
+import io.github.locadani.whichride.personal.useOnce
+import io.github.locadani.whichride.personal.validated
+import io.github.locadani.whichride.personal.withDeal
+import io.github.locadani.whichride.personal.withoutDeal
+import java.time.LocalDate
+import java.util.Locale
+import java.util.UUID
 import io.github.locadani.whichride.prices.PriceLoader
 import io.github.locadani.whichride.prices.PriceSource
 import io.github.locadani.whichride.server.ApiResult
@@ -49,9 +63,12 @@ class CompareViewModel(
     private val store: ChoiceStore,
     private val priceLoader: PriceLoader,
     private val hasLocationPermission: () -> Boolean,
+    private val personal: PersonalStore,
+    private val today: () -> Long = { LocalDate.now().toEpochDay() },
+    private val newId: () -> String = { UUID.randomUUID().toString() },
     private val now: () -> Long = System::currentTimeMillis,
 ) : ViewModel() {
-    private val mutableState = MutableStateFlow(UiState(choices = store.load()))
+    private val mutableState = MutableStateFlow(UiState(choices = store.load(), personal = personal.load(), today = today()))
     val state: StateFlow<UiState> = mutableState.asStateFlow()
 
     private var prices: Prices? = null
@@ -167,7 +184,7 @@ class CompareViewModel(
                 stack = listOf(Screen.Home, Screen.Resolving),
                 query = "", linkInQuery = false, suggestions = emptyList(), inputError = null,
                 target = Target(label, null, MapsTarget.Query(label.orEmpty())),
-                step = ResolvingStep.FINDING_PLACE, trip = null, manualReason = null, selected = null,
+                step = ResolvingStep.FINDING_PLACE, trip = null, manualReason = null, selected = null, refuel = false,
             )
         }
         tripJob = viewModelScope.launch {
@@ -329,11 +346,17 @@ class CompareViewModel(
 
     fun select(choice: Choice) = mutableState.update { it.copy(selected = choice) }
 
-    /** Open <provider> for the selected option, else the cheapest. */
+    /** Open <provider> for the selected option, else the cheapest; uses its once discounts (R5). */
     fun openChosen() {
         val ranked = state.value.options?.ranked.orEmpty()
         val chosen = ranked.firstOrNull { it.choice == state.value.selected } ?: ranked.firstOrNull() ?: return
-        packageOf(chosen.quote.providerId)?.let(launcher::openProvider)
+        val provider = providerOf(chosen.quote.providerId) ?: return
+        val (next, used) = state.value.personal.useOnce(provider.id, today())
+        if (used.isNotEmpty()) {
+            savePersonal(next)
+            mutableState.update { it.copy(usedOnce = used) }
+        }
+        launcher.openProvider(state.value.personal.appFor(provider))
     }
 
     /**
@@ -345,7 +368,7 @@ class CompareViewModel(
         store.save(choices)
         mutableState.update { it.copy(choices = choices) }
         reprice()
-        packageOf(providerId)?.let(launcher::openProvider)
+        providerOf(providerId)?.let { launcher.openProvider(state.value.personal.appFor(it)) }
     }
 
     fun openMaps() {
@@ -364,6 +387,65 @@ class CompareViewModel(
         }
     }
 
+    // --- Personal (§6) -----------------------------------------------------------------
+
+    fun openSettings() = push(Screen.Settings)
+
+    fun openDeals() = push(Screen.Deals)
+
+    fun newDeal() {
+        mutableState.update { it.copy(dealForm = DealForm(providerId = it.providers.singleOrNull()?.id)) }
+        push(Screen.DealEditor)
+    }
+
+    fun editDeal(id: String) {
+        val deal = state.value.personal.deals.firstOrNull { it.id == id } ?: return
+        mutableState.update { it.copy(dealForm = deal.toForm(Locale.getDefault())) }
+        push(Screen.DealEditor)
+    }
+
+    /** Every edit of the form; marks are cleared until the next save. */
+    fun onDealForm(form: DealForm) = mutableState.update { it.copy(dealForm = form.copy(invalid = emptySet())) }
+
+    fun saveDeal() {
+        val form = state.value.dealForm ?: return
+        val (deal, invalid) = form.validated(newId)
+        if (deal == null) return mutableState.update { it.copy(dealForm = form.copy(invalid = invalid)) }
+        savePersonal(state.value.personal.withDeal(deal))
+        mutableState.update { it.copy(dealForm = null) }
+        pop()
+    }
+
+    fun deleteDeal() {
+        val id = state.value.dealForm?.editingId ?: return
+        savePersonal(state.value.personal.withoutDeal(id))
+        mutableState.update { it.copy(dealForm = null) }
+        pop()
+    }
+
+    fun toggleDeal(id: String) = savePersonal(state.value.personal.toggled(id))
+
+    fun setRefuel(on: Boolean) {
+        mutableState.update { it.copy(refuel = on) }
+        reprice()
+    }
+
+    fun chooseApp(providerId: String, androidPackage: String) =
+        savePersonal(state.value.personal.let { it.copy(apps = it.apps + (providerId to androidPackage)) })
+
+    fun undoOnce() {
+        savePersonal(state.value.personal.restore(state.value.usedOnce))
+        mutableState.update { it.copy(usedOnce = emptyList()) }
+    }
+
+    fun onceMessageShown() = mutableState.update { it.copy(usedOnce = emptyList()) }
+
+    private fun savePersonal(next: Personal) {
+        personal.save(next)
+        mutableState.update { it.copy(personal = next) }
+        reprice()
+    }
+
     // --- Navigation --------------------------------------------------------------------
 
     /** System back; false when there is nothing left to go back to (the activity finishes). */
@@ -374,7 +456,12 @@ class CompareViewModel(
             tripJob?.cancel()
             permissionAnswer?.cancel()
         }
-        mutableState.update { it.copy(stack = stack.dropLast(1), step = null, askLocation = false) }
+        mutableState.update {
+            it.copy(
+                stack = stack.dropLast(1), step = null, askLocation = false,
+                dealForm = if (stack.last() == Screen.DealEditor) null else it.dealForm,
+            )
+        }
         return true
     }
 
@@ -394,12 +481,14 @@ class CompareViewModel(
         val prices = prices
         val trip = state.value.trip
         if (prices == null || trip == null) return mutableState.update { it.copy(quotes = emptyList(), options = null) }
-        val today = now() / 1_000
-        val options = prices.options(trip, state.value.choices.toList(), NO_ADJUSTMENTS, today)
+        val nowSeconds = now() / 1_000
+        val adjustments = state.value.personal.adjustments(today(), state.value.refuel)
+        val options = prices.options(trip, state.value.choices.toList(), adjustments, nowSeconds)
         mutableState.update {
             it.copy(
-                quotes = prices.quotes(trip, NO_ADJUSTMENTS, today),
+                quotes = prices.quotes(trip, adjustments, nowSeconds),
                 options = options,
+                today = today(),
                 selected = it.selected?.takeIf { s -> options.ranked.any { o -> o.choice == s } },
             )
         }
@@ -408,7 +497,7 @@ class CompareViewModel(
     private fun offerIds(providerId: String): Set<String> =
         state.value.providers.firstOrNull { it.id == providerId }?.offers?.mapTo(mutableSetOf()) { it.id }.orEmpty()
 
-    private fun packageOf(providerId: String) = state.value.providers.firstOrNull { it.id == providerId }?.androidPackage
+    private fun providerOf(providerId: String) = state.value.providers.firstOrNull { it.id == providerId }
 
     private companion object {
         const val SEARCH_DELAY_MILLIS = 300L
@@ -425,5 +514,3 @@ private fun LinkException.toInputError() = when (this) {
     else -> InputError.NOT_A_MAPS_LINK
 }
 
-/** Personal adjustments arrive with the discounts screens (milestone 5b, Task 7). */
-private val NO_ADJUSTMENTS = Adjustments(emptyList(), emptyList(), emptyList(), emptyList(), false)

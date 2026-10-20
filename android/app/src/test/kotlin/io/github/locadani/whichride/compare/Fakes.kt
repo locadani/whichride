@@ -7,6 +7,8 @@ import io.github.locadani.whichride.core.Prices
 import io.github.locadani.whichride.core.Trip
 import io.github.locadani.whichride.launch.Launcher
 import io.github.locadani.whichride.options.ChoiceStore
+import io.github.locadani.whichride.personal.Personal
+import io.github.locadani.whichride.personal.PersonalStore
 import io.github.locadani.whichride.prices.LoadedPrices
 import io.github.locadani.whichride.prices.PriceLoader
 import io.github.locadani.whichride.prices.PriceSource
@@ -59,3 +61,13 @@ class SeedPrices : PriceLoader {
     override suspend fun offline() = LoadedPrices(Prices.fromSeed(SEED), PriceSource.BUILT_IN)
     override suspend fun load() = offline()
 }
+
+class FakePersonalStore(var saved: Personal = Personal()) : PersonalStore {
+    override fun load() = saved
+    override fun save(personal: Personal) { saved = personal }
+}
+
+/** 2026-10-20 12:00 UTC, as `now` in the ViewModel tests. */
+const val NOW = 1_792_497_600_000L
+val TODAY: Long = java.time.LocalDate.of(2026, 10, 20).toEpochDay()
+const val COORDINATE_LINK = "https://www.google.com/maps/search/?api=1&query=52.502287,13.431605"
