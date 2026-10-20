@@ -35,7 +35,7 @@ provider's app.
 | No money | Free tiers with hard limits only; no Google Maps Platform; Cloud Run max instances = 1 |
 | Privacy | No routes or locations stored anywhere (§9) |
 | No moderation work for the owner | Fully automatic price acceptance (§7); only an emergency switch |
-| No partnerships, no unofficial APIs | No live car locations (the user marks nearby cars, §4.1); apps opened with plain intents/links |
+| No partnerships, no unofficial APIs | No live car locations (the user adds the cars near them, §4.1); apps opened with plain intents/links |
 | Portfolio + standards of smoke-tracker | Tests on all core logic, CI/CD on GitHub, free security tooling (cargo-deny, gitleaks, CodeQL, Dependabot), ADRs |
 | One source for brand assets | Design tokens + one logo file generate the Android and web assets (§10.5) |
 | Tokens never pushed | gitleaks pre-commit + CI; keys only in server environment |
@@ -71,44 +71,52 @@ provider's app.
 3. Start = the phone's current location (location permission), changeable by the user.
 4. The routing proxy (§8) returns **km and minutes**. Manual entry is always available as a fallback.
 5. The core computes the cost of every offer of every provider, applying personal adjustments.
-6. Result screen: offers sorted by price, price freshness labels (§7.5). The user marks which
-   cars are near them (§4.1); the cheapest **marked** offer is highlighted.
+6. Result screen: the user adds the cars near them as their **options** (§4.1); options are
+   sorted by price, the cheapest highlighted, with price freshness labels (§7.5).
 7. Buttons: **Open <provider>** (opens the app, or the Play Store page if not installed) and
    **Open in Google Maps** (shows the route). No map inside the app in v1.
 
 Android cannot make the app the default handler for `google.com/maps` links (Google owns the
 domain), so Share and `geo:` are the entry points.
 
-### 4.1 Cars near you (marked by the user)
+### 4.1 Cars near you (added by the user)
 
 The cheapest offer overall is useless if no such car is parked nearby. No provider publishes an
 official availability feed for Berlin (research:
 `docs/research/2026-10-19-vehicle-availability-feeds.md`), and unofficial APIs are ruled out (§2),
 so the **user tells the app what they see** in the providers' apps.
 
-- **What is marked:** an **offer**, i.e. whatever the provider prices by: a car model (Bolt Drive,
-  Free2move) or a size class (MILES S/M, Premium, L, XL). Packages are not marked; they are chosen
+- **What is added:** an **offer**, i.e. whatever the provider prices by: a car model (Bolt Drive,
+  Free2move) or a size class (MILES S/M, Premium, L, XL). Packages are not added; they are chosen
   before the trip and the core already picks the cheapest one per offer.
-- **How:** the result screen has a "What's near you?" panel with one toggle chip per offer,
-  grouped by provider. One tap marks or unmarks an offer and the list re-ranks at once:
-  - marked offers on top, cheapest first, the cheapest highlighted;
-  - unmarked offers below a "Not marked nearby" divider, still visible with their price, so the
-    user can see what walking further would save.
-- **Whole provider:** tapping a provider's name marks all its offers, for "there's a Bolt car
-  around, I don't know which model".
-- **Check in the app:** each provider group has a **Check in <provider>** button that opens the
-  provider's app; coming back keeps the panel and its marks. This return does **not** trigger the
-  §7.2 confirmation question, which follows only **Open <provider>** for the chosen car.
-- **Missing car:** "Not in the list? Add it" starts the new-offer proposal (§5.1).
-- **Nothing marked:** the screen works as before: all offers cheapest first, the cheapest
-  highlighted, with the panel inviting the user to mark what's nearby.
-- **Lifetime:** marks are kept on the device only and cleared after **15 minutes** (cars move;
+- **Flow** (tried in the clickable prototype, board "v3"):
+  1. The result screen starts with no options and one **Add the cars near you** button. The
+     **Open** button stays disabled until there is at least one option.
+  2. **Which provider?** One large button per provider, showing its number of offers, its lowest
+     price for this trip and how many offers are already added.
+  3. **<Provider>: which cars?** The provider's offers with a checkbox and the price for this trip;
+     the user ticks every car they see. The first row is **Any <provider> car** ("I don't know
+     which model"). A **search box** filtering the list appears when the provider has more than
+     6 offers. A **Check in <provider>** link opens the provider's app; coming back keeps the
+     ticks, and this return does **not** trigger the §7.2 confirmation question, which follows
+     only **Open <provider>** for the chosen option. The bottom button **Add N cars** returns to
+     the result screen.
+  4. Back on the result screen the added cars are the **options**: cheapest first, the cheapest
+     highlighted, each removable with ×. **Add more cars** repeats the flow; re-entering a
+     provider shows its cars already ticked, so changing the choice happens there.
+- **Any <provider> car** counts as that provider's cheapest offer for the trip, named in the row
+  ("cheapest Bolt Drive car: Kia Picanto").
+- **Cheaper elsewhere:** under the options, one line says whether offers the user did not add are
+  cheaper ("5 cars you did not add are cheaper, from €7.90 (Bolt Drive Kia Picanto)"), so they
+  can judge whether walking further pays off.
+- **Missing car:** "Car not listed? Add it" starts the new-offer proposal (§5.1).
+- **Lifetime:** options are kept on the device only and cleared after **15 minutes** (cars move;
   value to be tuned in the closed test). Never sent to the server.
-- **Core:** splitting quotes into marked and unmarked and picking the cheapest marked one is a
-  pure, tested core function, so the app and the website behave the same.
-- **Accessibility:** chips are toggle buttons whose on/off state is announced; touch targets meet
-  §11.
-- The interaction is tried in the clickable prototype before milestone 5 builds it.
+- **Core:** ranking the options (including "any car" resolved to the provider's cheapest offer)
+  and finding cheaper offers that were not added are pure, tested core functions, so the app and
+  the website behave the same.
+- **Accessibility:** checkboxes and provider buttons are real controls whose state is announced;
+  touch targets meet §11.
 
 ---
 
