@@ -5,6 +5,8 @@ use std::collections::{HashSet, VecDeque};
 use std::sync::Mutex as SyncMutex;
 use std::time::{Duration, Instant, SystemTime, UNIX_EPOCH};
 
+use base64::Engine;
+use base64::engine::general_purpose::URL_SAFE_NO_PAD;
 use serde::Deserialize;
 use sha2::{Digest, Sha256};
 use thiserror::Error;
@@ -180,15 +182,13 @@ impl Integrity {
 }
 
 /// Play Integrity tokens are JWE compact: five non-empty base64url parts separated by dots.
+/// Each part must be spelled the one canonical way (no padding, unused bits zero), so a used
+/// token can't come back respelled with a new hash and slip past [`SeenTokens`].
 fn looks_like_a_token(token: &str) -> bool {
     let mut parts = 0;
     for part in token.split('.') {
         parts += 1;
-        let base64url = !part.is_empty()
-            && part
-                .bytes()
-                .all(|b| b.is_ascii_alphanumeric() || b == b'-' || b == b'_');
-        if !base64url {
+        if part.is_empty() || URL_SAFE_NO_PAD.decode(part).is_err() {
             return false;
         }
     }
@@ -369,8 +369,8 @@ mod tests {
 
     const PACKAGE: &str = "app.whichride";
     /// Shaped like a real token (JWE compact).
-    const TOKEN: &str = "eyJhbGciOiJBMjU2S1cifQ.key.iv.ciphertext.tag";
-    const OTHER_TOKEN: &str = "eyJhbGciOiJBMjU2S1cifQ.key2.iv.ciphertext.tag";
+    const TOKEN: &str = "eyJhbGciOiJBMjU2S1cifQ.a2V5.aXY.Y2lwaGVydGV4dA.dGFn";
+    const OTHER_TOKEN: &str = "eyJhbGciOiJBMjU2S1cifQ.a2V5Mg.aXY.Y2lwaGVydGV4dA.dGFn";
     const NOW: i64 = 1_792_411_200_000;
 
     fn verdict_json(hash: &str, timestamp: i64) -> serde_json::Value {
@@ -645,6 +645,7 @@ mod tests {
             "a.b.c.d.e=",
             "a.b/c.d.e",
             "a.b.c.d.é",
+            "eyJhbGciOiJBMjU2S1cifQ.a2V5.aXZ.Y2lwaGVydGV4dA.dGFn",
         ] {
             assert_eq!(
                 integrity.verify(Some(token), "h").await,
@@ -657,8 +658,18 @@ mod tests {
     #[test]
     fn real_tokens_are_jwe_compact() {
         assert!(looks_like_a_token(TOKEN));
-        assert!(looks_like_a_token("A-z_09.b.c.d.e"));
-        assert!(!looks_like_a_token("a.b.c.d"));
+        assert!(looks_like_a_token("A-z_09AA.bA.cA.dA.eA"));
+        assert!(!looks_like_a_token("aA.bA.cA.dA"));
+    }
+
+    #[test]
+    fn each_token_has_one_spelling() {
+        // "aXY" and "aXZ" differ only in bits base64url drops, so a lenient decoder reads both
+        // as "iv": a used token respelled this way would pass the once-only check.
+        assert!(looks_like_a_token(TOKEN));
+        assert!(!looks_like_a_token(&TOKEN.replace(".aXY.", ".aXZ.")));
+        // One character can't hold a byte.
+        assert!(!looks_like_a_token(&TOKEN.replace(".aXY.", ".a.")));
     }
 
     #[tokio::test]
