@@ -86,13 +86,14 @@ impl From<cc::LinkError> for LinkError {
 /// Data from the server or the APK that the core refused.
 #[derive(Debug, Clone, PartialEq, Eq, thiserror::Error, uniffi::Error)]
 pub enum DataError {
-    #[error("{message}")]
-    Invalid { message: String },
+    /// `reason`, not `message`: Kotlin exceptions already have a `message`.
+    #[error("{reason}")]
+    Invalid { reason: String },
 }
 
 fn invalid(error: impl std::fmt::Display) -> DataError {
     DataError::Invalid {
-        message: error.to_string(),
+        reason: error.to_string(),
     }
 }
 
