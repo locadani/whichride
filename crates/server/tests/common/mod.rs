@@ -10,6 +10,8 @@ use std::time::{Duration, SystemTime, UNIX_EPOCH};
 use axum::Router;
 use axum::body::{Body, to_bytes};
 use axum::http::{Request, StatusCode};
+use base64::Engine;
+use base64::engine::general_purpose::URL_SAFE_NO_PAD;
 use carsharing_core::{Catalogue, Day};
 use serde_json::Value;
 use sqlx::{AssertSqlSafe, Connection, PgConnection, PgPool};
@@ -282,7 +284,8 @@ pub fn registration() -> Value {
 
 /// Something shaped like a Play Integrity token (JWE compact: five base64url parts).
 pub fn integrity_token(name: &str) -> String {
-    format!("eyJhbGciOiJBMjU2S1cifQ.{name}.iv.ciphertext.tag")
+    let name = URL_SAFE_NO_PAD.encode(name);
+    format!("eyJhbGciOiJBMjU2S1cifQ.{name}.aXY.Y2lwaGVydGV4dA.dGFn")
 }
 
 /// Google's integrity service on `server`: the metadata server answers, and no token decodes
