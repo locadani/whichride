@@ -13,4 +13,4 @@ dependencyResolutionManagement {
     }
 }
 rootProject.name = "whichride"
-include(":designsystem", ":core")
+include(":designsystem", ":core", ":app")
