@@ -22,7 +22,7 @@ class HomeScreenTest {
 
     private fun show(state: UiState) = compose.setContent {
         WhichrideTheme {
-            HomeScreen(state, onQuery = {}, onSubmit = { submitted++ }, onSuggestion = { picked += it }, onChangeStart = {}, onLicences = {})
+            HomeScreen(state, onQuery = {}, onSubmit = { submitted++ }, onSuggestion = { picked += it }, onChangeStart = {}, onSettings = {})
         }
     }
 

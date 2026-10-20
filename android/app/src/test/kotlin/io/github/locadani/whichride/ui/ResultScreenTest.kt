@@ -23,6 +23,8 @@ import io.github.locadani.whichride.core.RankedOption
 import io.github.locadani.whichride.core.Trip
 import io.github.locadani.whichride.designsystem.WhichrideTheme
 import io.github.locadani.whichride.launch.MapsTarget
+import io.github.locadani.whichride.personal.Personal
+import io.github.locadani.whichride.personal.RefuelCreditDeal
 import io.github.locadani.whichride.prices.PriceSource
 import org.junit.Assert.assertEquals
 import org.junit.Rule
@@ -48,6 +50,8 @@ fun resultState(ranked: List<RankedOption> = emptyList(), cheaper: List<Quote> =
     options = Options(ranked, cheaper),
 )
 
+fun resultActions(onRefuel: (Boolean) -> Unit = {}) = ResultActions(onRefuel = onRefuel)
+
 @RunWith(AndroidJUnit4::class)
 class ResultScreenTest {
     @get:Rule val compose = createComposeRule()
@@ -57,7 +61,7 @@ class ResultScreenTest {
 
     private fun show(state: UiState) = compose.setContent {
         WhichrideTheme {
-            ResultScreen(state, onBack = {}, onEdit = {}, onChangeStart = { startChanged++ }, onAddCars = { added++ }, onRemove = {}, onSelect = {}, onOpen = { opened++ }, onOpenMaps = {})
+            ResultScreen(state, ResultActions(onChangeStart = { startChanged++ }, onAddCars = { added++ }, onOpen = { opened++ }))
         }
     }
 
@@ -93,5 +97,14 @@ class ResultScreenTest {
         show(resultState())
         compose.onNodeWithText("Change start").performClick()
         assertEquals(1, startChanged)
+    }
+
+    @Test fun `the refuel switch shows only with an active credit`() {
+        var refuel: Boolean? = null
+        val withCredit = resultState().copy(personal = Personal(deals = listOf(RefuelCreditDeal("f", "miles", 300))))
+        compose.setContent { WhichrideTheme { ResultScreen(withCredit, resultActions(onRefuel = { refuel = it })) } }
+        compose.onNodeWithText("I'll refuel or charge").performClick()
+        assertEquals(true, refuel)
+        compose.onNodeWithText("Discounts · 1").assertExists()
     }
 }

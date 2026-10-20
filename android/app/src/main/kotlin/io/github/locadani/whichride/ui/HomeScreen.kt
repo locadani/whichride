@@ -25,6 +25,8 @@ import androidx.compose.material3.Text
 import androidx.compose.material3.TextButton
 import androidx.compose.material3.TextField
 import androidx.compose.material3.TextFieldDefaults
+import androidx.compose.material3.IconButton
+import androidx.compose.material.icons.filled.Settings
 import androidx.compose.runtime.Composable
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
@@ -53,7 +55,7 @@ fun HomeScreen(
     onSubmit: () -> Unit,
     onSuggestion: (Place) -> Unit,
     onChangeStart: () -> Unit,
-    onLicences: () -> Unit,
+    onSettings: () -> Unit,
 ) {
     val colors = WhichrideTheme.colors
     Column(Modifier.fillMaxSize().imePadding()) {
@@ -64,7 +66,7 @@ fun HomeScreen(
         ) {
             Image(painterResource(DesignR.drawable.whichride_logo), contentDescription = null)
             Text(stringResource(R.string.app_name), style = MaterialTheme.typography.titleLarge, modifier = Modifier.weight(1f))
-            TextButton(onClick = onLicences) { Text(stringResource(R.string.licences)) }
+            IconButton(onClick = onSettings) { Icon(Icons.Filled.Settings, contentDescription = stringResource(R.string.settings)) }
         }
         Column(
             Modifier.weight(1f).verticalScroll(rememberScrollState()).padding(horizontal = Space.md, vertical = Space.xl),

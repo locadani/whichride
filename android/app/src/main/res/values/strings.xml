@@ -107,4 +107,77 @@
     <string name="use_my_location">Use my location</string>
 
     <string name="licences_body">whichride is open source under the MIT licence. It includes the Sora and JetBrains Mono fonts, under the SIL Open Font License 1.1.</string>
+    <string name="settings">Settings</string>
+    <string name="settings_deals">Discounts and passes</string>
+    <plurals name="settings_deals_count">
+        <item quantity="one">%d active</item>
+        <item quantity="other">%d active</item>
+    </plurals>
+    <string name="settings_open_with">Open %1$s with</string>
+    <string name="settings_language">App language</string>
+    <string name="settings_language_body">whichride follows your phone\'s language: English, Italiano, Deutsch or Türkçe.</string>
+    <string name="settings_language_change">Change in Android settings</string>
+
+    <string name="deals_title">Discounts and passes</string>
+    <string name="deals_body">Applied to every price you see. Kept only on this phone.</string>
+    <string name="deals_empty">No discounts yet. Add a promo code\'s discount, a pass you pay for, or what a provider credits you for refuelling.</string>
+    <string name="deals_add">Add a discount or pass</string>
+    <string name="deals_refuel_title">Refuelling or charging?</string>
+    <string name="deals_refuel_body">Some providers give credit when you refuel. Add it as a refuel credit, then turn it on per trip from the result screen.</string>
+    <string name="deal_on">%1$s on</string>
+    <string name="deal_percent">%1$s −%2$s%%</string>
+    <string name="deal_amount">%1$s −%2$s</string>
+    <string name="deal_pass">%1$s pass</string>
+    <string name="deal_refuel">%1$s refuel credit</string>
+    <string name="deal_until">until %1$s</string>
+    <string name="deal_no_end">no end date</string>
+    <string name="deal_once">once · next trip only</string>
+    <string name="deal_used">used</string>
+    <string name="deal_expired">expired</string>
+    <string name="deal_pass_km">%1$s%% off per km</string>
+    <string name="deal_pass_minute">%1$s%% off per minute</string>
+    <string name="deal_pass_package">%1$s%% off packages</string>
+    <string name="deal_pass_unlock">no unlock fee</string>
+    <string name="deal_refuel_sub">when you refuel or charge</string>
+
+    <string name="deal_new">New discount</string>
+    <string name="deal_edit">Edit discount</string>
+    <string name="deal_provider">Provider</string>
+    <string name="deal_provider_missing">Choose a provider</string>
+    <string name="deal_kind">Kind</string>
+    <string name="deal_kind_percent">% off</string>
+    <string name="deal_kind_amount">€ off</string>
+    <string name="deal_kind_pass">Pass</string>
+    <string name="deal_kind_refuel">Refuel credit</string>
+    <string name="deal_field_percent">Discount (%)</string>
+    <string name="deal_field_amount">Amount (€)</string>
+    <string name="deal_field_pass_km">Off per km (%)</string>
+    <string name="deal_field_pass_minute">Off per minute (%)</string>
+    <string name="deal_field_pass_package">Off packages (%)</string>
+    <string name="deal_field_refuel">Credit (€)</string>
+    <string name="deal_field_unlock">No unlock fee</string>
+    <string name="deal_field_once">Once (next trip only)</string>
+    <string name="deal_field_until">Valid until</string>
+    <string name="deal_field_until_none">No end date</string>
+    <string name="deal_field_until_clear">Remove end date</string>
+    <string name="deal_invalid_percent">Between 0.01 and 100</string>
+    <string name="deal_invalid_amount">More than €0, e.g. 5 or 2,50</string>
+    <string name="deal_invalid_pass">Enter at least one saving</string>
+    <string name="deal_hint_percent">Taken off the provider\'s total for every trip until it expires.</string>
+    <string name="deal_hint_amount">Taken off the trip total, never below €0.</string>
+    <string name="deal_hint_pass">A pass changes the provider\'s rates for good, e.g. cheaper km or no unlock fee. Its monthly fee is not counted per trip.</string>
+    <string name="deal_hint_refuel">Taken off the trip total when you turn on \"I\'ll refuel or charge\" for a trip.</string>
+    <string name="deal_save">Save discount</string>
+    <string name="deal_delete">Delete</string>
+    <string name="ok">OK</string>
+    <string name="cancel">Cancel</string>
+
+    <plurals name="discounts_pill">
+        <item quantity="one">Discounts · %d</item>
+        <item quantity="other">Discounts · %d</item>
+    </plurals>
+    <string name="discounts_pill_none">Discounts</string>
+    <string name="refuel_switch">I\'ll refuel or charge</string>
+    <string name="once_used">%1$s used</string>
+    <string name="undo">Undo</string>
 </resources>

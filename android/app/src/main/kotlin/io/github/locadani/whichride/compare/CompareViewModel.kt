@@ -378,6 +378,8 @@ class CompareViewModel(
 
     fun openLicences() = push(Screen.Licences)
 
+    fun openLanguageSettings() = launcher.openAppLanguageSettings()
+
     /** Cars expire after 15 minutes even while the app is in the background. */
     fun onResume() {
         val choices = store.load()

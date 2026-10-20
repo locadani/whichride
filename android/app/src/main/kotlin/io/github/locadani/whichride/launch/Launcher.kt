@@ -3,6 +3,8 @@ package io.github.locadani.whichride.launch
 import android.content.ActivityNotFoundException
 import android.content.Context
 import android.content.Intent
+import android.os.Build
+import android.provider.Settings
 import androidx.core.net.toUri
 
 /** Opens other apps; the screens never build intents themselves. */
@@ -11,6 +13,8 @@ interface Launcher {
     fun openProvider(androidPackage: String)
     /** A Google Maps URL: in the Maps app when installed, else any handler. */
     fun openUrl(url: String)
+    /** Android 13+'s per-app language screen for whichride (R16); older versions follow the phone. */
+    fun openAppLanguageSettings()
 }
 
 class AndroidLauncher(private val context: Context) : Launcher {
@@ -29,6 +33,11 @@ class AndroidLauncher(private val context: Context) : Launcher {
     override fun openUrl(url: String) {
         val uri = url.toUri()
         start(Intent(Intent.ACTION_VIEW, uri).setPackage(GOOGLE_MAPS)) || start(Intent(Intent.ACTION_VIEW, uri))
+    }
+
+    override fun openAppLanguageSettings() {
+        if (Build.VERSION.SDK_INT < Build.VERSION_CODES.TIRAMISU) return
+        start(Intent(Settings.ACTION_APP_LOCALE_SETTINGS, "package:${context.packageName}".toUri()))
     }
 
     private fun start(intent: Intent): Boolean = try {

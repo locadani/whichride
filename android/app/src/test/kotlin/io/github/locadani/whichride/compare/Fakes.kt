@@ -50,6 +50,8 @@ class FakeLauncher : Launcher {
     val urls = mutableListOf<String>()
     override fun openProvider(androidPackage: String) { providers += androidPackage }
     override fun openUrl(url: String) { urls += url }
+    var languageSettings = 0
+    override fun openAppLanguageSettings() { languageSettings++ }
 }
 
 class FakeStore(var choices: Set<Choice> = emptySet()) : ChoiceStore {

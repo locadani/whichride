@@ -17,6 +17,16 @@ import io.github.locadani.whichride.core.RankedOption
 import io.github.locadani.whichride.designsystem.WhichrideTheme
 import io.github.locadani.whichride.format.formatMoney
 import io.github.locadani.whichride.prices.PriceSource
+import io.github.locadani.whichride.format.percentInput
+import io.github.locadani.whichride.personal.AmountOff
+import io.github.locadani.whichride.personal.Deal
+import io.github.locadani.whichride.personal.Pass
+import io.github.locadani.whichride.personal.PercentOff
+import io.github.locadani.whichride.personal.RefuelCreditDeal
+import io.github.locadani.whichride.personal.isActive
+import java.time.LocalDate
+import java.time.format.DateTimeFormatter
+import java.time.format.FormatStyle
 import java.util.Locale
 
 @Composable
@@ -78,3 +88,37 @@ fun InputError.message() = when (this) {
 
 /** The catalogue's pay-as-you-go card label; any other label names a package. */
 private const val STANDARD_CARD = "Standard"
+
+/** "Bolt Drive −20%", "MILES pass", … (canvas Discounts). */
+@Composable
+fun Deal.title(providers: List<ProviderInfo>): String {
+    val provider = providers.nameOf(providerId)
+    return when (this) {
+        is PercentOff -> stringResource(R.string.deal_percent, provider, percentInput(basisPoints, locale()))
+        is AmountOff -> stringResource(R.string.deal_amount, provider, money(cents))
+        is Pass -> stringResource(R.string.deal_pass, provider)
+        is RefuelCreditDeal -> stringResource(R.string.deal_refuel, provider)
+    }
+}
+
+/** "until 31 Oct 2026", "once · next trip only", "10% off per km · no unlock fee", "expired". */
+@Composable
+fun Deal.subtitle(today: Long): String {
+    if (this is AmountOff && used) return stringResource(R.string.deal_used)
+    if (!isActive(today) && enabled) return stringResource(R.string.deal_expired)
+    val loc = locale()
+    @Composable fun until(day: Long?): String = day?.let {
+        stringResource(R.string.deal_until, LocalDate.ofEpochDay(it).format(DateTimeFormatter.ofLocalizedDate(FormatStyle.MEDIUM).withLocale(loc)))
+    } ?: stringResource(R.string.deal_no_end)
+    return when (this) {
+        is PercentOff -> until(until)
+        is AmountOff -> if (once) stringResource(R.string.deal_once) else until(until)
+        is Pass -> buildList {
+            if (distanceOff > 0) add(stringResource(R.string.deal_pass_km, percentInput(distanceOff, loc)))
+            if (timeOff > 0) add(stringResource(R.string.deal_pass_minute, percentInput(timeOff, loc)))
+            if (packageOff > 0) add(stringResource(R.string.deal_pass_package, percentInput(packageOff, loc)))
+            if (waiveUnlock) add(stringResource(R.string.deal_pass_unlock))
+        }.joinToString(" · ")
+        is RefuelCreditDeal -> "${money(cents)} · ${stringResource(R.string.deal_refuel_sub)}"
+    }
+}
