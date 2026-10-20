@@ -33,4 +33,12 @@ class PersonalStoreTest {
         FilePersonalStore(file).save(Personal(lastAskedDay = 1))
         assertEquals(Personal(lastAskedDay = 1), FilePersonalStore(file).load())
     }
+
+    /** Review finding M2: a failed write (full disk, missing folder) must not crash the app. */
+    @Test fun `a failed write or read is not a crash`() {
+        val blocker = File(folder.root, "blocker").apply { writeText("not a folder") }
+        val store = FilePersonalStore(File(blocker, "personal.json"))
+        store.save(Personal(lastAskedDay = 1))
+        assertEquals(Personal(), store.load())
+    }
 }

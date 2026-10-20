@@ -223,6 +223,7 @@
     <string name="crowd_sent">Thanks! Others see it once someone confirms.</string>
     <string name="crowd_proposed">Thanks! The car appears for others once someone confirms it.</string>
     <string name="crowd_not_sent">Saved for you; we couldn\'t send it now.</string>
+    <string name="crowd_proposal_not_sent">We couldn\'t send the car now. Try again later.</string>
     <string name="crowd_locked">This price is locked for now; your numbers still apply to you.</string>
     <string name="crowd_already_current">That\'s already the price everyone sees.</string>
 </resources>

@@ -222,6 +222,7 @@
     <string name="crowd_sent">Grazie! Gli altri lo vedono quando qualcuno conferma.</string>
     <string name="crowd_proposed">Grazie! L\'auto compare agli altri quando qualcuno la conferma.</string>
     <string name="crowd_not_sent">Salvato per te; non siamo riusciti a inviarlo ora.</string>
+    <string name="crowd_proposal_not_sent">Non siamo riusciti a inviare l\'auto. Riprova più tardi.</string>
     <string name="crowd_locked">Questo prezzo è bloccato per ora; i tuoi numeri valgono comunque per te.</string>
     <string name="crowd_already_current">È già il prezzo che vedono tutti.</string>
 </resources>

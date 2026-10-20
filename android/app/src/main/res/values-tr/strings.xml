@@ -222,6 +222,7 @@
     <string name="crowd_sent">Teşekkürler! Biri onaylayınca diğerleri de görür.</string>
     <string name="crowd_proposed">Teşekkürler! Biri onaylayınca araç diğerlerine de görünür.</string>
     <string name="crowd_not_sent">Senin için kaydedildi; şu an gönderemedik.</string>
+    <string name="crowd_proposal_not_sent">Aracı şu anda gönderemedik. Daha sonra tekrar dene.</string>
     <string name="crowd_locked">Bu fiyat şimdilik kilitli; rakamların yine sana uygulanır.</string>
     <string name="crowd_already_current">Bu zaten herkesin gördüğü fiyat.</string>
 </resources>

@@ -38,7 +38,7 @@ data class QuestionState(val question: Question, val providerId: String, val off
 }
 
 /** What happened to a report or proposal the user sent (R11). */
-enum class CrowdMessage { SENT, PROPOSED, NOT_SENT, LOCKED, ALREADY_CURRENT }
+enum class CrowdMessage { SENT, PROPOSED, NOT_SENT, PROPOSAL_NOT_SENT, LOCKED, ALREADY_CURRENT }
 
 data class UiState(
     val stack: List<Screen> = listOf(Screen.Home),

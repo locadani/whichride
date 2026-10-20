@@ -521,10 +521,7 @@ class CompareViewModel(
                 }
                 send(built.body, offerId, quiet = question != null)
             }
-            is Built.Proposal -> {
-                closeForm()
-                send(built.body, offerId = null, quiet = false)
-            }
+            is Built.Proposal -> propose(form, built.body)
         }
     }
 
@@ -586,6 +583,24 @@ class CompareViewModel(
             }
             if (!(quiet && message == CrowdMessage.SENT)) mutableState.update { it.copy(crowdMessage = message) }
             if (result is ApiResult.Ok) refreshPrices()
+        }
+    }
+
+    /**
+     * A proposal has no local copy, so the form stays open, with what the user typed, until the
+     * server took it (review finding I2).
+     */
+    private fun propose(form: PriceForm, body: String) {
+        mutableState.update { it.copy(priceForm = form.copy(sending = true)) }
+        viewModelScope.launch {
+            val result = crowd.report(body)
+            if (result is ApiResult.Ok) {
+                closeForm()
+                mutableState.update { it.copy(crowdMessage = CrowdMessage.PROPOSED) }
+                refreshPrices()
+            } else {
+                mutableState.update { it.copy(priceForm = it.priceForm?.copy(sending = false), crowdMessage = CrowdMessage.PROPOSAL_NOT_SENT) }
+            }
         }
     }
 

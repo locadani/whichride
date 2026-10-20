@@ -130,6 +130,7 @@ fun CrowdMessage.text() = when (this) {
     CrowdMessage.SENT -> R.string.crowd_sent
     CrowdMessage.PROPOSED -> R.string.crowd_proposed
     CrowdMessage.NOT_SENT -> R.string.crowd_not_sent
+    CrowdMessage.PROPOSAL_NOT_SENT -> R.string.crowd_proposal_not_sent
     CrowdMessage.LOCKED -> R.string.crowd_locked
     CrowdMessage.ALREADY_CURRENT -> R.string.crowd_already_current
 }

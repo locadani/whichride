@@ -13,10 +13,8 @@ import io.github.locadani.whichride.R
 import androidx.compose.ui.res.stringResource
 import androidx.compose.ui.Alignment
 import androidx.compose.runtime.remember
-import androidx.compose.material3.SnackbarResult
 import androidx.compose.material3.SnackbarHostState
 import androidx.compose.material3.SnackbarHost
-import androidx.compose.material3.SnackbarDuration
 import androidx.compose.runtime.LaunchedEffect
 import androidx.compose.runtime.getValue
 import androidx.compose.ui.Modifier
@@ -40,14 +38,7 @@ fun WhichrideNav(viewModel: CompareViewModel) {
         }
     }
     val snackbar = remember { SnackbarHostState() }
-    val usedName = state.usedOnce.firstOrNull()?.let { id -> state.personal.deals.firstOrNull { it.id == id }?.title(state.providers) }
-    val usedText = usedName?.let { stringResource(R.string.once_used, it) }
-    val undo = stringResource(R.string.undo)
-    LaunchedEffect(state.usedOnce) {
-        if (usedText == null) return@LaunchedEffect
-        val result = snackbar.showSnackbar(usedText, actionLabel = undo, duration = SnackbarDuration.Long)
-        if (result == SnackbarResult.ActionPerformed) viewModel.undoOnce() else viewModel.onceMessageShown()
-    }
+    OnceUndo(state, snackbar, viewModel::undoOnce, viewModel::onceMessageShown)
     val crowdText = state.crowdMessage?.let { stringResource(it.text()) }
     LaunchedEffect(state.crowdMessage) {
         if (crowdText == null) return@LaunchedEffect

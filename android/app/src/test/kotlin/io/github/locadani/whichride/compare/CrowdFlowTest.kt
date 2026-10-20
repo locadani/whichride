@@ -204,4 +204,17 @@ class CrowdFlowTest {
         assertNull(personal.saved.overrideCards("miles.s"))
         assertNotNull(shared.firstOrNull())
     }
+
+    /** Review finding I2: nothing is saved for a proposal, so the form keeps what was typed. */
+    @Test fun `a proposal that cannot be sent keeps the form`() = runTest(dispatcher) {
+        crowd.reportResult = ApiResult.Unavailable(Why.OFFLINE)
+        val vm = trip()
+        vm.addCars(); vm.pickProvider("bolt"); vm.proposeCar("bolt")
+        vm.onPriceForm(vm.state.value.priceForm!!.copy(name = "Fiat 500e", unlock = "1", perKm = "0,25", perMinute = "0,10"))
+        vm.savePrice(); advanceUntilIdle()
+        assertEquals(Screen.PriceForm, vm.state.value.screen)
+        assertEquals("Fiat 500e", vm.state.value.priceForm!!.name)
+        assertEquals(false, vm.state.value.priceForm!!.sending)
+        assertEquals(CrowdMessage.PROPOSAL_NOT_SENT, vm.state.value.crowdMessage)
+    }
 }

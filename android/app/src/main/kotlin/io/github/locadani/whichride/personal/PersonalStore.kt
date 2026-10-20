@@ -1,6 +1,7 @@
 package io.github.locadani.whichride.personal
 
 import java.io.File
+import java.io.IOException
 import kotlinx.serialization.SerializationException
 import kotlinx.serialization.json.Json
 
@@ -23,11 +24,20 @@ class FilePersonalStore(private val file: File) : PersonalStore {
         Personal()
     } catch (_: IllegalArgumentException) {
         Personal()
+    } catch (_: IOException) {
+        Personal()
     }
 
+    /**
+     * A failed write (full disk) keeps the change for this session only: the ViewModel holds it in
+     * memory; the app must not crash over it (review finding M2).
+     */
     override fun save(personal: Personal) {
-        val temporary = File(file.parentFile, "${file.name}.tmp")
-        temporary.writeText(json.encodeToString(personal))
-        temporary.renameTo(file)
+        try {
+            val temporary = File(file.parentFile, "${file.name}.tmp")
+            temporary.writeText(json.encodeToString(personal))
+            temporary.renameTo(file)
+        } catch (_: IOException) {
+        }
     }
 }

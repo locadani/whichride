@@ -136,7 +136,7 @@
     <string name="deal_pass_km">%1$s%% weniger pro km</string>
     <string name="deal_pass_minute">%1$s%% weniger pro Minute</string>
     <string name="deal_pass_package">%1$s%% weniger auf Pakete</string>
-    <string name="deal_pass_unlock">keine Freischaltung</string>
+    <string name="deal_pass_unlock">keine Freischaltgebühr</string>
     <string name="deal_refuel_sub">wenn du tankst oder lädst</string>
 
     <string name="deal_new">Neuer Rabatt</string>
@@ -154,7 +154,7 @@
     <string name="deal_field_pass_minute">Weniger pro Minute (%)</string>
     <string name="deal_field_pass_package">Weniger auf Pakete (%)</string>
     <string name="deal_field_refuel">Gutschrift (€)</string>
-    <string name="deal_field_unlock">Keine Freischaltung</string>
+    <string name="deal_field_unlock">Keine Freischaltgebühr</string>
     <string name="deal_field_once">Einmalig (nur nächste Fahrt)</string>
     <string name="deal_field_until">Gültig bis</string>
     <string name="deal_field_until_none">Kein Enddatum</string>
@@ -222,6 +222,7 @@
     <string name="crowd_sent">Danke! Andere sehen es, sobald jemand es bestätigt.</string>
     <string name="crowd_proposed">Danke! Das Auto erscheint für andere, sobald jemand es bestätigt.</string>
     <string name="crowd_not_sent">Für dich gespeichert, aber gerade nicht gesendet.</string>
+    <string name="crowd_proposal_not_sent">Wir konnten das Auto gerade nicht senden. Versuch es später noch einmal.</string>
     <string name="crowd_locked">Dieser Preis ist vorerst gesperrt. Deine Zahlen gelten trotzdem für dich.</string>
     <string name="crowd_already_current">Das ist schon der Preis, den alle sehen.</string>
 </resources>
