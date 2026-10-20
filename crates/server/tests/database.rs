@@ -116,13 +116,13 @@ fn the_real_seed_catalogue_is_valid() {
         .iter()
         .map(|p| (p.id.0.as_str(), p.android_package.as_str()))
         .collect();
-    // Spec §5: v1 = MILES, Bolt Drive, Free2move, with these Android packages.
+    // Decision 48: v1 = MILES, Bolt Drive, SIXT share (opened through Jelbi).
     assert_eq!(
         providers,
         [
             ("miles", "com.driveby.app"),
             ("bolt", "ee.mtakso.client"),
-            ("free2move", "com.car2go"),
+            ("sixt", "com.trafi.whitelabel.bvg"),
         ]
     );
     for provider in &catalogue.providers {
@@ -137,7 +137,6 @@ fn the_real_seed_catalogue_is_valid() {
 }
 
 #[test]
-#[ignore = "until the owner's prices replace the placeholder catalogue"]
 fn the_real_seed_catalogue_has_owner_prices() {
     let catalogue = db::seed_catalogue().expect("crates/server/catalogue.json is valid");
     for provider in &catalogue.providers {

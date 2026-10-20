@@ -5,10 +5,96 @@
       "name": "MILES",
       "android_package": "com.driveby.app",
       "offers": [
-        { "id": "miles.pending-owner-prices", "name": "Pending owner prices", "cards": [
-          { "label": "Standard", "kind": "standard", "base_fee": 0, "per_km": 0,
-            "per_minute": 0, "minimum": 0,
-            "km_rounding": "started_unit", "minute_rounding": "started_unit" } ] }
+        {
+          "id": "miles.s",
+          "name": "S",
+          "cards": [
+            {
+              "label": "Standard",
+              "kind": "standard",
+              "base_fee": 100,
+              "per_km": 99,
+              "per_minute": 0,
+              "included_km": 0,
+              "included_minutes": 0,
+              "minimum": 0,
+              "km_rounding": "started_unit",
+              "minute_rounding": "started_unit"
+            }
+          ]
+        },
+        {
+          "id": "miles.m",
+          "name": "M",
+          "cards": [
+            {
+              "label": "Standard",
+              "kind": "standard",
+              "base_fee": 100,
+              "per_km": 109,
+              "per_minute": 0,
+              "included_km": 0,
+              "included_minutes": 0,
+              "minimum": 0,
+              "km_rounding": "started_unit",
+              "minute_rounding": "started_unit"
+            }
+          ]
+        },
+        {
+          "id": "miles.premium",
+          "name": "Premium",
+          "cards": [
+            {
+              "label": "Standard",
+              "kind": "standard",
+              "base_fee": 200,
+              "per_km": 109,
+              "per_minute": 0,
+              "included_km": 0,
+              "included_minutes": 0,
+              "minimum": 0,
+              "km_rounding": "started_unit",
+              "minute_rounding": "started_unit"
+            }
+          ]
+        },
+        {
+          "id": "miles.l",
+          "name": "L",
+          "cards": [
+            {
+              "label": "Standard",
+              "kind": "standard",
+              "base_fee": 200,
+              "per_km": 129,
+              "per_minute": 0,
+              "included_km": 0,
+              "included_minutes": 0,
+              "minimum": 0,
+              "km_rounding": "started_unit",
+              "minute_rounding": "started_unit"
+            }
+          ]
+        },
+        {
+          "id": "miles.xl",
+          "name": "XL",
+          "cards": [
+            {
+              "label": "Standard",
+              "kind": "standard",
+              "base_fee": 200,
+              "per_km": 149,
+              "per_minute": 0,
+              "included_km": 0,
+              "included_minutes": 0,
+              "minimum": 0,
+              "km_rounding": "started_unit",
+              "minute_rounding": "started_unit"
+            }
+          ]
+        }
       ]
     },
     {
@@ -16,21 +102,85 @@
       "name": "Bolt Drive",
       "android_package": "ee.mtakso.client",
       "offers": [
-        { "id": "bolt.pending-owner-prices", "name": "Pending owner prices", "cards": [
-          { "label": "Standard", "kind": "standard", "base_fee": 0, "per_km": 0,
-            "per_minute": 0, "minimum": 0,
-            "km_rounding": "started_unit", "minute_rounding": "started_unit" } ] }
+        {
+          "id": "bolt.toyota-yaris",
+          "name": "Toyota Yaris",
+          "cards": [
+            {
+              "label": "Standard",
+              "kind": "standard",
+              "base_fee": 0,
+              "per_km": 34,
+              "per_minute": 13,
+              "included_km": 0,
+              "included_minutes": 0,
+              "minimum": 0,
+              "km_rounding": "started_unit",
+              "minute_rounding": "started_unit"
+            }
+          ]
+        },
+        {
+          "id": "bolt.toyota-yaris-cross",
+          "name": "Toyota Yaris Cross",
+          "cards": [
+            {
+              "label": "Standard",
+              "kind": "standard",
+              "base_fee": 0,
+              "per_km": 34,
+              "per_minute": 15,
+              "included_km": 0,
+              "included_minutes": 0,
+              "minimum": 0,
+              "km_rounding": "started_unit",
+              "minute_rounding": "started_unit"
+            }
+          ]
+        },
+        {
+          "id": "bolt.vw-polo",
+          "name": "VW Polo",
+          "cards": [
+            {
+              "label": "Standard",
+              "kind": "standard",
+              "base_fee": 0,
+              "per_km": 32,
+              "per_minute": 14,
+              "included_km": 0,
+              "included_minutes": 0,
+              "minimum": 0,
+              "km_rounding": "started_unit",
+              "minute_rounding": "started_unit"
+            }
+          ]
+        }
       ]
     },
     {
-      "id": "free2move",
-      "name": "Free2move",
-      "android_package": "com.car2go",
+      "id": "sixt",
+      "name": "SIXT share",
+      "android_package": "com.trafi.whitelabel.bvg",
       "offers": [
-        { "id": "free2move.pending-owner-prices", "name": "Pending owner prices", "cards": [
-          { "label": "Standard", "kind": "standard", "base_fee": 0, "per_km": 0,
-            "per_minute": 0, "minimum": 0,
-            "km_rounding": "started_unit", "minute_rounding": "started_unit" } ] }
+        {
+          "id": "sixt.volkswagen-t-roc",
+          "name": "Volkswagen T-Roc",
+          "cards": [
+            {
+              "label": "Standard",
+              "kind": "standard",
+              "base_fee": 0,
+              "per_km": 0,
+              "per_minute": 35,
+              "included_km": 0,
+              "included_minutes": 0,
+              "minimum": 0,
+              "km_rounding": "started_unit",
+              "minute_rounding": "started_unit"
+            }
+          ]
+        }
       ]
     }
   ]

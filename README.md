@@ -1,11 +1,11 @@
 # whichride
 
 Which carsharing service is cheapest for this trip? Share a Google Maps link (or type an
-address) and the app compares what the trip costs with MILES, Bolt Drive and Free2move in
+address) and the app compares what the trip costs with MILES, Bolt Drive and SIXT share in
 Berlin, including your own discounts and subscriptions, then opens the provider's app.
 
 > **Status:** in development. Milestones 1 (pricing core) and 2 (destination input) are done; milestone 3's server is
-> done, with seed prices pending from the owner. See the
+> done. See the
 > [roadmap](docs/plans/ROADMAP.md).
 
 ## Design

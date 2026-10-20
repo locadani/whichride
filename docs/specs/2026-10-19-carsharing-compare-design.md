@@ -121,7 +121,7 @@ so the **user tells the app what they see** in the providers' apps.
 |---|---|---|---|---|
 | MILES | free-floating | `com.driveby.app` | per km (rounded up) + unlock fee; parked minutes; BER fee; minimum for L/XL | size class (S/M, Premium, L, XL) |
 | Free2move (ex Share Now) | free-floating | `com.car2go` | per minute incl. 200 km, then per km; airport fee | car model |
-| SIXT share *(open, unverified)* | free-floating | `com.sixt.reservation` | per minute + unlock fee; per-km tariff since 2026; dynamic | category/model |
+| SIXT share | free-floating | `com.trafi.whitelabel.bvg` (opened through BVG Jelbi) | per minute + unlock fee; per-km tariff since 2026; dynamic | category/model |
 | Bolt Drive | free-floating | `ee.mtakso.client` | per minute + per km (rounded up) + minimum fee; dynamic allowed | car |
 | Flinkster (DB) | station-based | `de.flinkster.sharing.app` | per hour (daily cap) + per km + booking fee | class |
 | cambio | station-based | `de.cambio.app` | per hour + per km; plan-dependent rates | class + plan |
@@ -130,8 +130,8 @@ so the **user tells the app what they see** in the providers' apps.
   (not confirmed in Berlin), Getaround (peer-to-peer, host-set prices).
 - **Station-based providers** (Flinkster, cambio) are **excluded** (decided 2026-10-19): they need
   a round trip back to the station, which doesn't fit the one-way A→B flow. v1 = MILES, Bolt
-  Drive, Free2move. **SIXT share is left open** and will be added after launch as the real test
-  of §5.1 (adding a provider).
+  Drive, SIXT share (decision 48). **Free2move is left out for now** and will be added later
+  through §5.1 (adding a provider).
 - Granularity differs (car model, size class, category). The data model is
   `provider → offers → rate card`, so all fit.
 - Rate card components (superset; each provider uses a subset): per km, per minute, included km,
