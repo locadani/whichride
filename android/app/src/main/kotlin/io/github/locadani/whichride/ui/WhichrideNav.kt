@@ -36,6 +36,7 @@ fun WhichrideNav(viewModel: CompareViewModel) {
     LaunchedEffect(state.askLocation) {
         if (state.askLocation) {
             permission.launch(arrayOf(Manifest.permission.ACCESS_FINE_LOCATION, Manifest.permission.ACCESS_COARSE_LOCATION))
+            viewModel.locationRequestLaunched()
         }
     }
     val snackbar = remember { SnackbarHostState() }

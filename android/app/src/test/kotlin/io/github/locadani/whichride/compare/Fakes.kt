@@ -20,6 +20,9 @@ import io.github.locadani.whichride.server.Place
 import io.github.locadani.whichride.server.Routes
 import io.github.locadani.whichride.server.Why
 import java.io.File
+import kotlinx.serialization.json.jsonArray
+import kotlinx.serialization.json.jsonObject
+import kotlinx.serialization.json.jsonPrimitive
 import kotlinx.coroutines.CompletableDeferred
 
 val SEED: String = File("../../crates/server/catalogue.json").readText()
@@ -106,4 +109,11 @@ class ServerPrices(private val json: String = serverCatalogue()) : PriceLoader {
         loads++
         return LoadedPrices(Prices.fromServerResponse(json), PriceSource.SERVER)
     }
+}
+
+/** The seed without SIXT share. */
+fun String.replaceSixt(): String {
+    val catalogue = kotlinx.serialization.json.Json.parseToJsonElement(this).jsonObject
+    val providers = catalogue["providers"]!!.jsonArray.filter { it.jsonObject["id"]!!.jsonPrimitive.content != "sixt" }
+    return kotlinx.serialization.json.JsonObject(mapOf("providers" to kotlinx.serialization.json.JsonArray(providers))).toString()
 }

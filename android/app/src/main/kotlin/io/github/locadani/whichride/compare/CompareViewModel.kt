@@ -1,5 +1,6 @@
 package io.github.locadani.whichride.compare
 
+import androidx.annotation.VisibleForTesting
 import androidx.lifecycle.ViewModel
 import androidx.lifecycle.viewModelScope
 import io.github.locadani.whichride.core.Choice
@@ -189,6 +190,12 @@ class CompareViewModel(
         }
     }
 
+    /**
+     * The system dialog is up; a recreated screen must not launch it again (5a minor). The trip
+     * keeps waiting for [onLocationAnswered].
+     */
+    fun locationRequestLaunched() = mutableState.update { it.copy(askLocation = false) }
+
     fun onLocationAnswered() {
         mutableState.update { it.copy(askLocation = false) }
         permissionAnswer?.complete(Unit)
@@ -258,10 +265,10 @@ class CompareViewModel(
                 resolve(expanded.value, label)
             }
             is ApiResult.Unavailable -> Resolution.Unrouted(Target(label, null, MapsTarget.Link(destination.url)), expanded.why.reason())
-            is ApiResult.Refused -> if (expanded.code == "no_destination") {
-                Resolution.Failed(InputError.NO_DESTINATION, "")
-            } else {
-                Resolution.Unrouted(Target(label, null, MapsTarget.Link(destination.url)), ManualReason.OFFLINE)
+            is ApiResult.Refused -> when (expanded.code) {
+                "no_destination", "invalid_destination" -> Resolution.Failed(InputError.NO_DESTINATION, "")
+                "not_a_short_link" -> Resolution.Failed(InputError.NOT_A_MAPS_LINK, "")
+                else -> Resolution.Unrouted(Target(label, null, MapsTarget.Link(destination.url)), ManualReason.OFFLINE)
             }
         }
     }
@@ -634,6 +641,11 @@ class CompareViewModel(
     private fun usePrices(loaded: Pair<Prices, PriceSource>) {
         prices = loaded.first
         mutableState.update { it.copy(priceSource = loaded.second, providers = loaded.first.providers()) }
+        // The provider of an open step 2 left the catalogue (5a minor): back to step 1.
+        val screen = state.value.screen
+        if (screen is Screen.Cars && state.value.providers.none { it.id == screen.providerId }) {
+            mutableState.update { it.copy(stack = it.stack.dropLast(1), draft = emptySet()) }
+        }
         if (loaded.second == PriceSource.SERVER) {
             val caughtUp = state.value.personal.droppingOverridesEqualTo { loaded.first.cards(it) }
             if (caughtUp != state.value.personal) {
@@ -645,6 +657,9 @@ class CompareViewModel(
         mutableState.update { it.copy(lockedOffers = offers.filterTo(mutableSetOf()) { id -> loaded.first.isLocked(id) }) }
         reprice()
     }
+
+    @VisibleForTesting
+    internal fun usePricesForTest(prices: Prices) = usePrices(prices to PriceSource.SERVER)
 
     private fun reprice() {
         val prices = prices
