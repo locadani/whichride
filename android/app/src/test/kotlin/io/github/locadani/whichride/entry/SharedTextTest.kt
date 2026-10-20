@@ -29,4 +29,11 @@ class SharedTextTest {
         assertNull(sharedText(Intent(Intent.ACTION_SEND).putExtra(Intent.EXTRA_TEXT, "  ")))
         assertNull(sharedText(null))
     }
+
+    @Test
+    fun reopeningFromRecentsDoesNotRepeatTheShare() {
+        val intent = Intent(Intent.ACTION_SEND).putExtra(Intent.EXTRA_TEXT, "https://maps.app.goo.gl/x")
+            .addFlags(Intent.FLAG_ACTIVITY_LAUNCHED_FROM_HISTORY)
+        assertNull(sharedText(intent))
+    }
 }

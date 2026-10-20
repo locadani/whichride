@@ -144,10 +144,10 @@ class CompareViewModel(
     private fun setStart(start: Start) {
         mutableState.update { it.copy(start = start, startQuery = "", startSuggestions = emptyList()) }
         pop()
-        val waiting = state.value.target
-        if (state.value.screen == Screen.ManualTrip && waiting?.at != null) {
-            tripJob?.cancel()
-            tripJob = viewModelScope.launch { route(waiting) }
+        // A trip already on screen (result or manual entry) is routed again from the new start.
+        val target = state.value.target
+        if (target?.at != null && (state.value.screen == Screen.ManualTrip || state.value.screen == Screen.Result)) {
+            reroute(target)
         }
     }
 
@@ -184,6 +184,12 @@ class CompareViewModel(
                 }
             }
         }
+    }
+
+    private fun reroute(target: Target) {
+        tripJob?.cancel()
+        mutableState.update { it.copy(stack = listOf(Screen.Home, Screen.Resolving), step = ResolvingStep.FINDING_LOCATION) }
+        tripJob = viewModelScope.launch { route(target) }
     }
 
     private sealed interface Resolution {
@@ -260,7 +266,8 @@ class CompareViewModel(
         val trip = state.value.trip
         mutableState.update {
             it.copy(
-                stack = it.stack.dropLastWhile { screen -> screen == Screen.Resolving } + Screen.ManualTrip,
+                stack = it.stack.dropLastWhile { screen -> screen == Screen.Resolving || screen == Screen.ManualTrip } +
+                    Screen.ManualTrip,
                 step = null, manualReason = reason,
                 manualKm = trip?.let { t -> kilometresInput(t.metres) }.orEmpty(),
                 manualMinutes = trip?.let { t -> formatMinutes(t.seconds) }.orEmpty(),
@@ -306,14 +313,14 @@ class CompareViewModel(
 
     fun commitCars() {
         val providerId = (state.value.screen as? Screen.Cars)?.providerId ?: return
-        val choices = state.value.choices.replacingProvider(providerId, offerIds(providerId), state.value.draft)
+        val choices = store.load().replacingProvider(providerId, offerIds(providerId), state.value.draft)
         store.save(choices)
         mutableState.update { it.copy(choices = choices, draft = emptySet(), selected = null, stack = listOf(Screen.Home, Screen.Result)) }
         reprice()
     }
 
     fun remove(choice: Choice) {
-        val choices = state.value.choices - choice
+        val choices = store.load() - choice
         store.save(choices)
         mutableState.update { it.copy(choices = choices, selected = it.selected.takeIf { s -> s != choice }) }
         reprice()
@@ -328,8 +335,15 @@ class CompareViewModel(
         packageOf(chosen.quote.providerId)?.let(launcher::openProvider)
     }
 
-    /** "Check in <provider>" from step 2; the ticks stay (§4.1). */
+    /**
+     * "Check in <provider>" from step 2; the ticks stay (§4.1). They are saved first, because
+     * Android may kill this app while the provider's app is in front.
+     */
     fun checkIn(providerId: String) {
+        val choices = store.load().replacingProvider(providerId, offerIds(providerId), state.value.draft)
+        store.save(choices)
+        mutableState.update { it.copy(choices = choices) }
+        reprice()
         packageOf(providerId)?.let(launcher::openProvider)
     }
 

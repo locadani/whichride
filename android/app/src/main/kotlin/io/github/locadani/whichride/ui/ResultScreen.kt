@@ -54,6 +54,7 @@ fun ResultScreen(
     state: UiState,
     onBack: () -> Unit,
     onEdit: () -> Unit,
+    onChangeStart: () -> Unit,
     onAddCars: () -> Unit,
     onRemove: (Choice) -> Unit,
     onSelect: (Choice) -> Unit,
@@ -77,6 +78,7 @@ fun ResultScreen(
                     Text(line + builtIn, style = WhichrideTheme.numbers.small, color = colors.onSurfaceMuted)
                 }
             }
+            TextButton(onClick = onChangeStart) { Text(stringResource(R.string.change_start), color = colors.accentText) }
             TextButton(onClick = onEdit) { Text(stringResource(R.string.edit), color = colors.accentText) }
         }
         val options = state.options

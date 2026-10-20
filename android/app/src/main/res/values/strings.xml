@@ -44,6 +44,7 @@
     <string name="trip_line">%1$s km · %2$s min</string>
     <string name="built_in_prices">built-in prices</string>
     <string name="edit">Edit</string>
+    <string name="change_start">Change start</string>
     <string name="loading_prices">Loading prices…</string>
     <string name="intro_title">Which cars are near you?</string>
     <string name="intro_title_accent">near you?</string>

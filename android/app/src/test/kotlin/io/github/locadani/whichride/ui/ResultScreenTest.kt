@@ -52,10 +52,11 @@ class ResultScreenTest {
     @get:Rule val compose = createComposeRule()
     private var opened = 0
     private var added = 0
+    private var startChanged = 0
 
     private fun show(state: UiState) = compose.setContent {
         WhichrideTheme {
-            ResultScreen(state, onBack = {}, onEdit = {}, onAddCars = { added++ }, onRemove = {}, onSelect = {}, onOpen = { opened++ }, onOpenMaps = {})
+            ResultScreen(state, onBack = {}, onEdit = {}, onChangeStart = { startChanged++ }, onAddCars = { added++ }, onRemove = {}, onSelect = {}, onOpen = { opened++ }, onOpenMaps = {})
         }
     }
 
@@ -85,5 +86,11 @@ class ResultScreenTest {
     @Test fun theTripLineShowsKmMinutesAndBuiltInPrices() {
         show(resultState().copy(priceSource = PriceSource.BUILT_IN))
         compose.onNodeWithText("7.4 km · 22 min · built-in prices").assertExists()
+    }
+
+    @Test fun theStartCanBeChangedFromTheResult() {
+        show(resultState())
+        compose.onNodeWithText("Change start").performClick()
+        assertEquals(1, startChanged)
     }
 }

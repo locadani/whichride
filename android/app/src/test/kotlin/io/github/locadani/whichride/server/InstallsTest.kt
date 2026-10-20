@@ -32,7 +32,8 @@ class InstallsTest {
     private fun reply(status: Int, body: String) =
         server.enqueue(MockResponse.Builder().code(status).body(body).build())
 
-    private fun installs(tokens: IntegrityTokens = integrity) = Installs(api, tokens, store) { "abcdefghijklmnop" }
+    private var now = 0L
+    private fun installs(tokens: IntegrityTokens = integrity) = Installs(api, tokens, store, { "abcdefghijklmnop" }, { now })
 
     @Test fun registersOnceThenReusesTheStoredToken() = runTest {
         reply(201, """{"install_id":"x","token":"bearer-1"}""")
@@ -71,5 +72,24 @@ class InstallsTest {
     @Test fun aBusyRegistrationIsBusy() = runTest {
         reply(503, """{"error":"integrity_unavailable"}""")
         assertEquals(ApiResult.Unavailable(Why.BUSY), installs().authorized { ApiResult.Ok(it) })
+    }
+
+    @Test fun withoutPlayIntegrityItWaitsBeforeTryingAgain() = runTest {
+        var asked = 0
+        val installs = installs { asked++; null }
+        repeat(3) { installs.authorized { ApiResult.Ok(it) } }
+        assertEquals(1, asked)
+        now += Installs.RETRY_AFTER_MILLIS
+        installs.authorized { ApiResult.Ok(it) }
+        assertEquals(2, asked)
+    }
+
+    @Test fun aRefusedRegistrationIsNotRetriedThisSession() = runTest {
+        reply(403, """{"error":"integrity_failed"}""")
+        val installs = installs()
+        repeat(2) { installs.authorized { ApiResult.Ok(it) } }
+        now += 24 * 3_600_000L
+        assertEquals(ApiResult.Unavailable(Why.NOT_REGISTERED), installs.authorized { ApiResult.Ok(it) })
+        assertEquals(1, server.requestCount)
     }
 }

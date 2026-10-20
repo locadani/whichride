@@ -356,4 +356,78 @@ class CompareViewModelTest {
         vm.onResume()
         assertTrue(vm.state.value.choices.isEmpty())
     }
+
+    @Test fun `a one line share keeps its name without the server`() = runTest(dispatcher) {
+        val vm = viewModel()
+        vm.onShared("Markthalle Neun https://maps.app.goo.gl/x7Qa2Lm")
+        advanceUntilIdle()
+        assertEquals(Screen.ManualTrip, vm.state.value.screen)
+        assertEquals("Markthalle Neun", vm.state.value.target!!.label)
+    }
+
+    @Test fun `a new start re-routes with progress and back cancels it`() = runTest(dispatcher) {
+        here = null
+        val vm = viewModel()
+        vm.onShared(coordinateLink)
+        advanceUntilIdle()
+        vm.changeStart()
+        routes.routeGate = CompletableDeferred()
+        vm.pickStart(Place("Alexanderplatz, Berlin", ALEX))
+        advanceUntilIdle()
+        assertEquals(listOf(Screen.Home, Screen.Resolving), vm.state.value.stack)
+        assertTrue(vm.back())
+        routes.routeGate!!.complete(Unit)
+        advanceUntilIdle()
+        assertEquals(listOf(Screen.Home), vm.state.value.stack)
+        assertTrue(routes.routed.isEmpty())
+    }
+
+    @Test fun `failing again does not stack manual screens`() = runTest(dispatcher) {
+        here = null
+        val vm = viewModel()
+        vm.onShared(coordinateLink)
+        advanceUntilIdle()
+        vm.changeStart()
+        vm.useMyLocation()
+        advanceUntilIdle()
+        assertEquals(listOf(Screen.Home, Screen.ManualTrip), vm.state.value.stack)
+    }
+
+    @Test fun `the start can be changed from the result`() = runTest(dispatcher) {
+        val vm = viewModel()
+        vm.onShared(coordinateLink)
+        advanceUntilIdle()
+        vm.changeStart()
+        vm.pickStart(Place("Mauerpark, Berlin", MAUERPARK))
+        advanceUntilIdle()
+        assertEquals(listOf(Screen.Home, Screen.Result), vm.state.value.stack)
+        assertEquals(listOf(ALEX to NEUN, MAUERPARK to NEUN), routes.routed)
+    }
+
+    @Test fun `ticks survive the provider app killing ours`() = runTest(dispatcher) {
+        store.choices = setOf(Choice.AnyOf("miles"))
+        val vm = viewModel()
+        vm.onShared(coordinateLink)
+        advanceUntilIdle()
+        vm.addCars()
+        vm.pickProvider("sixt")
+        vm.toggle(Choice.Offer("sixt.volkswagen-t-roc"))
+        vm.checkIn("sixt")
+        assertEquals(setOf(Choice.AnyOf("miles"), Choice.Offer("sixt.volkswagen-t-roc")), store.choices)
+        assertEquals(Screen.Cars("sixt"), vm.state.value.screen)
+    }
+
+    @Test fun `adding cars after they expired does not bring them back`() = runTest(dispatcher) {
+        store.choices = setOf(Choice.AnyOf("bolt"))
+        val vm = viewModel()
+        vm.onShared(coordinateLink)
+        advanceUntilIdle()
+        store.choices = emptySet() // 15 minutes later, still on the result screen
+        vm.addCars()
+        vm.pickProvider("miles")
+        vm.toggle(Choice.AnyOf("miles"))
+        vm.commitCars()
+        assertEquals(setOf(Choice.AnyOf("miles")), store.choices)
+        assertEquals(setOf(Choice.AnyOf("miles")), vm.state.value.choices)
+    }
 }

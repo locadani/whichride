@@ -75,7 +75,8 @@ pub fn shared_label(input: &str) -> Option<String> {
     let line = input
         .lines()
         .map(str::trim)
-        .find(|line| !line.is_empty() && find_links(line).next().is_none())?;
+        .find(|line| !line.is_empty() && find_links(line).next().is_none())
+        .or_else(|| text_before_first_link(input))?;
     let label: String = line
         .chars()
         .filter(|c| !c.is_control() && !is_bidi_format(*c))
@@ -83,6 +84,14 @@ pub fn shared_label(input: &str) -> Option<String> {
         .collect();
     let label = label.trim();
     (!label.is_empty()).then(|| label.to_owned())
+}
+
+/// "Markthalle Neun https://…" on one line: the words before the first link.
+fn text_before_first_link(input: &str) -> Option<&str> {
+    let link = find_links(input).next()?;
+    let start = link.as_ptr() as usize - input.as_ptr() as usize;
+    let before = input[..start].lines().last().unwrap_or_default().trim();
+    (!before.is_empty()).then_some(before)
 }
 
 fn is_bidi_format(c: char) -> bool {
@@ -684,6 +693,18 @@ mod tests {
         assert_eq!(
             shared_label("https://maps.app.goo.gl/x\n\n  Mauerpark  ").as_deref(),
             Some("Mauerpark")
+        );
+    }
+
+    #[test]
+    fn shared_label_is_the_text_before_the_link_on_a_one_line_share() {
+        assert_eq!(
+            shared_label("Markthalle Neun https://maps.app.goo.gl/x7Qa2Lm").as_deref(),
+            Some("Markthalle Neun")
+        );
+        assert_eq!(
+            shared_label("  Mauerpark:  https://maps.app.goo.gl/x\nhttps://example.com").as_deref(),
+            Some("Mauerpark:")
         );
     }
 

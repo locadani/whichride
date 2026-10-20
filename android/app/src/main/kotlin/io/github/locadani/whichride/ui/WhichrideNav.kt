@@ -43,7 +43,7 @@ fun WhichrideNav(viewModel: CompareViewModel) {
                     viewModel::submitManual, viewModel::openMaps, viewModel::changeStart,
                 )
                 Screen.Result -> ResultScreen(
-                    state, onBack = { viewModel.back() }, viewModel::editTrip, viewModel::addCars, viewModel::remove,
+                    state, onBack = { viewModel.back() }, viewModel::editTrip, viewModel::changeStart, viewModel::addCars, viewModel::remove,
                     viewModel::select, viewModel::openChosen, viewModel::openMaps,
                 )
                 Screen.Providers -> ProvidersScreen(state, onClose = { viewModel.back() }, viewModel::pickProvider)

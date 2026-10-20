@@ -22,7 +22,7 @@ class ServerRoutesTest {
                 override fun save(token: String) { t = token }
                 override fun clear() { t = null }
             }
-            val routes = ServerRoutes(api, Installs(api, { "a.b.c.d.e" }, store) { "abcdefghijklmnop" })
+            val routes = ServerRoutes(api, Installs(api, { "a.b.c.d.e" }, store, nonce = { "abcdefghijklmnop" }))
             assertEquals(ApiResult.Ok(Destination.Place("Mauerpark", null)), routes.expand("https://maps.app.goo.gl/x"))
             assertEquals(ApiResult.Refused(200, "invalid_destination"), routes.expand("https://maps.app.goo.gl/y"))
         }

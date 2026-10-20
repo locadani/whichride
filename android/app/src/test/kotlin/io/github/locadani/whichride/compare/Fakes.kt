@@ -20,6 +20,7 @@ import kotlinx.coroutines.CompletableDeferred
 val SEED: String = File("../../crates/server/catalogue.json").readText()
 val ALEX = Coordinate(525_219_000, 134_132_000)
 val NEUN = Coordinate(525_022_870, 134_316_050)
+val MAUERPARK = Coordinate(525_430_000, 134_030_000)
 val TRIP = Trip(7_400u, 1_320u)
 
 class FakeRoutes : Routes {
