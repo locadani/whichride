@@ -20,19 +20,34 @@ export function floor2(n) {
   return (Math.floor(n * 100) / 100).toFixed(2);
 }
 
-/** Checks every theme pair in both modes and every brand pair once. */
+/**
+ * Checks every theme pair in both modes and every brand pair once. A pair with
+ * `"fgTheme": "other"` takes its foreground from the opposite theme, as Material's
+ * `inversePrimary` does on the inverse surface.
+ */
 export function checkContrast(model, rules) {
   const results = [];
-  const check = (scope, colours, pair) => {
-    const min = rules.minimum[pair.kind];
+  const check = (scope, fgColours, bgColours, pair, fgLabel) => {
+    const min = Object.hasOwn(rules.minimum, pair.kind) ? rules.minimum[pair.kind] : undefined;
     if (typeof min !== 'number') throw new TokenError(`contrast.json: unknown kind "${pair.kind}"`);
-    for (const role of [pair.fg, pair.bg]) {
-      if (!(role in colours)) throw new TokenError(`contrast.json: "${role}" is not a ${scope === 'brand' ? 'brand colour' : 'theme role'}`);
+    const what = scope === 'brand' ? 'brand colour' : 'theme role';
+    for (const [role, colours] of [[pair.fg, fgColours], [pair.bg, bgColours]]) {
+      if (!Object.hasOwn(colours, role)) throw new TokenError(`contrast.json: "${role}" is not a ${what}`);
     }
-    const ratio = contrastRatio(colours[pair.fg], colours[pair.bg]);
-    results.push({ scope, fg: pair.fg, bg: pair.bg, kind: pair.kind, ratio, min, ok: ratio >= min });
+    const ratio = contrastRatio(fgColours[pair.fg], bgColours[pair.bg]);
+    results.push({ scope, fg: fgLabel, bg: pair.bg, kind: pair.kind, ratio, min, ok: ratio >= min });
   };
-  for (const mode of MODES) for (const pair of rules.pairs) check(mode, model.themes[mode], pair);
-  for (const pair of rules.brand) check('brand', model.brand, pair);
+  for (const mode of MODES) {
+    const other = MODES.find((m) => m !== mode);
+    for (const pair of rules.pairs) {
+      if (pair.fgTheme !== undefined && pair.fgTheme !== 'other') {
+        throw new TokenError(`contrast.json: fgTheme is "other" or absent, got "${pair.fgTheme}"`);
+      }
+      const fgMode = pair.fgTheme === 'other' ? other : mode;
+      const label = pair.fgTheme === 'other' ? `${pair.fg} (${other})` : pair.fg;
+      check(mode, model.themes[fgMode], model.themes[mode], pair, label);
+    }
+  }
+  for (const pair of rules.brand) check('brand', model.brand, model.brand, pair, pair.fg);
   return results;
 }

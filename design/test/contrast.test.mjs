@@ -45,3 +45,28 @@ test('every pair of the real tokens passes', async () => {
   assert.equal(results.length, rules.pairs.length * 2 + rules.brand.length);
   assert.deepEqual(results.filter((r) => !r.ok), []);
 });
+
+test('a role named like a built-in property is still reported by name', () => {
+  const model = { themes: { light: { a: '#000000' }, dark: { a: '#000000' } }, brand: {} };
+  const rules = { minimum: { text: 4.5, 'non-text': 3 }, pairs: [{ fg: 'constructor', bg: 'a', kind: 'text' }], brand: [] };
+  assert.throws(() => checkContrast(model, rules), (e) => e instanceof TokenError && /constructor/.test(e.message));
+});
+
+test('a pair can take its foreground from the other theme', () => {
+  const model = { themes: { light: { accent: '#000000', 'on-surface': '#000000' }, dark: { accent: '#FFFFFF', 'on-surface': '#FFFFFF' } }, brand: {} };
+  const rules = { minimum: { text: 4.5, 'non-text': 3 }, pairs: [{ fg: 'accent', fgTheme: 'other', bg: 'on-surface', kind: 'text' }], brand: [] };
+  const [light, dark] = checkContrast(model, rules);
+  assert.equal(light.ratio, 21);
+  assert.equal(dark.ratio, 21);
+  assert.equal(light.fg, 'accent (dark)');
+  const bad = { ...rules, pairs: [{ ...rules.pairs[0], fgTheme: 'same' }] };
+  assert.throws(() => checkContrast(model, bad), /fgTheme/);
+});
+
+test('the pairs Material draws from inverse and container roles are checked', async () => {
+  const rules = JSON.parse(await readFile(here('../contrast.json'), 'utf8'));
+  const has = (fg, bg, extra = {}) => rules.pairs.some((p) => p.fg === fg && p.bg === bg && Object.entries(extra).every(([k, v]) => p[k] === v));
+  assert.ok(has('background', 'on-surface'), 'snackbar text: inverseOnSurface on inverseSurface');
+  assert.ok(has('accent', 'on-surface', { fgTheme: 'other' }), 'snackbar action: inversePrimary on inverseSurface');
+  assert.ok(has('outline', 'surface-highest'), 'unchecked switch border on its track');
+});

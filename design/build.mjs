@@ -9,6 +9,9 @@ const DESIGN = dirname(fileURLToPath(import.meta.url));
 const ANDROID_MAIN = 'android/designsystem/src/main';
 const KOTLIN_FILE = `${ANDROID_MAIN}/kotlin/io/github/locadani/whichride/designsystem/WhichrideTokens.kt`;
 
+/** Folders that hold only build output; anything else in them is a leftover from an older build. */
+export const OUTPUT_DIRS = [`${ANDROID_MAIN}/res/font`, 'web/public/fonts'];
+
 /** Bundled fonts: the first family name in tokens.json → files in design/fonts/. */
 const FONTS = [
   { family: 'Sora', file: 'Sora-Variable.ttf', licence: 'Sora-OFL.txt', android: 'sora.ttf' },
@@ -48,7 +51,7 @@ export async function build(root) {
   return [...Object.keys(texts), ...Object.keys(copies)].sort();
 }
 
-if (import.meta.url === pathToFileURL(process.argv[1]).href) {
+if (process.argv[1] && import.meta.url === pathToFileURL(process.argv[1]).href) {
   const written = await build(join(DESIGN, '..'));
   console.log(`wrote ${written.length} files:\n  ${written.join('\n  ')}`);
 }

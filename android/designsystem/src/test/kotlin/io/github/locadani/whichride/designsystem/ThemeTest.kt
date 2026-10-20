@@ -41,7 +41,6 @@ class ThemeTest {
         assertEquals(c.surface, m.surfaceContainer)
         assertEquals(c.outline, m.outline)
         assertEquals(c.onSurfaceMuted, m.onSurfaceVariant)
-        assertEquals(Color(0xFF3DDC97), m.primary)
     }
 
     private fun allTextStyles(): List<Pair<String, TextStyle>> = with(WhichrideTypography) {

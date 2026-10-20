@@ -32,3 +32,10 @@ test('the build writes every output, identically on a second run', async () => {
   const favicon = await readFile(join(root, 'web/public/favicon.svg'), 'utf8');
   assert.match(favicon, /fill="#3DDC97"/);
 });
+
+test('importing build.mjs from an inline script does not run or crash the build', async () => {
+  const { execFileSync } = await import('node:child_process');
+  const url = new URL('../build.mjs', import.meta.url).href;
+  const out = execFileSync(process.execPath, ['--input-type=module', '-e', `await import(${JSON.stringify(url)}); console.log('imported')`], { encoding: 'utf8' });
+  assert.equal(out.trim(), 'imported');
+});
