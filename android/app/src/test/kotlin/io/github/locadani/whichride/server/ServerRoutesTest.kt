@@ -17,9 +17,9 @@ class ServerRoutesTest {
             server.start()
             val api = ServerApi(server.url("/").toString().trimEnd('/'), OkHttpClient())
             val store = object : TokenStore {
-                var t: String? = null
+                var t: Install? = null
                 override fun load() = t
-                override fun save(token: String) { t = token }
+                override fun save(install: Install) { t = install }
                 override fun clear() { t = null }
             }
             val routes = ServerRoutes(api, Installs(api, { "a.b.c.d.e" }, store, nonce = { "abcdefghijklmnop" }))
