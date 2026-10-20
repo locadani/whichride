@@ -5,6 +5,15 @@
     <uses-permission android:name="android.permission.ACCESS_COARSE_LOCATION" />
     <uses-permission android:name="android.permission.ACCESS_FINE_LOCATION" />
 
+    <!-- Apps "Open <provider>" launches (decision 62): the v1 providers of crates/server/catalogue.json
+         (SIXT share opens BVG Jelbi, decision 48). A provider added later without an app update
+         opens its Play Store page instead. -->
+    <queries>
+        <package android:name="com.driveby.app" />
+        <package android:name="ee.mtakso.client" />
+        <package android:name="com.trafi.whitelabel.bvg" />
+    </queries>
+
     <!-- No backup or device transfer: nothing on the phone is worth restoring (the install
          token is tied to a Keystore key that doesn't travel, added cars expire in minutes). -->
     <application
