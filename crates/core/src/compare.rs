@@ -54,7 +54,7 @@ mod tests {
     use proptest::prelude::*;
 
     use super::*;
-    use crate::adjustments::{Discount, PriceOverride};
+    use crate::adjustments::{Discount, PriceOverride, RefuelCredit};
     use crate::catalogue::fixtures::catalogue;
     use crate::money::Percent;
 
@@ -173,6 +173,7 @@ mod tests {
                     Discount::Percent { provider: c.providers[0].id.clone(), off: Percent::from_basis_points(percent).unwrap() },
                     Discount::Amount { provider: c.providers[1].id.clone(), amount: Cents(amount) },
                 ],
+                refuel_credits: vec![RefuelCredit { provider: c.providers[0].id.clone(), amount: Cents(amount) }],
                 refuel,
                 ..Adjustments::default()
             };

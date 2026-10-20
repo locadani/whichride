@@ -35,7 +35,7 @@ provider's app.
 | No money | Free tiers with hard limits only; no Google Maps Platform; Cloud Run max instances = 1 |
 | Privacy | No routes or locations stored anywhere (§9) |
 | No moderation work for the owner | Fully automatic price acceptance (§7); only an emergency switch |
-| No partnerships, no unofficial APIs | No live car locations; apps opened with plain intents/links |
+| No partnerships, no unofficial APIs | No live car locations (the user marks nearby cars, §4.1); apps opened with plain intents/links |
 | Portfolio + standards of smoke-tracker | Tests on all core logic, CI/CD on GitHub, free security tooling (cargo-deny, gitleaks, CodeQL, Dependabot), ADRs |
 | One source for brand assets | Design tokens + one logo file generate the Android and web assets (§10.5) |
 | Tokens never pushed | gitleaks pre-commit + CI; keys only in server environment |
@@ -71,12 +71,44 @@ provider's app.
 3. Start = the phone's current location (location permission), changeable by the user.
 4. The routing proxy (§8) returns **km and minutes**. Manual entry is always available as a fallback.
 5. The core computes the cost of every offer of every provider, applying personal adjustments.
-6. Result screen: offers sorted by price, the cheapest highlighted, price freshness labels (§7.5).
+6. Result screen: offers sorted by price, price freshness labels (§7.5). The user marks which
+   cars are near them (§4.1); the cheapest **marked** offer is highlighted.
 7. Buttons: **Open <provider>** (opens the app, or the Play Store page if not installed) and
    **Open in Google Maps** (shows the route). No map inside the app in v1.
 
 Android cannot make the app the default handler for `google.com/maps` links (Google owns the
 domain), so Share and `geo:` are the entry points.
+
+### 4.1 Cars near you (marked by the user)
+
+The cheapest offer overall is useless if no such car is parked nearby. No provider publishes an
+official availability feed for Berlin (research:
+`docs/research/2026-10-19-vehicle-availability-feeds.md`), and unofficial APIs are ruled out (§2),
+so the **user tells the app what they see** in the providers' apps.
+
+- **What is marked:** an **offer**, i.e. whatever the provider prices by: a car model (Bolt Drive,
+  Free2move) or a size class (MILES S/M, Premium, L, XL). Packages are not marked; they are chosen
+  before the trip and the core already picks the cheapest one per offer.
+- **How:** the result screen has a "What's near you?" panel with one toggle chip per offer,
+  grouped by provider. One tap marks or unmarks an offer and the list re-ranks at once:
+  - marked offers on top, cheapest first, the cheapest highlighted;
+  - unmarked offers below a "Not marked nearby" divider, still visible with their price, so the
+    user can see what walking further would save.
+- **Whole provider:** tapping a provider's name marks all its offers, for "there's a Bolt car
+  around, I don't know which model".
+- **Check in the app:** each provider group has a **Check in <provider>** button that opens the
+  provider's app; coming back keeps the panel and its marks. This return does **not** trigger the
+  §7.2 confirmation question, which follows only **Open <provider>** for the chosen car.
+- **Missing car:** "Not in the list? Add it" starts the new-offer proposal (§5.1).
+- **Nothing marked:** the screen works as before: all offers cheapest first, the cheapest
+  highlighted, with the panel inviting the user to mark what's nearby.
+- **Lifetime:** marks are kept on the device only and cleared after **15 minutes** (cars move;
+  value to be tuned in the closed test). Never sent to the server.
+- **Core:** splitting quotes into marked and unmarked and picking the cheapest marked one is a
+  pure, tested core function, so the app and the website behave the same.
+- **Accessibility:** chips are toggle buttons whose on/off state is announced; touch targets meet
+  §11.
+- The interaction is tried in the clickable prototype before milestone 5 builds it.
 
 ---
 
@@ -89,7 +121,7 @@ domain), so Share and `geo:` are the entry points.
 |---|---|---|---|---|
 | MILES | free-floating | `com.driveby.app` | per km (rounded up) + unlock fee; parked minutes; BER fee; minimum for L/XL | size class (S/M, Premium, L, XL) |
 | Free2move (ex Share Now) | free-floating | `com.car2go` | per minute incl. 200 km, then per km; airport fee | car model |
-| SIXT share *(open, unverified)* | free-floating | `com.sixt.reservation` | per minute + unlock fee; per-km tariff since 2026; dynamic | category/model |
+| SIXT share | free-floating | `com.trafi.whitelabel.bvg` (opened through BVG Jelbi) | per minute + unlock fee; per-km tariff since 2026; dynamic | category/model |
 | Bolt Drive | free-floating | `ee.mtakso.client` | per minute + per km (rounded up) + minimum fee; dynamic allowed | car |
 | Flinkster (DB) | station-based | `de.flinkster.sharing.app` | per hour (daily cap) + per km + booking fee | class |
 | cambio | station-based | `de.cambio.app` | per hour + per km; plan-dependent rates | class + plan |
@@ -98,8 +130,8 @@ domain), so Share and `geo:` are the entry points.
   (not confirmed in Berlin), Getaround (peer-to-peer, host-set prices).
 - **Station-based providers** (Flinkster, cambio) are **excluded** (decided 2026-10-19): they need
   a round trip back to the station, which doesn't fit the one-way A→B flow. v1 = MILES, Bolt
-  Drive, Free2move. **SIXT share is left open** and will be added after launch as the real test
-  of §5.1 (adding a provider).
+  Drive, SIXT share (decision 48). **Free2move is left out for now** and will be added later
+  through §5.1 (adding a provider).
 - Granularity differs (car model, size class, category). The data model is
   `provider → offers → rate card`, so all fit.
 - Rate card components (superset; each provider uses a subset): per km, per minute, included km,
@@ -135,7 +167,7 @@ app update (unless the core needed a new component).
 | Discount, percentage | "Bolt −20% until 31 Oct" | Applied to that provider's total |
 | Discount, fixed amount | "Miles −€5, once" | Subtracted from that provider's total (not below €0) |
 | Subscription | MILES Pass: % off km rate, waived unlock fee; Free2move Pass: % off minutes only; cambio: different rate table | Permanent; acts on specific components or replaces rates; monthly fee ignored per trip |
-| Refuel/charge credit | Toggle "I'll refuel" on a trip | Applies the provider's refuelling discount (shared data; not published on official pages, entered by users) |
+| Refuel/charge credit | "MILES credits me €5"; toggle "I'll refuel" on a trip | Subtracts the credit the user entered for that provider (providers don't publish it, so it is never shared data) |
 | Price override | User's own rate card for an offer | Used instead of the shared price; applied instantly |
 
 Order of application (fixed in the core and tested): override → subscription → percentage
@@ -192,6 +224,8 @@ Each offer shows when its price was last confirmed ("confirmed 2 days ago").
   Geocoding: OpenRouteService geocoder or Nominatim.
 - The app never holds the key. It calls **our server**, which adds the key and forwards the
   request; the server also checks Play Integrity so only the real app can use the quota.
+  (Integrity tokens are checked when an install registers and on every write; routing calls need
+  the install's token, decision 33.)
 - Cloud Run with **max instances = 1**; per-install rate limits.
 - When the daily quota is used up or the server is unreachable, the app says "route service busy —
   enter km and minutes" and shows two fields; the comparison still works because it is calculated

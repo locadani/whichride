@@ -1,0 +1,2 @@
+# Copy to backend.hcl (gitignored); the same bucket name as terraform.tfvars.
+bucket = "your-project-id-tfstate"

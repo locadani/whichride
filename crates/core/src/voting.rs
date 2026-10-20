@@ -4,6 +4,7 @@
 use std::collections::HashMap;
 
 use serde::{Deserialize, Serialize};
+use thiserror::Error;
 
 use crate::day::Day;
 
@@ -14,10 +15,31 @@ pub struct InstallId(pub String);
 
 /// How much one install's vote counts, from 0 to [`MAX_WEIGHT`].
 #[derive(Debug, Clone, Copy, PartialEq, Eq, PartialOrd, Ord, Hash, Serialize, Deserialize)]
-#[serde(transparent)]
+#[serde(try_from = "u32", into = "u32")]
 pub struct Weight(pub u32);
 
 pub const MAX_WEIGHT: Weight = Weight(10_000);
+
+#[derive(Debug, Clone, Copy, PartialEq, Eq, Error)]
+#[error("weight {0} is above the maximum of 10000")]
+pub struct WeightError(pub u32);
+
+impl TryFrom<u32> for Weight {
+    type Error = WeightError;
+
+    fn try_from(value: u32) -> Result<Weight, WeightError> {
+        if value > MAX_WEIGHT.0 {
+            return Err(WeightError(value));
+        }
+        Ok(Weight(value))
+    }
+}
+
+impl From<Weight> for u32 {
+    fn from(weight: Weight) -> u32 {
+        weight.0
+    }
+}
 
 /// Age points of a brand-new install; one more per day, up to [`MAX_AGE_POINTS`].
 const NEW_INSTALL_POINTS: u32 = 20;
@@ -60,19 +82,25 @@ pub fn weight(install: &InstallRecord, today: Day) -> Weight {
     Weight(u32::try_from(u64::from(age_points) * accuracy).unwrap_or(MAX_WEIGHT.0))
 }
 
+/// Each install's last vote, in no particular order; the reporter's own votes are left out.
+fn last_votes<'a>(reporter: &InstallId, votes: &'a [Vote]) -> HashMap<&'a InstallId, &'a Vote> {
+    let mut last = HashMap::new();
+    for vote in votes.iter().filter(|vote| &vote.install != reporter) {
+        last.insert(&vote.install, vote);
+    }
+    last
+}
+
 /// Whether a price report is accepted: at least one install other than the reporter confirmed it
 /// with a weight above zero, and the reporter's weight plus the weighted yes votes exceed the
 /// weighted no votes. Votes are in the order they were cast; only each install's last vote
 /// counts, and the reporter's own votes are ignored.
 pub fn is_accepted(reporter: &InstallId, reporter_weight: Weight, votes: &[Vote]) -> bool {
-    let mut last_votes: HashMap<&InstallId, &Vote> = HashMap::new();
-    for vote in votes.iter().filter(|vote| &vote.install != reporter) {
-        last_votes.insert(&vote.install, vote);
-    }
+    let latest = last_votes(reporter, votes);
     let mut yes = u64::from(reporter_weight.0);
     let mut no = 0;
     let mut confirmed = false;
-    for vote in last_votes.values() {
+    for vote in latest.values() {
         let weight = u64::from(vote.weight.0);
         match vote.answer {
             Answer::Yes => {
@@ -83,6 +111,25 @@ pub fn is_accepted(reporter: &InstallId, reporter_weight: Weight, votes: &[Vote]
         }
     }
     confirmed && yes > no
+}
+
+/// Who was right once a report is decided, to update each install's [`InstallRecord`]: the
+/// reporter was right if the report was accepted; a voter was right if its last vote was yes on
+/// an accepted report or no on one that was not. The reporter comes first, then voters by ID.
+pub fn settle(reporter: &InstallId, votes: &[Vote], accepted: bool) -> Vec<(InstallId, bool)> {
+    let mut voters: Vec<(InstallId, bool)> = last_votes(reporter, votes)
+        .into_values()
+        .map(|vote| {
+            (
+                vote.install.clone(),
+                (vote.answer == Answer::Yes) == accepted,
+            )
+        })
+        .collect();
+    voters.sort();
+    let mut settled = vec![(reporter.clone(), accepted)];
+    settled.extend(voters);
+    settled
 }
 
 #[cfg(test)]
@@ -197,5 +244,68 @@ mod tests {
     #[test]
     fn answers_use_lowercase_json() {
         assert_eq!(serde_json::to_string(&Answer::No).unwrap(), r#""no""#);
+    }
+
+    #[test]
+    fn weight_json_is_a_plain_number() {
+        assert_eq!(serde_json::to_string(&Weight(1_000)).unwrap(), "1000");
+        assert_eq!(
+            serde_json::from_str::<Weight>("1000").unwrap(),
+            Weight(1_000)
+        );
+        assert_eq!(serde_json::from_str::<Weight>("10000").unwrap(), MAX_WEIGHT);
+    }
+
+    #[test]
+    fn weight_json_above_the_maximum_is_rejected() {
+        assert!(serde_json::from_str::<Weight>("10001").is_err());
+        assert!(serde_json::from_str::<Weight>("4294967295").is_err());
+        assert!(serde_json::from_str::<Weight>("-1").is_err());
+        assert_eq!(Weight::try_from(10_001), Err(WeightError(10_001)));
+    }
+
+    #[test]
+    fn a_vote_with_an_oversized_weight_is_rejected() {
+        let json = r#"{"install":"b","answer":"yes","weight":99999}"#;
+        assert!(serde_json::from_str::<Vote>(json).is_err());
+    }
+
+    fn right(install: &str, was_right: bool) -> (InstallId, bool) {
+        (InstallId(install.into()), was_right)
+    }
+
+    #[test]
+    fn settling_an_accepted_report() {
+        let votes = [vote("c", Answer::No, 1_000), vote("b", Answer::Yes, 1_000)];
+        assert_eq!(
+            settle(&reporter(), &votes, true),
+            vec![right("reporter", true), right("b", true), right("c", false)]
+        );
+    }
+
+    #[test]
+    fn settling_a_report_that_lost() {
+        let votes = [vote("b", Answer::Yes, 1_000), vote("c", Answer::No, 1_000)];
+        assert_eq!(
+            settle(&reporter(), &votes, false),
+            vec![
+                right("reporter", false),
+                right("b", false),
+                right("c", true)
+            ]
+        );
+    }
+
+    #[test]
+    fn settling_uses_the_last_vote_and_ignores_the_reporters_votes() {
+        let votes = [
+            vote("b", Answer::No, 1_000),
+            vote("reporter", Answer::No, 1_000),
+            vote("b", Answer::Yes, 1_000),
+        ];
+        assert_eq!(
+            settle(&reporter(), &votes, true),
+            vec![right("reporter", true), right("b", true)]
+        );
     }
 }

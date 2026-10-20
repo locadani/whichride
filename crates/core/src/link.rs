@@ -67,7 +67,7 @@ fn parse_link(link: &str) -> Result<Destination, LinkError> {
     }
     let url = Url::parse(link).map_err(|_| LinkError::NotGoogleMaps)?;
     if is_short_link(&url) {
-        return Ok(Destination::ShortLink { url: url.into() });
+        return short_link(&url);
     }
     if !is_google_maps(&url) {
         return Err(LinkError::NotGoogleMaps);
@@ -116,6 +116,23 @@ fn is_short_link(url: &Url) -> bool {
         Some("goo.gl") => url.path().starts_with("/maps/"),
         _ => false,
     }
+}
+
+/// The short link as `https://host/path`: the scheme forced to https, and the user, port,
+/// query (share tracking such as `?g_st=ic`) and fragment dropped, so the server fetches only
+/// what identifies the link. A short link without an ID has no destination.
+fn short_link(url: &Url) -> Result<Destination, LinkError> {
+    let host = url.host_str().unwrap_or_default();
+    let id = match host {
+        "goo.gl" => url.path().strip_prefix("/maps/"),
+        _ => url.path().strip_prefix('/'),
+    };
+    if id.is_none_or(str::is_empty) {
+        return Err(LinkError::NoDestination);
+    }
+    Ok(Destination::ShortLink {
+        url: format!("https://{host}{}", url.path()),
+    })
 }
 
 /// `google.<tld>/maps…`, `www.google.<tld>/maps…` or `maps.google.<tld>/…`, where `<tld>` is
@@ -483,17 +500,41 @@ mod tests {
             })
         );
         assert_eq!(
-            parse("https://maps.app.goo.gl/AbC123?g_st=ic"),
-            Ok(Destination::ShortLink {
-                url: "https://maps.app.goo.gl/AbC123?g_st=ic".into()
-            })
-        );
-        assert_eq!(
             parse("https://goo.gl/maps/xyz"),
             Ok(Destination::ShortLink {
                 url: "https://goo.gl/maps/xyz".into()
             })
         );
+    }
+
+    #[test]
+    fn short_links_are_tidied_to_https_host_and_path() {
+        for link in [
+            "https://maps.app.goo.gl/AbC123?g_st=ic",
+            "http://maps.app.goo.gl/AbC123",
+            "https://maps.app.goo.gl/AbC123#here",
+            "HTTPS://MAPS.APP.GOO.GL/AbC123",
+            "https://user@maps.app.goo.gl:443/AbC123?g_st=iw&x=1",
+        ] {
+            assert_eq!(
+                parse(link),
+                Ok(Destination::ShortLink {
+                    url: "https://maps.app.goo.gl/AbC123".into()
+                }),
+                "{link}"
+            );
+        }
+    }
+
+    #[test]
+    fn a_short_link_without_an_id_has_no_destination() {
+        for link in [
+            "https://maps.app.goo.gl/",
+            "https://maps.app.goo.gl",
+            "https://goo.gl/maps/",
+        ] {
+            assert_eq!(parse(link), Err(LinkError::NoDestination), "{link}");
+        }
     }
 
     #[test]

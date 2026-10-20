@@ -43,6 +43,14 @@ pub enum Discount {
     Amount { provider: ProviderId, amount: Cents },
 }
 
+/// What a provider credits this user for refuelling or charging during a trip. Providers do not
+/// publish it, so the user enters it.
+#[derive(Debug, Clone, PartialEq, Eq, Serialize, Deserialize)]
+pub struct RefuelCredit {
+    pub provider: ProviderId,
+    pub amount: Cents,
+}
+
 /// Everything personal that changes a price. Stored on the device only.
 #[derive(Debug, Clone, Default, PartialEq, Eq, Serialize, Deserialize)]
 pub struct Adjustments {
@@ -53,6 +61,9 @@ pub struct Adjustments {
     pub subscriptions: Vec<Subscription>,
     #[serde(default)]
     pub discounts: Vec<Discount>,
+    /// The first one for a provider applies.
+    #[serde(default)]
+    pub refuel_credits: Vec<RefuelCredit>,
     /// The user will refuel or charge during this trip.
     #[serde(default)]
     pub refuel: bool,
@@ -96,9 +107,13 @@ impl Adjustments {
             }
         }
         if self.refuel
-            && let Some(credit) = provider.refuel_credit
+            && let Some(credit) = self
+                .refuel_credits
+                .iter()
+                .find(|c| c.provider == provider.id)
         {
-            total = total - credit;
+            // Like a fixed discount, a negative credit is invalid input.
+            total = total - credit.amount.at_least_zero();
         }
         total.at_least_zero().max(card.minimum)
     }
@@ -297,8 +312,12 @@ mod tests {
     }
 
     #[test]
-    fn refuel_credit_applies_only_when_refuelling_and_offered() {
+    fn refuel_credit_applies_only_when_refuelling_and_entered() {
         let refuelling = Adjustments {
+            refuel_credits: vec![RefuelCredit {
+                provider: miles().id,
+                amount: Cents(500),
+            }],
             refuel: true,
             ..Adjustments::default()
         };
@@ -306,14 +325,34 @@ mod tests {
             refuelling.price(&miles(), &per_km_card(), &TRIP),
             Cents(469)
         );
+        let not_refuelling = Adjustments {
+            refuel: false,
+            ..refuelling.clone()
+        };
         assert_eq!(
-            Adjustments::default().price(&miles(), &per_km_card(), &TRIP),
+            not_refuelling.price(&miles(), &per_km_card(), &TRIP),
             Cents(969)
         );
-        // Bolt offers no credit in the fixture.
+        // The user entered no credit for Bolt.
         assert_eq!(
             refuelling.price(&bolt(), &per_minute_and_km_card(), &TRIP),
             Cents(473)
+        );
+    }
+
+    #[test]
+    fn negative_refuel_credit_is_ignored() {
+        let adjustments = Adjustments {
+            refuel_credits: vec![RefuelCredit {
+                provider: miles().id,
+                amount: Cents(-500),
+            }],
+            refuel: true,
+            ..Adjustments::default()
+        };
+        assert_eq!(
+            adjustments.price(&miles(), &per_km_card(), &TRIP),
+            Cents(969)
         );
     }
 
