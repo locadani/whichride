@@ -58,8 +58,12 @@ plan departs from the canvas, the decision rows say why.
 - Commit subjects use Conventional Commits: `feat(design): …`, `feat(android): …`, `ci: …`,
   `build: …`, `docs: …`.
 - Doc comments explain *what* and *why*; no tutorial-style comments.
-- **Single source (spec §10.5):** colours, fonts, sizes and the logo are edited only in
-  `design/tokens.json`, `design/logo.svg` and `design/fonts/`. Every file the build writes starts
+- **One file for every graphic value (owner requirement, spec §10.5):** every colour, font,
+  weight, size, spacing, radius and the logo's colours live only in `design/tokens.json`.
+  `design/logo.svg` holds only the logo's *shape* and names its colours as token references
+  (`{brand.mark}`); `design/fonts/` holds the font files tokens.json names. Hand-written Kotlin
+  (and later CSS/Astro) reads generated values and never writes a literal colour, `dp` or `sp`
+  number. A test enforces it (Task 6). Every file the build writes starts
   with a "Generated … Do not edit." comment (except fonts, which are copied byte for byte).
 - **Accessibility (spec §11):** text sizes are `sp` on Android and `rem` on the web, never `px`,
   so the user's font size setting applies. Text colour pairs need ≥ 4.5:1 and component
@@ -91,9 +95,10 @@ plan departs from the canvas, the decision rows say why.
 4. **A typo that silently disables a check.** A contrast rule naming a role that doesn't exist,
    or a role added to only one of the two themes, must stop the build with the name of the
    role, not skip it (tests in Tasks 1 and 2).
-5. **The logo drifting from the brand colours.** Someone recolours `logo.svg` but not
-   `tokens.json` (or the reverse), and the launcher icon and the website disagree. The build
-   fails unless the logo's colours equal `brand.mark` and `brand.on-mark` (test in Task 4).
+5. **A graphic value typed outside tokens.json.** Someone writes `Color(0xFF…)` or `12.dp`
+   in a screen, or a hex colour into `logo.svg`, and the app, the icon and the website drift
+   apart. `logo.svg` accepts only `{brand.*}` references (Task 4), and a test scans the
+   hand-written Kotlin for literal colours, `dp` and `sp` (Task 6).
 
 ---
 
@@ -127,7 +132,7 @@ android/
   designsystem/src/test/kotlin/io/github/locadani/whichride/designsystem/ThemeTest.kt
 web/
   src/styles/tokens.css    GENERATED
-  public/favicon.svg       GENERATED (copy of design/logo.svg)
+  public/favicon.svg       GENERATED (design/logo.svg with its colours resolved)
   public/fonts/            GENERATED (font and licence copies)
 ```
 
@@ -774,7 +779,8 @@ Co-Authored-By: Claude Opus 5.5 <noreply@anthropic.com>"
   `WhichrideTokens.LightColors`, `WhichrideTokens.DarkColors` (type `WhichrideColors`),
   `WhichrideTokens.BrandMark`, `WhichrideTokens.BrandOnMark` (`Color`),
   `WhichrideTokens.Space.<name>`, `.Radius.<name>`, `.Size.<camelName>` (`Dp`),
-  `WhichrideTokens.Type.<camelName>` (`TypeToken`, internal). CSS custom properties:
+  `WhichrideTokens.Type.<camelName>` (`TypeToken`, internal), `WhichrideTokens.Type.weights`
+  (`List<Int>`, every weight the type tokens use, ascending). CSS custom properties:
   `--wr-color-<role>`, `--wr-brand-<name>`, `--wr-space-<name>` (rem), `--wr-radius-<name>` (px),
   `--wr-size-<name>` (px), `--wr-font-<role>`, `--wr-type-<role>` (font shorthand, rem) and
   `--wr-type-<role>-tracking` (em).
@@ -821,7 +827,7 @@ test('Kotlin: sizes are dp, type sizes are plain sp numbers', () => {
   const out = kotlin(model);
   assert.match(out, /object Space \{\n        val lg: Dp = 20\.dp\n        val md: Dp = 16\.dp\n    \}/);
   assert.match(out, /object Size \{\n        val touchTarget: Dp = 48\.dp\n    \}/);
-  assert.match(out, /internal object Type \{/);
+  assert.match(out, /internal object Type \{\n        val weights: List<Int> = listOf\(400, 700\)\n/);
   assert.match(out, /val numberLarge: TypeToken = TypeToken\(FontRole\.NUMBER, sizeSp = 36f, weight = 700, lineHeight = 1f, letterSpacingEm = -0\.02f\)/);
   assert.match(out, /val bodyLarge: TypeToken = TypeToken\(FontRole\.TEXT, sizeSp = 16f, weight = 400, lineHeight = 1\.5f, letterSpacingEm = 0f\)/);
 });
@@ -905,7 +911,8 @@ export function kotlin(model) {
     for (const [name, px] of sorted(model[group])) lines.push(`        val ${camel(name)}: Dp = ${px}.dp`);
     lines.push('    }');
   }
-  lines.push('', '    internal object Type {');
+  const weights = [...new Set(Object.values(model.type).map((t) => t.weight))].sort((a, b) => a - b);
+  lines.push('', '    internal object Type {', `        val weights: List<Int> = listOf(${weights.join(', ')})`);
   for (const [role, t] of sorted(model.type)) {
     lines.push(
       `        val ${camel(role)}: TypeToken = TypeToken(FontRole.${t.font.toUpperCase()}, ` +
@@ -982,8 +989,10 @@ Co-Authored-By: Claude Opus 5.5 <noreply@anthropic.com>"
 
 **Interfaces:**
 - Consumes: `loadModel` (Task 1), `kotlin`, `css` (Task 3).
-- Produces: `parseLogo(svgText): Logo` where
-  `Logo = { size: number, tile: { rx: number, fill: string }, mark: { d: string, stroke: string, strokeWidth: number } }`;
+- Produces: `parseLogo(svgText, brand: Record<name, hex>): Logo` where
+  `Logo = { size: number, tile: { rx: number, fill: hex }, mark: { d: string, stroke: hex, strokeWidth: number } }`
+  (colours resolved from `{brand.<name>}` references); `resolvedSvg(svgText, brand): string`
+  (the same SVG with references replaced by hex values);
   `roundedRectPath(size, rx): string`; `logoOutputs(logo): Record<relativePath, string>`
   (paths relative to `android/designsystem/src/main/`); `build(root: string): Promise<string[]>`
   (writes everything under `root`, returns the written paths relative to `root`, sorted).
@@ -1014,14 +1023,18 @@ ba0b9729c9428ba79a0459ab8ec575791b51509dbec213e383d0316d37fec299  design/fonts/S
 - [ ] **Step 2: Write `design/logo.svg`**
 
 The canvas mark (24-unit box drawn at 18 px, centred in a 32 px tile) converted to tile
-coordinates: ×0.75, +7.
+coordinates: ×0.75, +7. Its geometry (stroke width, corner radius) is the logo's shape, not a
+design token.
 
 ```xml
 <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 32 32">
-  <rect width="32" height="32" rx="10" fill="#3DDC97"/>
-  <path d="M16 22.75V16.75M16 16.75L11.5 10M16 16.75L20.5 10" fill="none" stroke="#04261A" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"/>
+  <rect width="32" height="32" rx="10" fill="{brand.mark}"/>
+  <path d="M16 22.75V16.75M16 16.75L11.5 10M16 16.75L20.5 10" fill="none" stroke="{brand.on-mark}" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"/>
 </svg>
 ```
+
+The colours are references into `tokens.json`, not values: the logo's colours are changed there
+only. The build writes a plain SVG with the resolved colours as `web/public/favicon.svg`.
 
 - [ ] **Step 3: Write the failing logo tests** — `design/test/logo.test.mjs`
 
@@ -1030,16 +1043,17 @@ import { test } from 'node:test';
 import assert from 'node:assert/strict';
 import { readFile } from 'node:fs/promises';
 import { fileURLToPath } from 'node:url';
-import { logoOutputs, parseLogo, roundedRectPath } from '../lib/logo.mjs';
+import { logoOutputs, parseLogo, resolvedSvg, roundedRectPath } from '../lib/logo.mjs';
 import { loadModel, TokenError } from '../lib/model.mjs';
 
 const here = (p) => fileURLToPath(new URL(p, import.meta.url));
 const svg = (inner, viewBox = '0 0 32 32') => `<svg xmlns="http://www.w3.org/2000/svg" viewBox="${viewBox}">${inner}</svg>`;
-const RECT = '<rect width="32" height="32" rx="10" fill="#3DDC97"/>';
-const PATH = '<path d="M16 22.75V16.75" fill="none" stroke="#04261A" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"/>';
+const BRAND = { mark: '#3DDC97', 'on-mark': '#04261A' };
+const RECT = '<rect width="32" height="32" rx="10" fill="{brand.mark}"/>';
+const PATH = '<path d="M16 22.75V16.75" fill="none" stroke="{brand.on-mark}" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"/>';
 
-test('a valid logo parses', () => {
-  assert.deepEqual(parseLogo(svg(RECT + PATH)), {
+test('a valid logo parses, with colours resolved from the brand tokens', () => {
+  assert.deepEqual(parseLogo(svg(RECT + PATH), BRAND), {
     size: 32,
     tile: { rx: 10, fill: '#3DDC97' },
     mark: { d: 'M16 22.75V16.75', stroke: '#04261A', strokeWidth: 1.8 },
@@ -1054,12 +1068,22 @@ test('anything outside the constrained format is rejected', () => {
     'extra attribute': svg(RECT.replace('/>', ' transform="rotate(3)"/>') + PATH),
     'non-square': svg(RECT + PATH, '0 0 32 24'),
     'rect smaller than the box': svg(RECT.replace('width="32"', 'width="30"') + PATH),
-    'lower-case colour': svg(RECT.replace('#3DDC97', '#3ddc97') + PATH),
-    'filled path': svg(RECT + PATH.replace('fill="none"', 'fill="#000000"')),
+    'literal tile colour': svg(RECT.replace('{brand.mark}', '#3DDC97') + PATH),
+    'literal mark colour': svg(RECT + PATH.replace('{brand.on-mark}', '#04261A')),
+    'unknown brand token': svg(RECT.replace('{brand.mark}', '{brand.markk}') + PATH),
+    'theme role instead of brand': svg(RECT.replace('{brand.mark}', '{theme.dark.accent}') + PATH),
+    'filled path': svg(RECT + PATH.replace('fill="none"', 'fill="{brand.mark}"')),
   };
   for (const [name, text] of Object.entries(cases)) {
-    assert.throws(() => parseLogo(text), TokenError, name);
+    assert.throws(() => parseLogo(text, BRAND), TokenError, name);
   }
+});
+
+test('the resolved SVG has hex colours and no references', () => {
+  const out = resolvedSvg(svg(RECT + PATH), BRAND);
+  assert.match(out, /fill="#3DDC97"/);
+  assert.match(out, /stroke="#04261A"/);
+  assert.doesNotMatch(out, /\{brand\./);
 });
 
 test('rounded rectangle as a vector path', () => {
@@ -1070,7 +1094,7 @@ test('rounded rectangle as a vector path', () => {
 });
 
 test('adaptive icon: the tile fills the 72dp visible area of the 108dp canvas', () => {
-  const out = logoOutputs(parseLogo(svg(RECT + PATH)));
+  const out = logoOutputs(parseLogo(svg(RECT + PATH), BRAND));
   const fg = out['res/drawable/ic_launcher_foreground.xml'];
   assert.match(fg, /android:viewportWidth="108"/);
   assert.match(fg, /<group android:scaleX="2\.25" android:scaleY="2\.25" android:translateX="18" android:translateY="18">/);
@@ -1081,9 +1105,9 @@ test('adaptive icon: the tile fills the 72dp visible area of the 108dp canvas', 
   for (const text of Object.values(out)) assert.match(text, /Generated from design\/logo\.svg/);
 });
 
-test('the real logo uses exactly the brand colours from tokens.json', async () => {
-  const logo = parseLogo(await readFile(here('../logo.svg'), 'utf8'));
+test('the real logo takes its colours from tokens.json', async () => {
   const model = await loadModel(here('../tokens.json'));
+  const logo = parseLogo(await readFile(here('../logo.svg'), 'utf8'), model.brand);
   assert.equal(logo.tile.fill, model.brand.mark);
   assert.equal(logo.mark.stroke, model.brand['on-mark']);
 });
@@ -1100,8 +1124,8 @@ Expected: FAIL, `Cannot find module '…/lib/logo.mjs'`.
 import { XMLParser } from 'fast-xml-parser';
 import { TokenError } from './model.mjs';
 
-const HEX = /^#[0-9A-F]{6}$/;
 const NUMBER = /^\d+(\.\d+)?$/;
+const REFERENCE = /^\{brand\.([a-z0-9-]+)\}$/;
 const HEADER = '<!-- Generated from design/logo.svg by design/build.mjs. Do not edit. -->';
 const ANDROID_NS = 'xmlns:android="http://schemas.android.com/apk/res/android"';
 const ICON = 108; // adaptive icon canvas, dp
@@ -1111,12 +1135,26 @@ const fail = (msg) => {
   throw new TokenError(`logo.svg: ${msg}`);
 };
 
+/** A `{brand.<name>}` reference resolved against tokens.json; literal colours are refused. */
+function brandColour(value, brand, what) {
+  const name = REFERENCE.exec(value)?.[1];
+  if (!name) fail(`the ${what} colour must be a {brand.<name>} reference to tokens.json, got "${value}"`);
+  if (!(name in brand)) fail(`{brand.${name}} is not in tokens.json`);
+  return brand[name];
+}
+
+/** The logo with every `{brand.<name>}` replaced by its colour: a plain SVG for browsers. */
+export function resolvedSvg(text, brand) {
+  parseLogo(text, brand);
+  return text.replace(/\{brand\.([a-z0-9-]+)\}/g, (_, name) => brand[name]);
+}
+
 /**
  * Reads the logo in the only shape the generators understand: a square <svg> holding one
- * <rect> (the tile) and one stroked <path> (the mark). Anything else is an error, so the
- * Android icons can never silently lose part of the logo.
+ * <rect> (the tile) and one stroked <path> (the mark), coloured by brand token references.
+ * Anything else is an error, so the Android icons can never silently lose part of the logo.
  */
-export function parseLogo(text) {
+export function parseLogo(text, brand) {
   const parser = new XMLParser({ ignoreAttributes: false, attributeNamePrefix: '@_', isArray: (_name, _path, _leaf, isAttribute) => !isAttribute });
   const doc = parser.parse(text);
   const roots = Object.keys(doc);
@@ -1140,18 +1178,18 @@ export function parseLogo(text) {
   const rect = attrs(root.rect[0], ['width', 'height', 'rx', 'fill'], 'rect');
   if (Number(rect.width) !== size || Number(rect.height) !== size) fail('the <rect> must fill the viewBox');
   if (!NUMBER.test(rect.rx) || Number(rect.rx) * 2 > size) fail('rx must be a number no larger than half the size');
-  if (!HEX.test(rect.fill)) fail('the tile colour must be upper-case #RRGGBB');
+  const tileFill = brandColour(rect.fill, brand, 'tile');
 
   const path = attrs(root.path[0], ['d', 'fill', 'stroke', 'stroke-width', 'stroke-linecap', 'stroke-linejoin'], 'path');
   if (path.fill !== 'none') fail('the mark is a stroke: fill must be "none"');
-  if (!HEX.test(path.stroke)) fail('the mark colour must be upper-case #RRGGBB');
+  const markStroke = brandColour(path.stroke, brand, 'mark');
   if (!NUMBER.test(path['stroke-width'])) fail('stroke-width must be a number');
   if (path['stroke-linecap'] !== 'round' || path['stroke-linejoin'] !== 'round') fail('the mark uses round caps and joins');
 
   return {
     size,
-    tile: { rx: Number(rect.rx), fill: rect.fill },
-    mark: { d: path.d, stroke: path.stroke, strokeWidth: Number(path['stroke-width']) },
+    tile: { rx: Number(rect.rx), fill: tileFill },
+    mark: { d: path.d, stroke: markStroke, strokeWidth: Number(path['stroke-width']) },
   };
 }
 
@@ -1237,6 +1275,8 @@ test('the build writes every output, identically on a second run', async () => {
   assert.deepEqual(second, first);
   const css = await readFile(join(root, 'web/src/styles/tokens.css'), 'utf8');
   assert.match(css, /url\("\/fonts\/Sora-Variable\.ttf"\)/);
+  const favicon = await readFile(join(root, 'web/public/favicon.svg'), 'utf8');
+  assert.match(favicon, /fill="#3DDC97"/);
 });
 ```
 
@@ -1247,7 +1287,7 @@ import { copyFile, mkdir, readFile, writeFile } from 'node:fs/promises';
 import { dirname, join } from 'node:path';
 import { fileURLToPath, pathToFileURL } from 'node:url';
 import { css, kotlin } from './lib/formats.mjs';
-import { logoOutputs, parseLogo } from './lib/logo.mjs';
+import { logoOutputs, parseLogo, resolvedSvg } from './lib/logo.mjs';
 import { loadModel, TokenError } from './lib/model.mjs';
 
 const DESIGN = dirname(fileURLToPath(import.meta.url));
@@ -1267,15 +1307,12 @@ export async function build(root) {
     if (!FONTS.some((f) => f.family === families[0])) throw new TokenError(`font.${role}: no bundled file for "${families[0]}" in build.mjs`);
   }
   const logoText = await readFile(join(DESIGN, 'logo.svg'), 'utf8');
-  const logo = parseLogo(logoText);
-  if (logo.tile.fill !== model.brand.mark || logo.mark.stroke !== model.brand['on-mark']) {
-    throw new TokenError('logo.svg: colours must equal brand.mark and brand.on-mark in tokens.json');
-  }
+  const logo = parseLogo(logoText, model.brand);
 
   const texts = {
     [KOTLIN_FILE]: kotlin(model),
     'web/src/styles/tokens.css': css(model, FONTS.map((f) => ({ family: f.family, url: `/fonts/${f.file}` }))),
-    'web/public/favicon.svg': logoText,
+    'web/public/favicon.svg': resolvedSvg(logoText, model.brand),
   };
   for (const [path, text] of Object.entries(logoOutputs(logo))) texts[`${ANDROID_MAIN}/${path}`] = text;
   const copies = {};
@@ -1323,7 +1360,7 @@ generated file is stale or a colour pair misses WCAG 2.2 AA.
 |---|---|
 | `tokens.json` | Palette, brand colours, light and dark theme roles, fonts, type scale, spacing, radii, sizes (W3C design token format) |
 | `contrast.json` | Colour pairs the UI uses; each must meet 4.5:1 (text) or 3:1 (control boundaries) in both themes |
-| `logo.svg` | The logo: one `<rect>` tile and one stroked `<path>` mark, nothing else |
+| `logo.svg` | The logo's shape: one `<rect>` tile and one stroked `<path>` mark, coloured by `{brand.*}` references to `tokens.json` |
 | `fonts/` | Sora and JetBrains Mono (SIL Open Font License 1.1, licences next to them) |
 
 ```sh
@@ -1336,7 +1373,11 @@ npm run build       # rewrites android/designsystem/… and web/…; commit the 
 **Changing a colour:** edit `tokens.json`, run `npm run contrast` and `npm run build`, commit
 the source and the generated files together. **New foreground/background pair in a screen:**
 add it to `contrast.json` first. **Changing the logo's colours:** change `brand` in
-`tokens.json` too; the build refuses a logo whose colours differ from the brand tokens.
+`tokens.json`; `logo.svg` only references them.
+
+Hand-written UI code never contains a colour, `dp` or `sp` literal: it reads `WhichrideTheme`
+and `WhichrideTokens` (Android) or the `--wr-*` custom properties (web). `test/single-source.test.mjs`
+enforces it.
 
 The design comes from the claude.ai Design canvas
 (https://claude.ai/artifact/P2A5aUCR45ZBKhnRRqCW2b); where the tokens depart from it,
@@ -1372,7 +1413,7 @@ Co-Authored-By: Claude Opus 5.5 <noreply@anthropic.com>"
   `data class WhichrideColors(…19 roles…)`; `data class NumberStyles(large, medium, small: TextStyle)`;
   `WhichrideTokens.Space/Radius/Size`. Internal: `TypeToken`, `FontRole`,
   `TypeToken.toTextStyle()`, `WhichrideTypography`, `WhichrideNumberStyles`, `WhichrideShapes`,
-  `WhichrideColors.toMaterial(inversePrimary: Color): ColorScheme`, `SUPPORTED_WEIGHTS`.
+  `WhichrideColors.toMaterial(inversePrimary: Color): ColorScheme`.
 
 - [ ] **Step 1: Gradle project**
 
@@ -1612,8 +1653,9 @@ class ThemeTest {
     fun `every style uses a bundled font at a bundled weight`() {
         for ((name, style) in allTextStyles()) {
             assertTrue("$name font", style.fontFamily == Sora || style.fontFamily == JetBrainsMono)
-            assertTrue("$name weight ${style.fontWeight}", style.fontWeight!!.weight in SUPPORTED_WEIGHTS)
+            assertTrue("$name weight ${style.fontWeight}", style.fontWeight!!.weight in WhichrideTokens.Type.weights)
         }
+        assertEquals(WhichrideTypography.headlineLarge, WhichrideTypography.displayLarge)
         assertEquals(JetBrainsMono, WhichrideNumberStyles.large.fontFamily)
         assertEquals(36f, WhichrideNumberStyles.large.fontSize.value)
         assertEquals(30f * 1.1f, WhichrideTypography.headlineLarge.lineHeight.value, 0.001f)
@@ -1641,11 +1683,8 @@ import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.unit.em
 import androidx.compose.ui.unit.sp
 
-/** Weights instantiated from the variable fonts; a type token with another weight fails ThemeTest. */
-internal val SUPPORTED_WEIGHTS = listOf(400, 500, 600, 700)
-
 private fun variableFamily(resId: Int) = FontFamily(
-    SUPPORTED_WEIGHTS.map { w ->
+    WhichrideTokens.Type.weights.map { w ->
         Font(resId, FontWeight(w), variationSettings = FontVariation.Settings(FontVariation.weight(w)))
     },
 )
@@ -1672,13 +1711,12 @@ internal val WhichrideNumberStyles = with(WhichrideTokens.Type) {
     NumberStyles(numberLarge.toTextStyle(), numberMedium.toTextStyle(), numberSmall.toTextStyle())
 }
 
-/** Display styles are unused by the design; they keep Material's sizes in our font. */
+/** The design has no display sizes; Material's display slots use our largest headline. */
 internal val WhichrideTypography: Typography = with(WhichrideTokens.Type) {
-    val base = Typography()
     Typography(
-        displayLarge = base.displayLarge.copy(fontFamily = Sora),
-        displayMedium = base.displayMedium.copy(fontFamily = Sora),
-        displaySmall = base.displaySmall.copy(fontFamily = Sora),
+        displayLarge = headlineLarge.toTextStyle(),
+        displayMedium = headlineLarge.toTextStyle(),
+        displaySmall = headlineLarge.toTextStyle(),
         headlineLarge = headlineLarge.toTextStyle(),
         headlineMedium = headlineMedium.toTextStyle(),
         headlineSmall = headlineSmall.toTextStyle(),
@@ -1697,8 +1735,7 @@ internal val WhichrideTypography: Typography = with(WhichrideTokens.Type) {
 
 If the compiler reports `FontVariation` or the `variationSettings` parameter as experimental,
 add `@OptIn(ExperimentalTextApi::class)` to `variableFamily` (import
-`androidx.compose.ui.text.ExperimentalTextApi`). Don't change anything else. Material's display
-styles keep its own sizes in sp, which the sp test also checks.
+`androidx.compose.ui.text.ExperimentalTextApi`). Don't change anything else.
 
 `Shapes.kt`:
 
@@ -1913,11 +1950,90 @@ Co-Authored-By: Claude Opus 5.5 <noreply@anthropic.com>"
 
 ---
 
-### Task 6: CI, Dependabot, decisions and docs
+### Task 6: Single-source guard, CI, Dependabot, decisions and docs
 
 **Files:**
+- Create: `design/test/single-source.test.mjs`
 - Modify: `.github/workflows/ci.yml`, `.github/dependabot.yml`, `docs/DECISIONS.md`,
   `docs/plans/ROADMAP.md`, `README.md`
+
+- [ ] **Step 0: Guard the single source** — `design/test/single-source.test.mjs`
+
+Every graphic value must come from `tokens.json`. This test scans hand-written UI source (every
+`.kt` under `android/*/src/main/`, and later `.css`/`.astro` under `web/src/` except the
+generated `tokens.css`) for literal colours and sizes. It runs with `npm test`, so CI enforces
+it from the `design` job.
+
+```js
+import { test } from 'node:test';
+import assert from 'node:assert/strict';
+import { readdir, readFile } from 'node:fs/promises';
+import { join, relative } from 'node:path';
+import { fileURLToPath } from 'node:url';
+
+const ROOT = fileURLToPath(new URL('../..', import.meta.url));
+const GENERATED = new Set([
+  'android/designsystem/src/main/kotlin/io/github/locadani/whichride/designsystem/WhichrideTokens.kt',
+  'web/src/styles/tokens.css',
+]);
+const RULES = [
+  { ext: '.kt', under: /^android\/[^/]+\/src\/main\//, literal: /Color\(0x|\b\d+(\.\d+)?f?\.(dp|sp|em)\b|#[0-9A-Fa-f]{6}\b/ },
+  { ext: '.css', under: /^web\/src\//, literal: /#[0-9A-Fa-f]{3,8}\b|\b\d*\.?\d+(px|rem)\b|rgba?\(/ },
+  { ext: '.astro', under: /^web\/src\//, literal: /#[0-9A-Fa-f]{3,8}\b|\b\d*\.?\d+(px|rem)\b|rgba?\(/ },
+];
+
+async function* files(dir) {
+  let entries;
+  try {
+    entries = await readdir(dir, { withFileTypes: true });
+  } catch {
+    return;
+  }
+  for (const e of entries) {
+    if (['node_modules', 'build', '.gradle'].includes(e.name)) continue;
+    const path = join(dir, e.name);
+    if (e.isDirectory()) yield* files(path);
+    else yield path;
+  }
+}
+
+/** Literal graphic values in hand-written UI source, as "path:line: text". */
+export async function literalGraphicValues(root) {
+  const found = [];
+  for (const top of ['android', 'web']) {
+    for await (const path of files(join(root, top))) {
+      const rel = relative(root, path).split('\\').join('/');
+      const rule = RULES.find((r) => rel.endsWith(r.ext) && r.under.test(rel));
+      if (!rule || GENERATED.has(rel)) continue;
+      const lines = (await readFile(path, 'utf8')).split('\n');
+      lines.forEach((line, i) => {
+        if (rule.literal.test(line)) found.push(`${rel}:${i + 1}: ${line.trim()}`);
+      });
+    }
+  }
+  return found;
+}
+
+test('hand-written UI code takes every colour and size from tokens.json', async () => {
+  assert.deepEqual(await literalGraphicValues(ROOT), []);
+});
+
+test('the guard catches literals', async () => {
+  const { mkdtemp, mkdir, writeFile } = await import('node:fs/promises');
+  const { tmpdir } = await import('node:os');
+  const root = await mkdtemp(join(tmpdir(), 'guard-'));
+  await mkdir(join(root, 'android/app/src/main/kotlin'), { recursive: true });
+  await writeFile(join(root, 'android/app/src/main/kotlin/Screen.kt'), 'val a = 12.dp\nval b = Color(0xFF000000)\nval c = WhichrideTokens.Space.md\n');
+  await mkdir(join(root, 'web/src/styles'), { recursive: true });
+  await writeFile(join(root, 'web/src/styles/site.css'), 'a { color: #fff; margin: var(--wr-space-md); }\n');
+  const found = await literalGraphicValues(root);
+  assert.equal(found.length, 3, found.join('\n'));
+});
+```
+
+Run: `cd design && npm test`
+Expected: PASS. If the first test lists a line in the hand-written Kotlin from Task 5, replace
+the literal with the token it stands for (the plan's Kotlin has none).
 
 - [ ] **Step 1: CI jobs** — append to `jobs:` in `.github/workflows/ci.yml`
 
@@ -1998,7 +2114,7 @@ accepted, so the Android Gradle Plugin downloads platform 37 if it is missing.
 | 53 | 2026-10-20 | Design | Type scale: the canvas's 13 sizes become Material 3's 12 headline/title/body/label roles plus 3 number styles (36/18/12, mono); the 24 px screen title becomes 26 (`headline-medium`). Sizes are `sp` on Android and `rem` on the web. | Exact canvas sizes per screen | A named scale keeps screens consistent; `sp`/`rem` follow the user's font size (spec §11) |
 | 54 | 2026-10-20 | Design | Spacing on a 4-point scale (4–40); radii 10/14/16/20/28/full from the canvas; minimum touch target **48 dp** (the canvas's 44 px icon buttons grow to 48) | Canvas's 44 px; every canvas gap as a token | 48 dp is Android's and Material's minimum; a short scale is easier to apply than the canvas's 12 different gaps |
 | 55 | 2026-10-20 | Design | Style Dictionary **resolves** `tokens.json`; our own small formatters write the Kotlin (`WhichrideColors` constructors) and CSS (both themes in one file). Generated files are **committed where they are used**; CI rebuilds them and fails on any difference, and fails on any listed colour pair below WCAG AA. | Style Dictionary's built-in `compose/object` and `css/variables` formats; generating at build time | Built-in formats write one theme per file and plain `Color` constants, so a role missing in one theme would compile; committed output is readable in reviews and needs no Node in the Android or Astro builds |
-| 56 | 2026-10-20 | Design | One `logo.svg` in a constrained form (a `<rect>` tile and one stroked `<path>`) in **fixed brand colours** (`#3DDC97`/`#04261A`), turned into the vector logo and adaptive launcher icon (with themed-icon layer) by our own ~100-line generator; the build fails if its colours differ from `brand.*` in `tokens.json` | `svg2vectordrawable` (last release June 2022); Android Studio's manual import | Reproducible in CI with no unmaintained dependency; a constrained source can't lose detail silently |
+| 56 | 2026-10-20 | Design | **Every graphic value lives in `tokens.json` only** (owner requirement): `logo.svg` holds only the logo's shape (a `<rect>` tile and one stroked `<path>`) and names its colours as `{brand.*}` references, in **fixed brand colours** for both themes; our own ~100-line generator turns it into the vector logo, the adaptive launcher icon (with themed-icon layer) and the favicon; a test fails on any literal colour, `dp` or `sp` in hand-written UI code | Colours written in `logo.svg` and checked against the tokens; `svg2vectordrawable` (last release June 2022); Android Studio's manual import | One place to change any value; reproducible in CI with no unmaintained dependency; a constrained source can't lose detail silently |
 | 57 | 2026-10-20 | Android | The Gradle project `android/` starts now with one library module, **`:designsystem`** (`WhichrideTheme`), using the spike's proven versions; the app module joins it in milestone 5 | Wait for milestone 5; put the theme in the app module | The theme is tested and compiled in CI before any screen uses it; screens and a future widget share it |
 ```
 
@@ -2031,7 +2147,7 @@ Expected: all pass; `generated files up to date`.
 - [ ] **Step 6: Commit**
 
 ```bash
-git add .github/workflows/ci.yml .github/dependabot.yml docs/DECISIONS.md docs/plans/ROADMAP.md README.md
+git add design/test/single-source.test.mjs .github/workflows/ci.yml .github/dependabot.yml docs/DECISIONS.md docs/plans/ROADMAP.md README.md
 git commit -m "ci: check design tokens, contrast and the Android theme; record decisions 51-57
 
 Co-Authored-By: Claude Opus 5.5 <noreply@anthropic.com>"
