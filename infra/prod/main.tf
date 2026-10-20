@@ -21,9 +21,9 @@ module "app" {
     ORS_API_KEY = "ors-api-key"
   }
 
-  # Set to true in a PR once each secret has its first version (infra/README.md).
-  attach_database_url = false
-  attach_secret_env   = false
+  # Both secrets have their first version (infra/README.md step 8).
+  attach_database_url = true
+  attach_secret_env   = true
 
   depends_on = [google_project_service.apis]
 }
