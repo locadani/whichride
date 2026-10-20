@@ -1,0 +1,16 @@
+{
+  "name": "whichride-design",
+  "private": true,
+  "type": "module",
+  "description": "Design tokens and logo for whichride; generates the Android theme and the website's CSS.",
+  "engines": { "node": ">=24" },
+  "scripts": {
+    "test": "node --test",
+    "contrast": "node contrast.mjs",
+    "build": "node build.mjs"
+  },
+  "devDependencies": {
+    "fast-xml-parser": "5.11.2",
+    "style-dictionary": "5.6.1"
+  }
+}

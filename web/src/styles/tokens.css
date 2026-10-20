@@ -1,0 +1,141 @@
+/* Generated from design/tokens.json by design/build.mjs. Do not edit. */
+
+@font-face {
+  font-family: "Sora";
+  src: url("/fonts/Sora-Variable.ttf") format("truetype");
+  font-weight: 100 800;
+  font-display: swap;
+}
+
+@font-face {
+  font-family: "JetBrains Mono";
+  src: url("/fonts/JetBrainsMono-Variable.ttf") format("truetype");
+  font-weight: 100 800;
+  font-display: swap;
+}
+
+:root {
+  color-scheme: light dark;
+  --wr-brand-mark: #3DDC97;
+  --wr-brand-on-mark: #04261A;
+  --wr-font-number: "JetBrains Mono", monospace;
+  --wr-font-text: "Sora", sans-serif;
+  --wr-space-lg: 1.25rem;
+  --wr-space-md: 1rem;
+  --wr-space-sm: 0.75rem;
+  --wr-space-xl: 1.5rem;
+  --wr-space-xs: 0.5rem;
+  --wr-space-xxl: 2rem;
+  --wr-space-xxs: 0.25rem;
+  --wr-space-xxxl: 2.5rem;
+  --wr-radius-full: 999px;
+  --wr-radius-lg: 16px;
+  --wr-radius-md: 14px;
+  --wr-radius-sm: 10px;
+  --wr-radius-xl: 20px;
+  --wr-radius-xxl: 28px;
+  --wr-size-control-lg: 56px;
+  --wr-size-control-md: 48px;
+  --wr-size-touch-target: 48px;
+  --wr-type-body-large: 400 1rem/1.5 var(--wr-font-text);
+  --wr-type-body-large-tracking: 0em;
+  --wr-type-body-medium: 400 0.875rem/1.55 var(--wr-font-text);
+  --wr-type-body-medium-tracking: 0em;
+  --wr-type-body-small: 400 0.8125rem/1.5 var(--wr-font-text);
+  --wr-type-body-small-tracking: 0em;
+  --wr-type-headline-large: 700 1.875rem/1.1 var(--wr-font-text);
+  --wr-type-headline-large-tracking: -0.03em;
+  --wr-type-headline-medium: 700 1.625rem/1.15 var(--wr-font-text);
+  --wr-type-headline-medium-tracking: -0.02em;
+  --wr-type-headline-small: 700 1.375rem/1.25 var(--wr-font-text);
+  --wr-type-headline-small-tracking: -0.02em;
+  --wr-type-label-large: 700 1rem/1.25 var(--wr-font-text);
+  --wr-type-label-large-tracking: 0em;
+  --wr-type-label-medium: 600 0.8125rem/1.3 var(--wr-font-text);
+  --wr-type-label-medium-tracking: 0em;
+  --wr-type-label-small: 600 0.75rem/1.3 var(--wr-font-text);
+  --wr-type-label-small-tracking: 0.06em;
+  --wr-type-number-large: 700 2.25rem/1 var(--wr-font-number);
+  --wr-type-number-large-tracking: -0.02em;
+  --wr-type-number-medium: 700 1.125rem/1.3 var(--wr-font-number);
+  --wr-type-number-medium-tracking: 0em;
+  --wr-type-number-small: 500 0.75rem/1.4 var(--wr-font-number);
+  --wr-type-number-small-tracking: 0em;
+  --wr-type-title-large: 700 1.25rem/1.2 var(--wr-font-text);
+  --wr-type-title-large-tracking: 0em;
+  --wr-type-title-medium: 600 1rem/1.35 var(--wr-font-text);
+  --wr-type-title-medium-tracking: 0em;
+  --wr-type-title-small: 600 0.9375rem/1.35 var(--wr-font-text);
+  --wr-type-title-small-tracking: 0em;
+  --wr-color-accent: #0B7A50;
+  --wr-color-accent-text: #0B7A50;
+  --wr-color-background: #F3F6F8;
+  --wr-color-disabled: #E3E9EE;
+  --wr-color-error: #B3261E;
+  --wr-color-hero: #0B1218;
+  --wr-color-on-accent: #FFFFFF;
+  --wr-color-on-disabled: #4D5966;
+  --wr-color-on-error: #FFFFFF;
+  --wr-color-on-hero: #E8EEF5;
+  --wr-color-on-surface: #0B1218;
+  --wr-color-on-surface-muted: #4D5966;
+  --wr-color-outline: #4D5966;
+  --wr-color-outline-variant: #CBD4DC;
+  --wr-color-scrim: #C9D1D8;
+  --wr-color-surface: #FFFFFF;
+  --wr-color-surface-high: #EEF2F5;
+  --wr-color-surface-highest: #E3E9EE;
+  --wr-color-surface-low: #FFFFFF;
+}
+
+@media (prefers-color-scheme: dark) {
+  :root:not([data-theme="light"]) {
+    color-scheme: dark;
+    --wr-color-accent: #3DDC97;
+    --wr-color-accent-text: #3DDC97;
+    --wr-color-background: #0B0F14;
+    --wr-color-disabled: #1D252F;
+    --wr-color-error: #F2B8B5;
+    --wr-color-hero: #3DDC97;
+    --wr-color-on-accent: #04261A;
+    --wr-color-on-disabled: #9AA7B6;
+    --wr-color-on-error: #601410;
+    --wr-color-on-hero: #04261A;
+    --wr-color-on-surface: #E8EEF5;
+    --wr-color-on-surface-muted: #9AA7B6;
+    --wr-color-outline: #9AA7B6;
+    --wr-color-outline-variant: #2C3642;
+    --wr-color-scrim: #06090C;
+    --wr-color-surface: #151B23;
+    --wr-color-surface-high: #1D252F;
+    --wr-color-surface-highest: #232B36;
+    --wr-color-surface-low: #11161D;
+  }
+}
+
+:root[data-theme="dark"] {
+  color-scheme: dark;
+  --wr-color-accent: #3DDC97;
+  --wr-color-accent-text: #3DDC97;
+  --wr-color-background: #0B0F14;
+  --wr-color-disabled: #1D252F;
+  --wr-color-error: #F2B8B5;
+  --wr-color-hero: #3DDC97;
+  --wr-color-on-accent: #04261A;
+  --wr-color-on-disabled: #9AA7B6;
+  --wr-color-on-error: #601410;
+  --wr-color-on-hero: #04261A;
+  --wr-color-on-surface: #E8EEF5;
+  --wr-color-on-surface-muted: #9AA7B6;
+  --wr-color-outline: #9AA7B6;
+  --wr-color-outline-variant: #2C3642;
+  --wr-color-scrim: #06090C;
+  --wr-color-surface: #151B23;
+  --wr-color-surface-high: #1D252F;
+  --wr-color-surface-highest: #232B36;
+  --wr-color-surface-low: #11161D;
+}
+
+:root[data-theme="light"] {
+  color-scheme: light;
+}

@@ -57,3 +57,48 @@ jobs:
           cache-from: type=gha
           cache-to: type=gha,mode=max
       - run: docker run --rm whichride-server:ci --help
+
+  design:
+    name: design tokens · contrast · generated files
+    runs-on: ubuntu-latest
+    defaults:
+      run:
+        working-directory: design
+    steps:
+      - uses: actions/checkout@v7
+        with:
+          persist-credentials: false
+      - uses: actions/setup-node@v7
+        with:
+          node-version-file: design/.nvmrc
+          cache: npm
+          cache-dependency-path: design/package-lock.json
+      - run: npm ci
+      - run: npm test
+      - run: npm run contrast
+      - run: npm run build
+      - name: generated files are committed and up to date
+        working-directory: .
+        run: |
+          if [ -n "$(git status --porcelain -- android web)" ]; then
+            git status --porcelain -- android web
+            echo "::error::Generated files are stale: run 'npm run build' in design/ and commit the result"
+            exit 1
+          fi
+
+  android:
+    name: android designsystem
+    runs-on: ubuntu-latest
+    defaults:
+      run:
+        working-directory: android
+    steps:
+      - uses: actions/checkout@v7
+        with:
+          persist-credentials: false
+      - uses: actions/setup-java@v6
+        with:
+          distribution: temurin
+          java-version: "21"
+      - uses: gradle/actions/setup-gradle@3f5f9adaf7d9fecd50b5935e54106014257a94e6 # v6.4.0
+      - run: ./gradlew --no-daemon :designsystem:testDebugUnitTest :designsystem:lintDebug :designsystem:assembleRelease

@@ -1,0 +1,8 @@
+<?xml version="1.0" encoding="utf-8"?>
+<!-- Generated from design/logo.svg by design/build.mjs. Do not edit. -->
+<vector xmlns:android="http://schemas.android.com/apk/res/android"
+    android:width="32dp" android:height="32dp"
+    android:viewportWidth="32" android:viewportHeight="32">
+    <path android:fillColor="#3DDC97" android:pathData="M10,0H22A10,10 0 0,1 32,10V22A10,10 0 0,1 22,32H10A10,10 0 0,1 0,22V10A10,10 0 0,1 10,0Z"/>
+    <path android:pathData="M16 22.75V16.75M16 16.75L11.5 10M16 16.75L20.5 10" android:strokeColor="#04261A" android:strokeWidth="1.8" android:strokeLineCap="round" android:strokeLineJoin="round"/>
+</vector>
