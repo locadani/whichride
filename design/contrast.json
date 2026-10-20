@@ -1,0 +1,36 @@
+{
+  "$description": "Colour pairs the UI uses, checked in both themes against WCAG 2.2 AA (1.4.3 text, 1.4.11 non-text). Add a pair whenever a screen puts a new foreground on a new background.",
+  "minimum": { "text": 4.5, "non-text": 3 },
+  "pairs": [
+    { "fg": "on-surface", "bg": "background", "kind": "text" },
+    { "fg": "on-surface", "bg": "surface", "kind": "text" },
+    { "fg": "on-surface", "bg": "surface-low", "kind": "text" },
+    { "fg": "on-surface", "bg": "surface-high", "kind": "text" },
+    { "fg": "on-surface", "bg": "surface-highest", "kind": "text" },
+    { "fg": "on-surface-muted", "bg": "background", "kind": "text" },
+    { "fg": "on-surface-muted", "bg": "surface", "kind": "text" },
+    { "fg": "on-surface-muted", "bg": "surface-low", "kind": "text" },
+    { "fg": "on-surface-muted", "bg": "surface-high", "kind": "text" },
+    { "fg": "on-surface-muted", "bg": "surface-highest", "kind": "text" },
+    { "fg": "on-accent", "bg": "accent", "kind": "text" },
+    { "fg": "accent-text", "bg": "background", "kind": "text" },
+    { "fg": "accent-text", "bg": "surface", "kind": "text" },
+    { "fg": "accent-text", "bg": "surface-low", "kind": "text" },
+    { "fg": "on-hero", "bg": "hero", "kind": "text" },
+    { "fg": "on-disabled", "bg": "disabled", "kind": "text" },
+    { "fg": "error", "bg": "background", "kind": "text" },
+    { "fg": "error", "bg": "surface", "kind": "text" },
+    { "fg": "error", "bg": "surface-low", "kind": "text" },
+    { "fg": "on-error", "bg": "error", "kind": "text" },
+    { "fg": "outline", "bg": "background", "kind": "non-text" },
+    { "fg": "outline", "bg": "surface", "kind": "non-text" },
+    { "fg": "outline", "bg": "surface-low", "kind": "non-text" },
+    { "fg": "outline", "bg": "surface-high", "kind": "non-text" },
+    { "fg": "accent", "bg": "background", "kind": "non-text" },
+    { "fg": "accent", "bg": "surface", "kind": "non-text" },
+    { "fg": "accent", "bg": "surface-low", "kind": "non-text" }
+  ],
+  "brand": [
+    { "fg": "on-mark", "bg": "mark", "kind": "non-text" }
+  ]
+}
