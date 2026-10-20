@@ -89,3 +89,139 @@ pub fn options(quotes: &[Quote], choices: &[Choice]) -> Options {
         cheaper_not_added,
     }
 }
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+    use crate::money::Cents;
+
+    fn quote(provider: &str, offer: &str, total: i64) -> Quote {
+        Quote {
+            provider: ProviderId(provider.into()),
+            offer: OfferId(offer.into()),
+            offer_name: offer.into(),
+            card_label: "Standard".into(),
+            total: Cents(total),
+            overridden: false,
+        }
+    }
+
+    /// Cheapest first, as `compare()` returns them.
+    fn quotes() -> Vec<Quote> {
+        vec![
+            quote("bolt", "bolt.picanto", 790),
+            quote("miles", "miles.s", 849),
+            quote("bolt", "bolt.polo", 912),
+            quote("miles", "miles.premium", 1180),
+            quote("sixt", "sixt.troc", 1300),
+        ]
+    }
+
+    fn offer(id: &str) -> Choice {
+        Choice::Offer {
+            offer: OfferId(id.into()),
+        }
+    }
+
+    fn any(id: &str) -> Choice {
+        Choice::AnyOf {
+            provider: ProviderId(id.into()),
+        }
+    }
+
+    fn ranked(options: &Options) -> Vec<(&str, i64)> {
+        options
+            .ranked
+            .iter()
+            .map(|o| (o.quote.offer.0.as_str(), o.quote.total.0))
+            .collect()
+    }
+
+    #[test]
+    fn nothing_added_ranks_nothing_and_reports_nothing() {
+        let options = options(&quotes(), &[]);
+        assert!(options.ranked.is_empty());
+        assert!(options.cheaper_not_added.is_empty());
+    }
+
+    #[test]
+    fn added_offers_are_ranked_cheapest_first() {
+        let options = options(
+            &quotes(),
+            &[offer("sixt.troc"), offer("bolt.polo"), offer("miles.s")],
+        );
+        assert_eq!(
+            ranked(&options),
+            [("miles.s", 849), ("bolt.polo", 912), ("sixt.troc", 1300)]
+        );
+    }
+
+    #[test]
+    fn any_car_is_the_providers_cheapest_offer() {
+        let options = options(&quotes(), &[any("miles"), offer("sixt.troc")]);
+        assert_eq!(ranked(&options), [("miles.s", 849), ("sixt.troc", 1300)]);
+        assert_eq!(options.ranked[0].choice, any("miles"));
+    }
+
+    #[test]
+    fn any_car_covers_that_providers_specific_offers() {
+        let options = options(&quotes(), &[offer("miles.premium"), any("miles")]);
+        assert_eq!(ranked(&options), [("miles.s", 849)]);
+    }
+
+    #[test]
+    fn unknown_offers_are_skipped() {
+        let options = options(
+            &quotes(),
+            &[offer("bolt.gone"), any("free2move"), offer("bolt.polo")],
+        );
+        assert_eq!(ranked(&options), [("bolt.polo", 912)]);
+    }
+
+    #[test]
+    fn a_choice_added_twice_appears_once() {
+        let options = options(&quotes(), &[offer("bolt.polo"), offer("bolt.polo")]);
+        assert_eq!(ranked(&options), [("bolt.polo", 912)]);
+    }
+
+    #[test]
+    fn cheaper_offers_not_added_are_listed_cheapest_first() {
+        let options = options(&quotes(), &[offer("miles.premium")]);
+        let cheaper: Vec<_> = options
+            .cheaper_not_added
+            .iter()
+            .map(|q| q.offer.0.as_str())
+            .collect();
+        assert_eq!(cheaper, ["bolt.picanto", "miles.s", "bolt.polo"]);
+    }
+
+    #[test]
+    fn an_offer_with_the_same_price_is_not_cheaper() {
+        let mut quotes = quotes();
+        quotes.insert(2, quote("sixt", "sixt.polo", 849));
+        let options = options(&quotes, &[offer("miles.s")]);
+        let cheaper: Vec<_> = options
+            .cheaper_not_added
+            .iter()
+            .map(|q| q.offer.0.as_str())
+            .collect();
+        assert_eq!(cheaper, ["bolt.picanto"]);
+    }
+
+    #[test]
+    fn nothing_is_cheaper_than_the_cheapest_offer() {
+        let options = options(&quotes(), &[any("bolt")]);
+        assert!(options.cheaper_not_added.is_empty());
+    }
+
+    #[test]
+    fn choices_round_trip_through_json() {
+        let json = serde_json::to_string(&[offer("bolt.polo"), any("miles")]).unwrap();
+        assert_eq!(
+            json,
+            r#"[{"type":"offer","offer":"bolt.polo"},{"type":"any_of","provider":"miles"}]"#
+        );
+        let back: Vec<Choice> = serde_json::from_str(&json).unwrap();
+        assert_eq!(back, [offer("bolt.polo"), any("miles")]);
+    }
+}
