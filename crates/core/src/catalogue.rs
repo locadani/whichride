@@ -33,9 +33,6 @@ pub struct Provider {
     pub name: String,
     /// Android package used by the "Open <provider>" button.
     pub android_package: String,
-    /// Credit given for refuelling or charging during a trip, if the provider offers one.
-    #[serde(default)]
-    pub refuel_credit: Option<Cents>,
     pub offers: Vec<Offer>,
 }
 
@@ -59,8 +56,6 @@ pub enum CatalogueError {
     NoCards(String),
     #[error("offer `{offer}` has two rate cards labelled `{label}`")]
     DuplicateCardLabel { offer: String, label: String },
-    #[error("provider `{0}` has a negative refuel credit")]
-    NegativeRefuelCredit(String),
     #[error("offer `{0}` has a negative price")]
     NegativePrice(String),
 }
@@ -82,12 +77,6 @@ impl Catalogue {
             }
             if provider.offers.is_empty() {
                 return Err(CatalogueError::NoOffers(provider.id.0.clone()));
-            }
-            if provider
-                .refuel_credit
-                .is_some_and(|credit| credit < Cents::ZERO)
-            {
-                return Err(CatalogueError::NegativeRefuelCredit(provider.id.0.clone()));
             }
             for offer in &provider.offers {
                 if !offer_ids.insert(&offer.id) {
@@ -137,7 +126,6 @@ pub(crate) mod fixtures {
                     id: ProviderId("miles".into()),
                     name: "MILES".into(),
                     android_package: "com.driveby.app".into(),
-                    refuel_credit: Some(Cents(500)),
                     offers: vec![Offer {
                         id: OfferId("miles.s".into()),
                         name: "S".into(),
@@ -148,7 +136,6 @@ pub(crate) mod fixtures {
                     id: ProviderId("bolt".into()),
                     name: "Bolt Drive".into(),
                     android_package: "ee.mtakso.client".into(),
-                    refuel_credit: None,
                     offers: vec![Offer {
                         id: OfferId("bolt.corsa".into()),
                         name: "Opel Corsa".into(),
@@ -226,15 +213,6 @@ mod tests {
         c.providers[1].offers[0].cards[0].per_km = Cents(-1);
         assert!(
             matches!(c.validate(), Err(CatalogueError::NegativePrice(id)) if id == "bolt.corsa")
-        );
-    }
-
-    #[test]
-    fn rejects_negative_refuel_credit() {
-        let mut c = catalogue();
-        c.providers[0].refuel_credit = Some(Cents(-500));
-        assert!(
-            matches!(c.validate(), Err(CatalogueError::NegativeRefuelCredit(id)) if id == "miles")
         );
     }
 

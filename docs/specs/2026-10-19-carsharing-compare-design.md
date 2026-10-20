@@ -167,7 +167,7 @@ app update (unless the core needed a new component).
 | Discount, percentage | "Bolt −20% until 31 Oct" | Applied to that provider's total |
 | Discount, fixed amount | "Miles −€5, once" | Subtracted from that provider's total (not below €0) |
 | Subscription | MILES Pass: % off km rate, waived unlock fee; Free2move Pass: % off minutes only; cambio: different rate table | Permanent; acts on specific components or replaces rates; monthly fee ignored per trip |
-| Refuel/charge credit | Toggle "I'll refuel" on a trip | Applies the provider's refuelling discount (shared data; not published on official pages, entered by users) |
+| Refuel/charge credit | "MILES credits me €5"; toggle "I'll refuel" on a trip | Subtracts the credit the user entered for that provider (providers don't publish it, so it is never shared data) |
 | Price override | User's own rate card for an offer | Used instead of the shared price; applied instantly |
 
 Order of application (fixed in the core and tested): override → subscription → percentage

@@ -4,7 +4,6 @@
       "id": "miles",
       "name": "MILES",
       "android_package": "com.driveby.app",
-      "refuel_credit": null,
       "offers": [
         { "id": "miles.pending-owner-prices", "name": "Pending owner prices", "cards": [
           { "label": "Standard", "kind": "standard", "base_fee": 0, "per_km": 0,
@@ -16,7 +15,6 @@
       "id": "bolt",
       "name": "Bolt Drive",
       "android_package": "ee.mtakso.client",
-      "refuel_credit": null,
       "offers": [
         { "id": "bolt.pending-owner-prices", "name": "Pending owner prices", "cards": [
           { "label": "Standard", "kind": "standard", "base_fee": 0, "per_km": 0,
@@ -28,7 +26,6 @@
       "id": "free2move",
       "name": "Free2move",
       "android_package": "com.car2go",
-      "refuel_credit": null,
       "offers": [
         { "id": "free2move.pending-owner-prices", "name": "Pending owner prices", "cards": [
           { "label": "Standard", "kind": "standard", "base_fee": 0, "per_km": 0,
