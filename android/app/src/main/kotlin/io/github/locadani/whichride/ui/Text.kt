@@ -10,6 +10,7 @@ import androidx.compose.ui.text.buildAnnotatedString
 import androidx.compose.ui.text.withStyle
 import io.github.locadani.whichride.R
 import io.github.locadani.whichride.compare.InputError
+import io.github.locadani.whichride.compare.CrowdMessage
 import io.github.locadani.whichride.core.Choice
 import io.github.locadani.whichride.core.ProviderInfo
 import io.github.locadani.whichride.core.Quote
@@ -62,8 +63,10 @@ fun offerLabel(option: RankedOption): String =
 /** "cheapest is Kia Picanto · 3 h / 40 km package · confirmed 2 days ago". */
 @Composable
 fun optionMeta(option: RankedOption, source: PriceSource?): String = buildList {
+    if (option.quote.proposed) add(stringResource(R.string.proposed_meta))
     if (option.choice is Choice.AnyOf) add(stringResource(R.string.any_car_meta, option.quote.offerName))
     if (option.quote.cardLabel != STANDARD_CARD) add(stringResource(R.string.package_meta, option.quote.cardLabel))
+    if (option.quote.overridden) add(stringResource(R.string.your_price))
     add(freshness(option.quote, source))
 }.joinToString(" · ")
 
@@ -121,4 +124,12 @@ fun Deal.subtitle(today: Long): String {
         }.joinToString(" · ")
         is RefuelCreditDeal -> "${money(cents)} · ${stringResource(R.string.deal_refuel_sub)}"
     }
+}
+
+fun CrowdMessage.text() = when (this) {
+    CrowdMessage.SENT -> R.string.crowd_sent
+    CrowdMessage.PROPOSED -> R.string.crowd_proposed
+    CrowdMessage.NOT_SENT -> R.string.crowd_not_sent
+    CrowdMessage.LOCKED -> R.string.crowd_locked
+    CrowdMessage.ALREADY_CURRENT -> R.string.crowd_already_current
 }

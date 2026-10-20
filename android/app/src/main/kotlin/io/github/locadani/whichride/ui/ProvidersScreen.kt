@@ -46,7 +46,7 @@ fun ProvidersScreen(state: UiState, onClose: () -> Unit, onPick: (String) -> Uni
         )
         LazyColumn(contentPadding = PaddingValues(Space.md), verticalArrangement = Arrangement.spacedBy(Space.sm)) {
             items(state.providers, key = { it.id }) { provider ->
-                val quotes = state.quotes.filter { it.providerId == provider.id }
+                val quotes = state.quotes.filter { it.providerId == provider.id && !it.proposed }
                 val chosen = state.choices.forProvider(provider.id, provider.offers.mapTo(mutableSetOf()) { it.id })
                 val added = if (chosen.any { it is Choice.AnyOf }) provider.offers.size else chosen.size
                 Surface(

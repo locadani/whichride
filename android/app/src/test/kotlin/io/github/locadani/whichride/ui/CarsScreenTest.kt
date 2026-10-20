@@ -1,6 +1,10 @@
 package io.github.locadani.whichride.ui
 
 import androidx.compose.ui.test.junit4.createComposeRule
+import androidx.compose.ui.test.performScrollToNode
+import androidx.compose.ui.test.hasText
+import androidx.compose.ui.test.hasScrollAction
+import androidx.compose.ui.test.performScrollTo
 import androidx.compose.ui.test.onNodeWithText
 import androidx.compose.ui.test.performClick
 import androidx.test.ext.junit.runners.AndroidJUnit4
@@ -30,7 +34,7 @@ class CarsScreenTest {
             providers = listOf(bolt), quotes = quotes, draft = draft, carFilter = filter)
         compose.setContent {
             WhichrideTheme {
-                CarsScreen(state, "bolt", onBack = {}, onCheckIn = {}, onToggle = { toggled += it }, onFilter = {}, onCommit = {})
+                CarsScreen(state, "bolt", onBack = {}, onCheckIn = {}, onToggle = { toggled += it }, onFilter = {}, onCommit = {}, onPropose = {})
             }
         }
     }
@@ -73,5 +77,18 @@ class CarsScreenTest {
     @Test fun aFilterWithoutMatchesSaysSo() {
         show(offers = 7, filter = "tesla")
         compose.onNodeWithText("No Bolt Drive car matches “tesla”.").assertExists()
+    }
+
+    @Test fun `proposals are listed apart and a missing car can be proposed`() {
+        var proposed: String? = null
+        val proposal = quote("bolt", "proposal.x", "Fiat 500e", 700).copy(proposed = true)
+        val state = resultState().copy(stack = listOf(Screen.Home, Screen.Result, Screen.Providers, Screen.Cars("bolt")), quotes = QUOTES + proposal, crowdEnabled = true)
+        compose.setContent { WhichrideTheme { CarsScreen(state, "bolt", {}, {}, {}, {}, {}, onPropose = { proposed = it }) } }
+        compose.onNodeWithText("from €7.90").assertExists() // any car ignores the cheaper proposal
+        compose.onNode(hasScrollAction()).performScrollToNode(hasText("Added by users, not confirmed yet"))
+        compose.onNode(hasScrollAction()).performScrollToNode(hasText("Fiat 500e"))
+        compose.onNodeWithText("Fiat 500e").assertExists()
+        compose.onNodeWithText("Car not listed? Add it").performScrollTo().performClick()
+        assertEquals("bolt", proposed)
     }
 }

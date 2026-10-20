@@ -180,4 +180,49 @@
     <string name="refuel_switch">I\'ll refuel or charge</string>
     <string name="once_used">%1$s used</string>
     <string name="undo">Undo</string>
+    <string name="report_price">Price wrong? Tell us</string>
+    <string name="your_price">your price</string>
+    <string name="proposed_meta">added by a user, not confirmed</string>
+    <string name="price_title">What does %1$s show?</string>
+    <string name="price_body">Change only what\'s different. %1$s, %2$s.</string>
+    <string name="propose_title">Add a %1$s car</string>
+    <string name="propose_body">The name as %1$s shows it, and its prices for pay-as-you-go trips.</string>
+    <string name="field_name">Car name</string>
+    <string name="field_unlock">Unlock (€)</string>
+    <string name="field_per_km">Per km (€)</string>
+    <string name="field_per_minute">Per minute (€)</string>
+    <string name="field_minimum">Minimum (€)</string>
+    <string name="field_invalid_euros">Up to %1$s, e.g. 0,29</string>
+    <string name="field_invalid_name">1 to %1$d characters</string>
+    <string name="price_note">Your numbers apply to you right away. Others see them once another user confirms.</string>
+    <string name="propose_note">Others see this car once another user confirms it.</string>
+    <string name="price_save">Save correction</string>
+    <string name="propose_save">Send car</string>
+    <string name="price_reset">Use the shared price</string>
+
+    <string name="question_back_from">Back from %1$s</string>
+    <string name="question_title">Is this the price %1$s showed for the %2$s?</string>
+    <string name="question_title_proposal">Did %1$s show the %2$s at these prices?</string>
+    <string name="question_per_km">per km</string>
+    <string name="question_per_minute">per min</string>
+    <string name="question_unlock">unlock</string>
+    <string name="question_yes">Yes, that\'s right</string>
+    <string name="question_no_fix">No, fix it</string>
+    <string name="question_no">No</string>
+    <string name="question_skip">Skip</string>
+    <string name="question_note">We ask at most once a week. Your answer keeps prices right for everyone.</string>
+    <string name="question_dont_know">I don\'t know the numbers</string>
+    <string name="question_thanks">Thanks!</string>
+    <string name="question_confirmed">Price confirmed. Thanks for keeping it right.</string>
+    <string name="question_corrected">Your prices apply to you now. Others see them once someone confirms.</string>
+    <string name="question_not_sent">We couldn\'t send your answer now. Nothing changed.</string>
+
+    <string name="proposals_title">Added by users, not confirmed yet</string>
+    <string name="car_not_listed">Car not listed? Add it</string>
+
+    <string name="crowd_sent">Thanks! Others see it once someone confirms.</string>
+    <string name="crowd_proposed">Thanks! The car appears for others once someone confirms it.</string>
+    <string name="crowd_not_sent">Saved for you; we couldn\'t send it now.</string>
+    <string name="crowd_locked">This price is locked for now; your numbers still apply to you.</string>
+    <string name="crowd_already_current">That\'s already the price everyone sees.</string>
 </resources>

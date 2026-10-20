@@ -47,6 +47,12 @@ fun WhichrideNav(viewModel: CompareViewModel) {
         val result = snackbar.showSnackbar(usedText, actionLabel = undo, duration = SnackbarDuration.Long)
         if (result == SnackbarResult.ActionPerformed) viewModel.undoOnce() else viewModel.onceMessageShown()
     }
+    val crowdText = state.crowdMessage?.let { stringResource(it.text()) }
+    LaunchedEffect(state.crowdMessage) {
+        if (crowdText == null) return@LaunchedEffect
+        snackbar.showSnackbar(crowdText)
+        viewModel.crowdMessageShown()
+    }
     Surface(Modifier.fillMaxSize(), color = WhichrideTheme.colors.background, contentColor = WhichrideTheme.colors.onSurface) {
         Box(Modifier.safeDrawingPadding()) {
             when (val screen = state.screen) {
@@ -65,18 +71,20 @@ fun WhichrideNav(viewModel: CompareViewModel) {
                         onBack = { viewModel.back() }, onEdit = viewModel::editTrip, onChangeStart = viewModel::changeStart,
                         onAddCars = viewModel::addCars, onRemove = viewModel::remove, onSelect = viewModel::select,
                         onOpen = viewModel::openChosen, onOpenMaps = viewModel::openMaps, onDeals = viewModel::openDeals,
-                        onRefuel = viewModel::setRefuel,
+                        onRefuel = viewModel::setRefuel, onReport = viewModel::reportPrice,
                     ),
                 )
                 Screen.Providers -> ProvidersScreen(state, onClose = { viewModel.back() }, viewModel::pickProvider)
                 is Screen.Cars -> CarsScreen(
                     state, screen.providerId, onBack = { viewModel.back() }, viewModel::checkIn, viewModel::toggle,
-                    viewModel::onCarFilter, viewModel::commitCars,
+                    viewModel::onCarFilter, viewModel::commitCars, onPropose = viewModel::proposeCar,
                 )
                 Screen.Start -> StartScreen(state, onBack = { viewModel.back() }, viewModel::onStartQuery, viewModel::pickStart, viewModel::useMyLocation)
                 Screen.Licences -> LicencesScreen(onBack = { viewModel.back() })
-                // The price form arrives in the next commit (plan Task 12).
-                Screen.PriceForm -> Unit
+                Screen.PriceForm -> PriceFormScreen(state, onBack = { viewModel.back() }, viewModel::onPriceForm, viewModel::savePrice) {
+                    viewModel.resetPrice(it)
+                    viewModel.back()
+                }
                 Screen.Settings -> SettingsScreen(
                     state, onBack = { viewModel.back() }, viewModel::openDeals, viewModel::chooseApp,
                     viewModel::openLanguageSettings, viewModel::openLicences,
@@ -86,6 +94,13 @@ fun WhichrideNav(viewModel: CompareViewModel) {
                     state, onBack = { viewModel.back() }, viewModel::onDealForm, viewModel::saveDeal, viewModel::deleteDeal,
                 )
             }
+            QuestionSheet(
+                state,
+                QuestionActions(
+                    viewModel::answerYes, viewModel::answerNo, viewModel::dontKnow, viewModel::closeQuestion,
+                    viewModel::onPriceForm, viewModel::savePrice,
+                ),
+            )
             SnackbarHost(snackbar, Modifier.align(Alignment.BottomCenter))
         }
     }

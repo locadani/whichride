@@ -30,6 +30,7 @@ import androidx.compose.material3.Surface
 import androidx.compose.material3.Text
 import androidx.compose.material3.TextButton
 import androidx.compose.runtime.Composable
+import io.github.locadani.whichride.compare.canReport
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.res.pluralStringResource
@@ -63,6 +64,7 @@ data class ResultActions(
     val onOpenMaps: () -> Unit = {},
     val onDeals: () -> Unit = {},
     val onRefuel: (Boolean) -> Unit = {},
+    val onReport: () -> Unit = {},
 )
 
 /** Canvas "Result + add the cars near you" (spec §4 steps 6–7, §4.1). */
@@ -130,6 +132,13 @@ fun ResultScreen(state: UiState, actions: ResultActions) {
                     else SecondaryButton(stringResource(R.string.add_more_cars), actions.onAddCars, icon = Icons.Filled.Add)
                 }
                 if (ranked.isNotEmpty()) item { CheaperLine(state) }
+                if (state.canReport()) {
+                    item {
+                        TextButton(onClick = actions.onReport) {
+                            Text(stringResource(R.string.report_price), color = WhichrideTheme.colors.accentText)
+                        }
+                    }
+                }
             }
         }
         Row(

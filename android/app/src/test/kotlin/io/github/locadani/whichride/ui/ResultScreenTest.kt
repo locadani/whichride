@@ -6,6 +6,7 @@ import androidx.compose.ui.test.hasText
 import androidx.compose.ui.test.performScrollToNode
 import androidx.compose.ui.test.assertIsNotEnabled
 import androidx.compose.ui.test.junit4.createComposeRule
+import androidx.compose.ui.test.performScrollTo
 import androidx.compose.ui.test.onNodeWithContentDescription
 import androidx.compose.ui.test.onNodeWithText
 import androidx.compose.ui.test.performClick
@@ -106,5 +107,20 @@ class ResultScreenTest {
         compose.onNodeWithText("I'll refuel or charge").performClick()
         assertEquals(true, refuel)
         compose.onNodeWithText("Discounts · 1").assertExists()
+    }
+
+    @Test fun `price wrong is offered for accepted offers only`() {
+        var reported = false
+        val polo = RankedOption(Choice.Offer("bolt.polo"), QUOTES[2])
+        compose.setContent { WhichrideTheme { ResultScreen(resultState(listOf(polo)), ResultActions(onReport = { reported = true })) } }
+        compose.onNodeWithText("Price wrong? Tell us").performScrollTo().performClick()
+        assertEquals(true, reported)
+    }
+
+    @Test fun `no price wrong for a proposal`() {
+        val proposal = RankedOption(Choice.Offer("proposal.x"), quote("bolt", "proposal.x", "Fiat 500e", 700).copy(proposed = true))
+        compose.setContent { WhichrideTheme { ResultScreen(resultState(listOf(proposal)), ResultActions()) } }
+        compose.onNodeWithText("Price wrong? Tell us").assertDoesNotExist()
+        compose.onNodeWithText("added by a user, not confirmed", substring = true).assertExists()
     }
 }
