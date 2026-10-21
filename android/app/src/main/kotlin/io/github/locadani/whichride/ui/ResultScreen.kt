@@ -33,11 +33,14 @@ import androidx.compose.material3.OutlinedIconButton
 import androidx.compose.material3.IconButtonDefaults
 import androidx.compose.material3.Surface
 import androidx.compose.material3.SwipeToDismissBox
-import androidx.compose.material3.rememberSwipeToDismissBoxState
+import androidx.compose.material3.SwipeToDismissBoxDefaults
+import androidx.compose.material3.SwipeToDismissBoxState
+import androidx.compose.material3.SwipeToDismissBoxValue
 import androidx.compose.material3.Text
 import androidx.compose.material3.TextButton
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.getValue
+import androidx.compose.runtime.remember
 import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.saveable.rememberSaveable
 import androidx.compose.runtime.setValue
@@ -138,13 +141,13 @@ fun ResultScreen(state: UiState, actions: ResultActions) {
                 } else {
                     // Keyed, so a swipe's state never moves on to the option that takes this place.
                     item(key = ranked.first().choice.toString()) {
-                        Removable(ranked.first(), state, MaterialTheme.shapes.large, actions.onRemove) {
-                            Hero(ranked.first(), state, selected = chosen == ranked.first() && ranked.size > 1, details(ranked.first()), actions.onSelect)
+                        Removable(ranked.first(), state, MaterialTheme.shapes.large, actions.onRemove) { remove ->
+                            Hero(ranked.first(), state, selected = chosen == ranked.first() && ranked.size > 1, details(ranked.first()), remove, actions.onSelect)
                         }
                     }
                     items(ranked.drop(1), key = { it.choice.toString() }) { option ->
-                        Removable(option, state, MaterialTheme.shapes.small, actions.onRemove) {
-                            OptionRow(option, ranked.first().quote.totalCents, state, selected = chosen == option, details(option), actions.onSelect)
+                        Removable(option, state, MaterialTheme.shapes.small, actions.onRemove) { remove ->
+                            OptionRow(option, ranked.first().quote.totalCents, state, selected = chosen == option, details(option), remove, actions.onSelect)
                         }
                     }
                 }
@@ -206,7 +209,7 @@ private fun Intro(state: UiState) {
 }
 
 @Composable
-private fun Hero(option: RankedOption, state: UiState, selected: Boolean, details: Details, onSelect: (Choice) -> Unit) {
+private fun Hero(option: RankedOption, state: UiState, selected: Boolean, details: Details, remove: Modifier, onSelect: (Choice) -> Unit) {
     val colors = WhichrideTheme.colors
     val provider = state.providers.nameOf(option.quote.providerId)
     Surface(
@@ -218,7 +221,7 @@ private fun Hero(option: RankedOption, state: UiState, selected: Boolean, detail
         Column {
             Row(verticalAlignment = Alignment.Bottom) {
                 Column(
-                    Modifier.weight(1f).selectable(selected, onClick = { onSelect(option.choice) }, role = Role.RadioButton)
+                    Modifier.weight(1f).selectable(selected, onClick = { onSelect(option.choice) }, role = Role.RadioButton).then(remove)
                         .padding(start = Space.lg, top = Space.md, bottom = Space.md),
                     verticalArrangement = Arrangement.spacedBy(Space.xs),
                 ) {
@@ -247,6 +250,7 @@ private fun OptionRow(
     state: UiState,
     selected: Boolean,
     details: Details,
+    remove: Modifier,
     onSelect: (Choice) -> Unit,
 ) {
     val colors = WhichrideTheme.colors
@@ -260,7 +264,7 @@ private fun OptionRow(
             Row(verticalAlignment = Alignment.CenterVertically) {
                 Row(
                     Modifier.weight(1f).heightIn(min = Size.controlLg)
-                        .selectable(selected, onClick = { onSelect(option.choice) }, role = Role.RadioButton)
+                        .selectable(selected, onClick = { onSelect(option.choice) }, role = Role.RadioButton).then(remove)
                         .padding(start = Space.md, top = Space.xs, bottom = Space.xs),
                     verticalAlignment = Alignment.CenterVertically,
                     horizontalArrangement = Arrangement.spacedBy(Space.sm),
@@ -307,19 +311,23 @@ private fun DetailsButton(option: RankedOption, provider: String, details: Detai
     }
 }
 
-/** Swiping an option left removes it; TalkBack gets the same as an action (no swipe needed). */
+/**
+ * Swiping an option left removes it. TalkBack gets the same as an action on the option's own row
+ * (`content` puts the modifier there), where its focus lands.
+ */
 @Composable
-private fun Removable(option: RankedOption, state: UiState, shape: Shape, onRemove: (Choice) -> Unit, content: @Composable () -> Unit) {
+private fun Removable(option: RankedOption, state: UiState, shape: Shape, onRemove: (Choice) -> Unit, content: @Composable (Modifier) -> Unit) {
     val colors = WhichrideTheme.colors
     val label = stringResource(R.string.remove_option, state.providers.nameOf(option.quote.providerId), offerLabel(option))
-    val swipe = rememberSwipeToDismissBoxState()
+    // Not saved: the list keeps saved item state by key, so a car put back by Undo would come back
+    // swiped away.
+    val threshold = SwipeToDismissBoxDefaults.positionalThreshold
+    val swipe = remember { SwipeToDismissBoxState(SwipeToDismissBoxValue.Settled, threshold) }
     SwipeToDismissBox(
         swipe,
         enableDismissFromStartToEnd = false,
         onDismiss = { onRemove(option.choice) },
-        modifier = Modifier.clip(shape).semantics {
-            customActions = listOf(CustomAccessibilityAction(label) { onRemove(option.choice); true })
-        },
+        modifier = Modifier.clip(shape),
         backgroundContent = {
             Row(
                 Modifier.fillMaxSize().background(colors.error).padding(horizontal = Space.lg),
@@ -330,7 +338,9 @@ private fun Removable(option: RankedOption, state: UiState, shape: Shape, onRemo
                 Text(stringResource(R.string.remove), color = colors.onError, style = MaterialTheme.typography.labelLarge)
             }
         },
-    ) { content() }
+    ) {
+        content(Modifier.semantics { customActions = listOf(CustomAccessibilityAction(label) { onRemove(option.choice); true }) })
+    }
 }
 
 @Composable

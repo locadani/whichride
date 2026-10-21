@@ -37,7 +37,6 @@ import io.github.locadani.whichride.designsystem.WhichrideTheme
 import io.github.locadani.whichride.designsystem.WhichrideTokens
 import io.github.locadani.whichride.format.formatKilometres
 import io.github.locadani.whichride.format.formatMinutes
-import io.github.locadani.whichride.format.kilometresInput
 import io.github.locadani.whichride.prices.PriceSource
 
 private val Space = WhichrideTokens.Space
@@ -93,13 +92,13 @@ fun TripDetails(state: UiState, edit: TripEdit, actions: ResultActions, modifier
             }
             NumberLine(
                 stringResource(R.string.trip_distance), edit.km, stringResource(R.string.unit_km), edit.kmInvalid,
-                reset = if (edit.kmEdited) kilometresInput(edit.original.metres) else null,
+                reset = if (edit.kmEdited) edit.originalKm else null,
                 resetLabel = { stringResource(R.string.reset_distance, it) },
                 keyboard = KeyboardType.Decimal, onChange = actions.onTripKm, onReset = actions.onResetKm,
             )
             NumberLine(
                 stringResource(R.string.trip_time), edit.minutes, stringResource(R.string.unit_min), edit.minutesInvalid,
-                reset = if (edit.minutesEdited) formatMinutes(edit.original.seconds) else null,
+                reset = if (edit.minutesEdited) edit.originalMinutes else null,
                 resetLabel = { stringResource(R.string.reset_time, it) },
                 keyboard = KeyboardType.Number, onChange = actions.onTripMinutes, onReset = actions.onResetMinutes,
             )

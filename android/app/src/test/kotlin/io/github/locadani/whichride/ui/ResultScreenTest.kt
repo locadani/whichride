@@ -1,8 +1,14 @@
 package io.github.locadani.whichride.ui
 
+import androidx.compose.ui.semantics.Role
 import androidx.compose.ui.semantics.SemanticsActions
+import androidx.compose.ui.semantics.SemanticsProperties
 import androidx.compose.ui.semantics.getOrNull
 import androidx.compose.ui.test.SemanticsMatcher
+import androidx.compose.runtime.getValue
+import androidx.compose.runtime.mutableStateOf
+import androidx.compose.runtime.setValue
+import androidx.compose.ui.test.assertIsDisplayed
 import androidx.compose.ui.test.assertIsEnabled
 import androidx.compose.ui.test.performTouchInput
 import androidx.compose.ui.test.swipeLeft
@@ -132,6 +138,21 @@ class ResultScreenTest {
         assertEquals(listOf<Choice>(Choice.Offer("bolt.polo")), removed)
     }
 
+    @Test fun aCarPutBackByUndoIsShownAgain() {
+        val polo = RankedOption(Choice.Offer("bolt.polo"), QUOTES[2])
+        val miles = RankedOption(Choice.Offer("miles.s"), QUOTES[1])
+        var ranked by mutableStateOf(listOf(miles, polo))
+        compose.setContent {
+            WhichrideTheme { ResultScreen(resultState(ranked), ResultActions(onRemove = { c -> ranked = ranked.filter { it.choice != c } })) }
+        }
+        compose.onNodeWithText("Bolt Drive VW Polo").performTouchInput { swipeLeft() }
+        compose.waitForIdle()
+        compose.onNodeWithText("Bolt Drive VW Polo").assertDoesNotExist()
+        ranked = listOf(miles, polo)
+        compose.waitForIdle()
+        compose.onNodeWithText("Bolt Drive VW Polo").assertIsDisplayed()
+    }
+
     @Test fun swipingRightDoesNothing() {
         val removed = mutableListOf<Choice>()
         showRemovable(removed)
@@ -144,8 +165,10 @@ class ResultScreenTest {
         val removed = mutableListOf<Choice>()
         showRemovable(removed)
         val label = "Remove MILES S"
+        // On the option's own row (a radio button), where TalkBack's focus lands.
         val node = compose.onNode(SemanticsMatcher("has $label") {
-            it.config.getOrNull(SemanticsActions.CustomActions).orEmpty().any { action -> action.label == label }
+            it.config.getOrNull(SemanticsActions.CustomActions).orEmpty().any { action -> action.label == label } &&
+                it.config.getOrNull(SemanticsProperties.Role) == Role.RadioButton
         }).fetchSemanticsNode()
         compose.runOnUiThread { node.config[SemanticsActions.CustomActions].single { it.label == label }.action() }
         assertEquals(listOf<Choice>(Choice.Offer("miles.s")), removed)

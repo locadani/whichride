@@ -10,7 +10,7 @@ import io.github.locadani.whichride.core.Quote
 import io.github.locadani.whichride.core.Trip
 import io.github.locadani.whichride.crowd.PROPOSAL_PREFIX
 import io.github.locadani.whichride.format.formatMinutes
-import io.github.locadani.whichride.format.kilometresInput
+import io.github.locadani.whichride.format.formatKilometres
 import io.github.locadani.whichride.format.parseKilometres
 import io.github.locadani.whichride.format.parseMinutes
 import io.github.locadani.whichride.crowd.PriceForm
@@ -19,6 +19,7 @@ import io.github.locadani.whichride.personal.DealForm
 import io.github.locadani.whichride.personal.Personal
 import io.github.locadani.whichride.prices.PriceSource
 import io.github.locadani.whichride.server.Place
+import java.util.Locale
 
 /** Why the user is asked for km and minutes (R25). */
 enum class ManualReason { BUSY, OFFLINE, NO_ROUTE, NO_LOCATION, TYPED }
@@ -121,12 +122,16 @@ data class Removed(val option: RankedOption, val wasSelected: Boolean) {
  */
 data class TripEdit(
     val original: Trip,
-    val km: String = kilometresInput(original.metres),
+    val locale: Locale = Locale.getDefault(),
+    val km: String = formatKilometres(original.metres, locale),
     val minutes: String = formatMinutes(original.seconds),
     val kmInvalid: Boolean = false,
     val minutesInvalid: Boolean = false,
 ) {
-    val kmEdited get() = parseKilometres(km) != parseKilometres(kilometresInput(original.metres))
-    val minutesEdited get() = parseMinutes(minutes) != parseMinutes(formatMinutes(original.seconds))
+    /** As on the title line ("7,4" in German): metres would read as thousands of km. */
+    val originalKm get() = formatKilometres(original.metres, locale)
+    val originalMinutes get() = formatMinutes(original.seconds)
+    val kmEdited get() = parseKilometres(km) != parseKilometres(originalKm)
+    val minutesEdited get() = parseMinutes(minutes) != parseMinutes(originalMinutes)
 }
 

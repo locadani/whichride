@@ -363,21 +363,21 @@ class CompareViewModel(
 
     /** Prices follow every valid change at once; an invalid one keeps the last good trip. */
     fun onTripKm(text: String) = changeTrip { edit, trip ->
-        val metres = parseKilometres(text)?.let { if (it == parseKilometres(kilometresInput(edit.original.metres))) edit.original.metres else it }
+        val metres = parseKilometres(text)?.let { if (it == parseKilometres(edit.originalKm)) edit.original.metres else it }
         edit.copy(km = text, kmInvalid = metres == null) to (metres?.let { trip.copy(metres = it) } ?: trip)
     }
 
     fun onTripMinutes(text: String) = changeTrip { edit, trip ->
-        val seconds = parseMinutes(text)?.let { if (it == parseMinutes(formatMinutes(edit.original.seconds))) edit.original.seconds else it }
+        val seconds = parseMinutes(text)?.let { if (it == parseMinutes(edit.originalMinutes)) edit.original.seconds else it }
         edit.copy(minutes = text, minutesInvalid = seconds == null) to (seconds?.let { trip.copy(seconds = it) } ?: trip)
     }
 
     fun resetTripKm() = changeTrip { edit, trip ->
-        edit.copy(km = kilometresInput(edit.original.metres), kmInvalid = false) to trip.copy(metres = edit.original.metres)
+        edit.copy(km = edit.originalKm, kmInvalid = false) to trip.copy(metres = edit.original.metres)
     }
 
     fun resetTripMinutes() = changeTrip { edit, trip ->
-        edit.copy(minutes = formatMinutes(edit.original.seconds), minutesInvalid = false) to trip.copy(seconds = edit.original.seconds)
+        edit.copy(minutes = edit.originalMinutes, minutesInvalid = false) to trip.copy(seconds = edit.original.seconds)
     }
 
     private fun changeTrip(change: (TripEdit, Trip) -> Pair<TripEdit, Trip>) {
