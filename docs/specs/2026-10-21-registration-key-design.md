@@ -174,11 +174,11 @@ and `local.properties` is the usual Android place for per-project values that ar
 | Threat | Outcome |
 |---|---|
 | A stranger calls the API | Cannot register without the key: no routing quota used, no prices written. Public reads (`/v1/catalogue`) are public today too. |
-| Someone copies the owner's APK | Can extract the key and register. Accepted: the APK is not distributed. Mitigation: rotate the key (§6) and delete the installs. |
+| Someone copies the owner's APK | Can extract the key and register. Accepted: the APK is not distributed. Mitigation: rotate the key and run `revoke-installs` (§6). |
 | The key leaks from a log | `RegistrationKey` hides itself in `Debug`; the app never logs tokens. |
 | Timing attack on the comparison | Constant-time comparison. |
 | A Play build ships the key | Release workflow and Gradle refuse it (§3.2). |
-| Key mode left on after moving to Play | The Play switch (§6) sets `PLAY_INTEGRITY=google`; installs registered with the key keep their bearer token, so §6 also says to delete them. |
+| Key mode left on after moving to Play | The Play switch (§6) sets `PLAY_INTEGRITY=google`; installs registered with the key keep their bearer token, so §6 also says to revoke them. |
 
 What the key does **not** give: Play Integrity's per-request binding (`requestHash`) and device
 verdicts. Acceptable with one user; it is the reason this mode is temporary.
@@ -186,7 +186,7 @@ verdicts. Acceptable with one user; it is the reason this mode is temporary.
 ## 5. Rollout
 
 1. **PR 1, code:** server mode + tests, app `RegistrationKeyTokens` + selection + tests, Gradle
-   property, release guard, the owner command `delete-installs` (§6), the `subtle` crate for the comparison, module change with `attached_secrets = ["ORS_API_KEY"]`, docs
+   property, release guard, the owner command `revoke-installs` (§6), the `subtle` crate for the comparison, module change with `attached_secrets = ["ORS_API_KEY"]`, docs
    (this file, decision 77, `infra/README.md`, `docs/play/README.md`). After merge, the deploy
    ships the new image with `PLAY_INTEGRITY=google`: nothing changes yet. The infra apply
    creates the empty `registration-key` secret.
@@ -202,11 +202,14 @@ verdicts. Acceptable with one user; it is the reason this mode is temporary.
 
 1. Remove `whichride.registrationKey` from `android/local.properties`.
 2. Terraform: `PLAY_INTEGRITY = "google"`, drop `REGISTRATION_KEY` from `attached_secrets`.
-3. Delete the installs registered with the key (owner command `delete-installs --before <date>`, added in PR 1, run like `lock-offer`), so only Play-verified installs remain.
+3. Revoke the installs registered with the key: `revoke-installs` (added in PR 1, run like
+   `lock-offer`) gives every install a token nobody knows. Installs are not deleted, because
+   reports, votes and price history refer to them; the app registers again by itself the next
+   time the server answers 401, now through Play Integrity.
 4. Optionally delete the `registration-key` secret.
 
 **Rotating the key** (if the APK leaks): add a new secret version, redeploy (Cloud Run reads
-`latest` on start), update `android/local.properties`, reinstall, and delete the old installs.
+`latest` on start), update `android/local.properties`, reinstall, and run `revoke-installs`.
 
 ## 7. Testing
 
