@@ -225,4 +225,20 @@
     <string name="crowd_proposal_not_sent">Wir konnten das Auto gerade nicht senden. Versuch es später noch einmal.</string>
     <string name="crowd_locked">Dieser Preis ist vorerst gesperrt. Deine Zahlen gelten trotzdem für dich.</string>
     <string name="crowd_already_current">Das ist schon der Preis, den alle sehen.</string>
+    <string name="price_details_show">Preisdetails für %1$s %2$s anzeigen</string>
+    <string name="price_details_hide">Preisdetails für %1$s %2$s ausblenden</string>
+    <string name="line_unlock_fee">Entsperrgebühr</string>
+    <string name="line_package">Paketpreis</string>
+    <string name="line_distance">%1$s km × %2$s</string>
+    <string name="line_time">%1$s Min. × %2$s</string>
+    <plurals name="line_included_km"><item quantity="one">erster %d km inklusive</item><item quantity="other">erste %d km inklusive</item></plurals>
+    <plurals name="line_included_minutes"><item quantity="one">erste %d Minute inklusive</item><item quantity="other">erste %d Minuten inklusive</item></plurals>
+    <string name="line_subscription">Abo</string>
+    <string name="line_percent_discount">Rabatt −%1$s %%</string>
+    <string name="line_amount_discount">Rabatt</string>
+    <string name="line_refuel_credit">Tankgutschrift</string>
+    <string name="line_minimum">Mindestpreis %1$s</string>
+    <string name="line_started_km">Jeder angefangene km zählt</string>
+    <string name="line_started_minutes">Jede angefangene Minute zählt</string>
+    <string name="line_started_both">Jeder angefangene km und jede angefangene Minute zählt</string>
 </resources>

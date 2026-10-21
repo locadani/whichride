@@ -15,6 +15,9 @@ import io.github.locadani.whichride.compare.Screen
 import io.github.locadani.whichride.compare.Target
 import io.github.locadani.whichride.compare.UiState
 import io.github.locadani.whichride.core.AppInfo
+import io.github.locadani.whichride.core.CardKind
+import io.github.locadani.whichride.core.PriceLine
+import io.github.locadani.whichride.core.Rounding
 import io.github.locadani.whichride.core.Choice
 import io.github.locadani.whichride.core.OfferInfo
 import io.github.locadani.whichride.core.Options
@@ -32,8 +35,8 @@ import org.junit.Rule
 import org.junit.Test
 import org.junit.runner.RunWith
 
-fun quote(provider: String, offer: String, name: String, cents: Long, days: UInt? = 2u) =
-    Quote(provider, offer, name, "Standard", cents, false, days, false)
+fun quote(provider: String, offer: String, name: String, cents: Long, days: UInt? = 2u, lines: List<PriceLine> = emptyList()) =
+    Quote(provider, offer, name, "Standard", cents, false, days, false, lines)
 
 val PROVIDERS = listOf(
     ProviderInfo("miles", "MILES", "com.driveby.app", listOf(OfferInfo("miles.s", "S")), listOf(AppInfo("MILES", "com.driveby.app"))),
@@ -64,6 +67,44 @@ class ResultScreenTest {
         WhichrideTheme {
             ResultScreen(state, ResultActions(onChangeStart = { startChanged++ }, onAddCars = { added++ }, onOpen = { opened++ }))
         }
+    }
+
+    @Test fun priceDetailsAreHiddenUntilTheChevronIsTapped() {
+        val lines = listOf(
+            PriceLine.BaseFee(CardKind.STANDARD, 100),
+            PriceLine.Distance(8_000uL, 79, 0u, Rounding.STARTED_UNIT, 632),
+            PriceLine.PercentDiscount(1_000u.toUShort(), -73),
+            PriceLine.AmountDiscount(-200),
+        )
+        val miles = RankedOption(Choice.Offer("miles.s"), quote("miles", "miles.s", "S", 459, lines = lines))
+        show(resultState(listOf(miles)))
+        compose.onNodeWithText("Unlock fee").assertDoesNotExist()
+        compose.onNodeWithContentDescription("Show price details for MILES S").performClick()
+        compose.onNodeWithText("Unlock fee").assertExists()
+        compose.onNodeWithText("€1.00").assertExists()
+        compose.onNodeWithText("8 km × €0.79").assertExists()
+        compose.onNodeWithText("Discount −10 %").assertExists()
+        compose.onNodeWithText("−€0.73").assertExists()
+        compose.onNodeWithText("−€2.00").assertExists()
+        compose.onNodeWithText("Every started km counts").assertExists()
+        compose.onNodeWithContentDescription("Hide price details for MILES S").performClick()
+        compose.onNodeWithText("Unlock fee").assertDoesNotExist()
+    }
+
+    @Test fun eachOptionOpensOnItsOwn() {
+        val bolt = RankedOption(Choice.Offer("bolt.picanto"), quote("bolt", "bolt.picanto", "Kia Picanto", 790,
+            lines = listOf(PriceLine.Time(1_320uL, 11, 0u, Rounding.STARTED_UNIT, 242))))
+        val miles = RankedOption(Choice.Offer("miles.s"), quote("miles", "miles.s", "S", 849,
+            lines = listOf(PriceLine.Distance(7_400uL, 79, 200u, Rounding.EXACT, 0), PriceLine.Minimum(849, 849))))
+        show(resultState(listOf(bolt, miles)))
+        compose.onNodeWithContentDescription("Show price details for MILES S").performClick()
+        compose.onNodeWithText("7.4 km × €0.79").assertExists()
+        compose.onNodeWithText("first 200 km included").assertExists()
+        compose.onNodeWithText("Minimum charge €8.49").assertExists()
+        compose.onNodeWithText("22 min × €0.11").assertDoesNotExist()
+        compose.onNodeWithContentDescription("Show price details for Bolt Drive Kia Picanto").performClick()
+        compose.onNodeWithText("22 min × €0.11").assertExists()
+        compose.onNodeWithText("7.4 km × €0.79").assertExists()
     }
 
     @Test fun withoutOptionsOpenIsDisabledAndAddingIsTheWayOn() {

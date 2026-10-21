@@ -226,4 +226,20 @@
     <string name="crowd_proposal_not_sent">We couldn\'t send the car now. Try again later.</string>
     <string name="crowd_locked">This price is locked for now; your numbers still apply to you.</string>
     <string name="crowd_already_current">That\'s already the price everyone sees.</string>
+    <string name="price_details_show">Show price details for %1$s %2$s</string>
+    <string name="price_details_hide">Hide price details for %1$s %2$s</string>
+    <string name="line_unlock_fee">Unlock fee</string>
+    <string name="line_package">Package price</string>
+    <string name="line_distance">%1$s km × %2$s</string>
+    <string name="line_time">%1$s min × %2$s</string>
+    <plurals name="line_included_km"><item quantity="one">first %d km included</item><item quantity="other">first %d km included</item></plurals>
+    <plurals name="line_included_minutes"><item quantity="one">first %d minute included</item><item quantity="other">first %d minutes included</item></plurals>
+    <string name="line_subscription">Subscription</string>
+    <string name="line_percent_discount">Discount −%1$s %%</string>
+    <string name="line_amount_discount">Discount</string>
+    <string name="line_refuel_credit">Refuel credit</string>
+    <string name="line_minimum">Minimum charge %1$s</string>
+    <string name="line_started_km">Every started km counts</string>
+    <string name="line_started_minutes">Every started minute counts</string>
+    <string name="line_started_both">Every started km and minute counts</string>
 </resources>

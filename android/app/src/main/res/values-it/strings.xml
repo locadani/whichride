@@ -225,4 +225,20 @@
     <string name="crowd_proposal_not_sent">Non siamo riusciti a inviare l\'auto. Riprova più tardi.</string>
     <string name="crowd_locked">Questo prezzo è bloccato per ora; i tuoi numeri valgono comunque per te.</string>
     <string name="crowd_already_current">È già il prezzo che vedono tutti.</string>
+    <string name="price_details_show">Mostra i dettagli del prezzo di %1$s %2$s</string>
+    <string name="price_details_hide">Nascondi i dettagli del prezzo di %1$s %2$s</string>
+    <string name="line_unlock_fee">Costo di sblocco</string>
+    <string name="line_package">Prezzo del pacchetto</string>
+    <string name="line_distance">%1$s km × %2$s</string>
+    <string name="line_time">%1$s min × %2$s</string>
+    <plurals name="line_included_km"><item quantity="one">primo %d km incluso</item><item quantity="other">primi %d km inclusi</item></plurals>
+    <plurals name="line_included_minutes"><item quantity="one">primo %d minuto incluso</item><item quantity="other">primi %d minuti inclusi</item></plurals>
+    <string name="line_subscription">Abbonamento</string>
+    <string name="line_percent_discount">Sconto −%1$s %%</string>
+    <string name="line_amount_discount">Sconto</string>
+    <string name="line_refuel_credit">Bonus rifornimento</string>
+    <string name="line_minimum">Importo minimo %1$s</string>
+    <string name="line_started_km">Ogni km iniziato si paga intero</string>
+    <string name="line_started_minutes">Ogni minuto iniziato si paga intero</string>
+    <string name="line_started_both">Ogni km e minuto iniziato si paga intero</string>
 </resources>

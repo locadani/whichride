@@ -225,4 +225,20 @@
     <string name="crowd_proposal_not_sent">Aracı şu anda gönderemedik. Daha sonra tekrar dene.</string>
     <string name="crowd_locked">Bu fiyat şimdilik kilitli; rakamların yine sana uygulanır.</string>
     <string name="crowd_already_current">Bu zaten herkesin gördüğü fiyat.</string>
+    <string name="price_details_show">%1$s %2$s fiyat ayrıntılarını göster</string>
+    <string name="price_details_hide">%1$s %2$s fiyat ayrıntılarını gizle</string>
+    <string name="line_unlock_fee">Kilit açma ücreti</string>
+    <string name="line_package">Paket fiyatı</string>
+    <string name="line_distance">%1$s km × %2$s</string>
+    <string name="line_time">%1$s dk × %2$s</string>
+    <plurals name="line_included_km"><item quantity="one">ilk %d km dahil</item><item quantity="other">ilk %d km dahil</item></plurals>
+    <plurals name="line_included_minutes"><item quantity="one">ilk %d dakika dahil</item><item quantity="other">ilk %d dakika dahil</item></plurals>
+    <string name="line_subscription">Abonelik</string>
+    <string name="line_percent_discount">İndirim −%%%1$s</string>
+    <string name="line_amount_discount">İndirim</string>
+    <string name="line_refuel_credit">Yakıt alma kredisi</string>
+    <string name="line_minimum">Asgari ücret %1$s</string>
+    <string name="line_started_km">Başlanan her km tam sayılır</string>
+    <string name="line_started_minutes">Başlanan her dakika tam sayılır</string>
+    <string name="line_started_both">Başlanan her km ve dakika tam sayılır</string>
 </resources>

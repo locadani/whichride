@@ -21,6 +21,8 @@ import io.github.locadani.whichride.personal.isActive
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.filled.Add
 import androidx.compose.material.icons.filled.Close
+import androidx.compose.material.icons.filled.KeyboardArrowDown
+import androidx.compose.material.icons.filled.KeyboardArrowUp
 import androidx.compose.material.icons.filled.Place
 import androidx.compose.material3.Icon
 import androidx.compose.material3.IconButton
@@ -32,6 +34,10 @@ import androidx.compose.material3.Surface
 import androidx.compose.material3.Text
 import androidx.compose.material3.TextButton
 import androidx.compose.runtime.Composable
+import androidx.compose.runtime.getValue
+import androidx.compose.runtime.mutableStateOf
+import androidx.compose.runtime.saveable.rememberSaveable
+import androidx.compose.runtime.setValue
 import io.github.locadani.whichride.compare.canReport
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
@@ -75,6 +81,14 @@ fun ResultScreen(state: UiState, actions: ResultActions) {
     val colors = WhichrideTheme.colors
     val ranked = state.options?.ranked.orEmpty()
     val chosen = ranked.firstOrNull { it.choice == state.selected } ?: ranked.firstOrNull()
+    // Closed each time the screen opens; each option on its own.
+    var open by rememberSaveable { mutableStateOf(listOf<String>()) }
+    val details = { option: RankedOption ->
+        Details(option.choice.toString() in open) {
+            val key = option.choice.toString()
+            open = if (key in open) open - key else open + key
+        }
+    }
     Column(Modifier.fillMaxSize()) {
         TopBar(actions.onBack) {
             Column(Modifier.weight(1f)) {
@@ -131,9 +145,11 @@ fun ResultScreen(state: UiState, actions: ResultActions) {
                 if (ranked.isEmpty()) {
                     item { Intro(state) }
                 } else {
-                    item { Hero(ranked.first(), state, selected = chosen == ranked.first() && ranked.size > 1, actions.onSelect, actions.onRemove) }
+                    item {
+                        Hero(ranked.first(), state, selected = chosen == ranked.first() && ranked.size > 1, details(ranked.first()), actions.onSelect, actions.onRemove)
+                    }
                     items(ranked.drop(1), key = { it.choice.toString() }) { option ->
-                        OptionRow(option, ranked.first().quote.totalCents, state, selected = chosen == option, actions.onSelect, actions.onRemove)
+                        OptionRow(option, ranked.first().quote.totalCents, state, selected = chosen == option, details(option), actions.onSelect, actions.onRemove)
                     }
                 }
                 item {
@@ -191,7 +207,7 @@ private fun Intro(state: UiState) {
 }
 
 @Composable
-private fun Hero(option: RankedOption, state: UiState, selected: Boolean, onSelect: (Choice) -> Unit, onRemove: (Choice) -> Unit) {
+private fun Hero(option: RankedOption, state: UiState, selected: Boolean, details: Details, onSelect: (Choice) -> Unit, onRemove: (Choice) -> Unit) {
     val colors = WhichrideTheme.colors
     val provider = state.providers.nameOf(option.quote.providerId)
     Surface(
@@ -200,28 +216,42 @@ private fun Hero(option: RankedOption, state: UiState, selected: Boolean, onSele
         contentColor = colors.onHero,
         border = if (selected) BorderStroke(Size.strokeStrong, colors.onSurface) else null,
     ) {
-        Row {
-            Column(
-                Modifier.weight(1f).selectable(selected, onClick = { onSelect(option.choice) }, role = Role.RadioButton)
-                    .padding(start = Space.lg, top = Space.md, bottom = Space.md),
-                verticalArrangement = Arrangement.spacedBy(Space.xs),
-            ) {
-                Text(stringResource(R.string.cheapest_of_options).uppercase(locale()), style = MaterialTheme.typography.labelSmall)
-                Row(verticalAlignment = Alignment.Bottom) {
-                    Column(Modifier.weight(1f)) {
-                        Text(provider, style = MaterialTheme.typography.titleLarge)
-                        Text("${offerLabel(option)} · ${optionMeta(option, state.priceSource)}", style = MaterialTheme.typography.bodySmall)
+        Column {
+            Row(verticalAlignment = Alignment.Bottom) {
+                Column(
+                    Modifier.weight(1f).selectable(selected, onClick = { onSelect(option.choice) }, role = Role.RadioButton)
+                        .padding(start = Space.lg, top = Space.md, bottom = Space.md),
+                    verticalArrangement = Arrangement.spacedBy(Space.xs),
+                ) {
+                    Text(stringResource(R.string.cheapest_of_options).uppercase(locale()), style = MaterialTheme.typography.labelSmall)
+                    Row(verticalAlignment = Alignment.Bottom) {
+                        Column(Modifier.weight(1f)) {
+                            Text(provider, style = MaterialTheme.typography.titleLarge)
+                            Text("${offerLabel(option)} · ${optionMeta(option, state.priceSource)}", style = MaterialTheme.typography.bodySmall)
+                        }
+                        Text(money(option.quote.totalCents), style = WhichrideTheme.numbers.large)
                     }
-                    Text(money(option.quote.totalCents), style = WhichrideTheme.numbers.large)
                 }
+                DetailsButton(option, provider, details)
+                RemoveButton(option, provider, onRemove)
             }
-            RemoveButton(option, provider, onRemove)
+            if (details.open) {
+                PriceLines(option.quote.lines, muted = colors.onHero, Modifier.padding(start = Space.lg, end = Space.md, bottom = Space.md))
+            }
         }
     }
 }
 
 @Composable
-private fun OptionRow(option: RankedOption, best: Long, state: UiState, selected: Boolean, onSelect: (Choice) -> Unit, onRemove: (Choice) -> Unit) {
+private fun OptionRow(
+    option: RankedOption,
+    best: Long,
+    state: UiState,
+    selected: Boolean,
+    details: Details,
+    onSelect: (Choice) -> Unit,
+    onRemove: (Choice) -> Unit,
+) {
     val colors = WhichrideTheme.colors
     val provider = state.providers.nameOf(option.quote.providerId)
     Surface(
@@ -229,30 +259,55 @@ private fun OptionRow(option: RankedOption, best: Long, state: UiState, selected
         color = colors.surface,
         border = if (selected) BorderStroke(Size.strokeStrong, colors.accent) else null,
     ) {
-        Row(verticalAlignment = Alignment.CenterVertically) {
-            Row(
-                Modifier.weight(1f).heightIn(min = Size.controlLg)
-                    .selectable(selected, onClick = { onSelect(option.choice) }, role = Role.RadioButton)
-                    .padding(start = Space.md, top = Space.xs, bottom = Space.xs),
-                verticalAlignment = Alignment.CenterVertically,
-                horizontalArrangement = Arrangement.spacedBy(Space.sm),
-            ) {
-                Monogram(provider)
-                Column(Modifier.weight(1f)) {
-                    Text("$provider ${offerLabel(option)}", style = MaterialTheme.typography.titleSmall)
-                    Text(optionMeta(option, state.priceSource), style = MaterialTheme.typography.bodySmall, color = colors.onSurfaceMuted)
+        Column {
+            Row(verticalAlignment = Alignment.CenterVertically) {
+                Row(
+                    Modifier.weight(1f).heightIn(min = Size.controlLg)
+                        .selectable(selected, onClick = { onSelect(option.choice) }, role = Role.RadioButton)
+                        .padding(start = Space.md, top = Space.xs, bottom = Space.xs),
+                    verticalAlignment = Alignment.CenterVertically,
+                    horizontalArrangement = Arrangement.spacedBy(Space.sm),
+                ) {
+                    Monogram(provider)
+                    Column(Modifier.weight(1f)) {
+                        Text("$provider ${offerLabel(option)}", style = MaterialTheme.typography.titleSmall)
+                        Text(optionMeta(option, state.priceSource), style = MaterialTheme.typography.bodySmall, color = colors.onSurfaceMuted)
+                    }
+                    Column(horizontalAlignment = Alignment.End) {
+                        Text(money(option.quote.totalCents), style = WhichrideTheme.numbers.medium)
+                        Text(
+                            stringResource(R.string.price_difference, money(option.quote.totalCents - best)),
+                            style = WhichrideTheme.numbers.small,
+                            color = colors.onSurfaceMuted,
+                        )
+                    }
                 }
-                Column(horizontalAlignment = Alignment.End) {
-                    Text(money(option.quote.totalCents), style = WhichrideTheme.numbers.medium)
-                    Text(
-                        stringResource(R.string.price_difference, money(option.quote.totalCents - best)),
-                        style = WhichrideTheme.numbers.small,
-                        color = colors.onSurfaceMuted,
-                    )
-                }
+                DetailsButton(option, provider, details)
+                RemoveButton(option, provider, onRemove)
             }
-            RemoveButton(option, provider, onRemove)
+            if (details.open) {
+                PriceLines(
+                    option.quote.lines,
+                    muted = colors.onSurfaceMuted,
+                    Modifier.padding(start = Space.md + Size.monogram + Space.sm, end = Space.md, bottom = Space.sm),
+                )
+            }
         }
+    }
+}
+
+/** Whether an option's price details are showing, and how to show or hide them. */
+data class Details(val open: Boolean, val toggle: () -> Unit)
+
+@Composable
+private fun DetailsButton(option: RankedOption, provider: String, details: Details) {
+    IconButton(onClick = details.toggle) {
+        Icon(
+            if (details.open) Icons.Filled.KeyboardArrowUp else Icons.Filled.KeyboardArrowDown,
+            contentDescription = stringResource(
+                if (details.open) R.string.price_details_hide else R.string.price_details_show, provider, offerLabel(option),
+            ),
+        )
     }
 }
 
