@@ -167,13 +167,16 @@ fun ResultScreen(state: UiState, actions: ResultActions) {
             horizontalArrangement = Arrangement.spacedBy(Space.sm),
             verticalAlignment = Alignment.CenterVertically,
         ) {
-            OutlinedIconButton(
-                onClick = actions.onOpenMaps,
-                modifier = Modifier.size(Size.controlLg),
-                shape = MaterialTheme.shapes.medium,
-                border = BorderStroke(Size.stroke, colors.outline),
-                colors = IconButtonDefaults.outlinedIconButtonColors(containerColor = colors.surface),
-            ) { Icon(Icons.Filled.Place, contentDescription = stringResource(R.string.open_in_maps)) }
+            // A typed trip has no destination to show.
+            if (state.target != null) {
+                OutlinedIconButton(
+                    onClick = actions.onOpenMaps,
+                    modifier = Modifier.size(Size.controlLg),
+                    shape = MaterialTheme.shapes.medium,
+                    border = BorderStroke(Size.stroke, colors.outline),
+                    colors = IconButtonDefaults.outlinedIconButtonColors(containerColor = colors.surface),
+                ) { Icon(Icons.Filled.Place, contentDescription = stringResource(R.string.open_in_maps)) }
+            }
             PrimaryButton(
                 text = chosen?.let { stringResource(R.string.open_provider, state.providers.nameOf(it.quote.providerId)) }
                     ?: stringResource(R.string.add_cars_to_compare),

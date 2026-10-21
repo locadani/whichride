@@ -68,6 +68,7 @@ fun HomeScreen(
     onSuggestion: (Place) -> Unit,
     onChangeStart: () -> Unit,
     onSettings: () -> Unit,
+    onTypeTrip: () -> Unit,
 ) {
     val colors = WhichrideTheme.colors
     Column(Modifier.fillMaxSize().imePadding()) {
@@ -126,6 +127,7 @@ fun HomeScreen(
                     }
                 }
             }
+            TextButton(onClick = onTypeTrip) { Text(stringResource(R.string.type_trip), color = colors.accentText) }
             state.inputError?.let {
                 Text(stringResource(it.message()), color = colors.error, style = MaterialTheme.typography.bodyMedium)
             }

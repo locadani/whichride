@@ -252,4 +252,6 @@
     <string name="reset_distance">Reset distance to %1$s km</string>
     <string name="reset_time">Reset time to %1$s min</string>
     <string name="your_trip">Your trip</string>
+    <string name="type_trip">Type km and minutes instead</string>
+    <string name="manual_title_typed">Type your trip</string>
 </resources>

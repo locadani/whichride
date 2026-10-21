@@ -54,6 +54,7 @@ fun ManualTripScreen(
                         ManualReason.BUSY -> R.string.manual_title_busy
                         ManualReason.NO_ROUTE -> R.string.manual_title_no_route
                         ManualReason.NO_LOCATION -> R.string.manual_title_no_location
+                        ManualReason.TYPED -> R.string.manual_title_typed
                         ManualReason.OFFLINE, null -> R.string.manual_title_offline
                     },
                 ),
@@ -61,7 +62,10 @@ fun ManualTripScreen(
                 modifier = Modifier.semantics { heading() },
             )
             state.target?.label?.let { Text(stringResource(R.string.trip_to, it), style = MaterialTheme.typography.titleSmall) }
-            Text(stringResource(R.string.manual_body), style = MaterialTheme.typography.bodyMedium, color = WhichrideTheme.colors.onSurfaceMuted)
+            // "The comparison still works" is about a failed route; a typed trip had none.
+            if (state.manualReason != ManualReason.TYPED) {
+                Text(stringResource(R.string.manual_body), style = MaterialTheme.typography.bodyMedium, color = WhichrideTheme.colors.onSurfaceMuted)
+            }
             Row(horizontalArrangement = Arrangement.spacedBy(Space.sm)) {
                 NumberField(
                     state.manualKm, onKm, stringResource(R.string.manual_km),

@@ -51,7 +51,7 @@ fun WhichrideNav(viewModel: CompareViewModel) {
             when (val screen = state.screen) {
                 Screen.Home -> HomeScreen(
                     state, viewModel::onQuery, viewModel::submitQuery, viewModel::pickSuggestion,
-                    viewModel::changeStart, viewModel::openSettings,
+                    viewModel::changeStart, viewModel::openSettings, viewModel::typeTrip,
                 )
                 Screen.Resolving -> ResolvingScreen(state, onCancel = { viewModel.back() })
                 Screen.ManualTrip -> ManualTripScreen(

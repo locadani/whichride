@@ -1,6 +1,7 @@
 package io.github.locadani.whichride.compare
 
 import io.github.locadani.whichride.core.Choice
+import io.github.locadani.whichride.core.Trip
 import io.github.locadani.whichride.core.Destination
 import io.github.locadani.whichride.core.Prices
 import io.github.locadani.whichride.launch.MapsTarget
@@ -428,6 +429,24 @@ class CompareViewModelTest {
         assertEquals(routed, vm.state.value.trip)
         assertTrue(vm.state.value.tripEdit!!.kmInvalid)
         assertTrue(vm.state.value.tripEdit!!.minutesInvalid)
+    }
+
+    @Test fun `a typed trip needs no destination and forgets the last one`() = runTest(dispatcher) {
+        val vm = viewModel()
+        vm.onShared(coordinateLink)
+        advanceUntilIdle()
+        assertTrue(vm.back())
+        vm.typeTrip()
+        assertEquals(Screen.ManualTrip, vm.state.value.screen)
+        assertEquals(ManualReason.TYPED, vm.state.value.manualReason)
+        assertEquals("", vm.state.value.manualKm)
+        assertEquals("", vm.state.value.manualMinutes)
+        vm.onManualKm("12")
+        vm.onManualMinutes("30")
+        vm.submitManual()
+        assertEquals(listOf(Screen.Home, Screen.Result), vm.state.value.stack)
+        assertNull(vm.state.value.target)
+        assertEquals(Trip(12_000u, 1_800u), vm.state.value.trip)
     }
 
     @Test fun `back walks the stack and cancels routing`() = runTest(dispatcher) {

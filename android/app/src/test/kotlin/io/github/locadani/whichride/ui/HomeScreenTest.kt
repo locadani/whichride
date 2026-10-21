@@ -19,11 +19,12 @@ class HomeScreenTest {
     @get:Rule val compose = createComposeRule()
     private var submitted = 0
     private var startChanged = 0
+    private var typed = 0
     private val picked = mutableListOf<Place>()
 
     private fun show(state: UiState) = compose.setContent {
         WhichrideTheme {
-            HomeScreen(state, onQuery = {}, onSubmit = { submitted++ }, onSuggestion = { picked += it }, onChangeStart = { startChanged++ }, onSettings = {})
+            HomeScreen(state, onQuery = {}, onSubmit = { submitted++ }, onSuggestion = { picked += it }, onChangeStart = { startChanged++ }, onSettings = {}, onTypeTrip = { typed++ })
         }
     }
 
@@ -51,6 +52,12 @@ class HomeScreenTest {
         compose.onNodeWithText("Your location").assertExists()
         compose.onNodeWithText("Change").performClick()
         assertEquals(1, startChanged)
+    }
+
+    @Test fun kmAndMinutesCanBeTypedWithoutADestination() {
+        show(UiState())
+        compose.onNodeWithText("Type km and minutes instead").performClick()
+        assertEquals(1, typed)
     }
 
     @Test fun theTipShowsWhenIdle() {

@@ -21,7 +21,7 @@ import io.github.locadani.whichride.prices.PriceSource
 import io.github.locadani.whichride.server.Place
 
 /** Why the user is asked for km and minutes (R25). */
-enum class ManualReason { BUSY, OFFLINE, NO_ROUTE, NO_LOCATION }
+enum class ManualReason { BUSY, OFFLINE, NO_ROUTE, NO_LOCATION, TYPED }
 
 enum class InputError { NOT_A_MAPS_LINK, NO_DESTINATION, NOT_FOUND, TOO_LONG }
 

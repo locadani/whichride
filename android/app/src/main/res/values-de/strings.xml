@@ -251,4 +251,6 @@
     <string name="reset_distance">Strecke auf %1$s km zurücksetzen</string>
     <string name="reset_time">Zeit auf %1$s Min. zurücksetzen</string>
     <string name="your_trip">Deine Fahrt</string>
+    <string name="type_trip">Stattdessen km und Minuten eingeben</string>
+    <string name="manual_title_typed">Deine Fahrt eingeben</string>
 </resources>

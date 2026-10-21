@@ -218,6 +218,12 @@ class ResultScreenTest {
         compose.onNodeWithText("Your location").assertDoesNotExist()
     }
 
+    @Test fun aTypedTripHasNoMapsButton() {
+        show(resultState().copy(target = null))
+        compose.onNodeWithText("Your trip").assertExists()
+        compose.onNodeWithContentDescription("Open in Google Maps").assertDoesNotExist()
+    }
+
     @Test fun aTypedTripHasNoPlaces() {
         show(resultState().copy(target = null, tripEdit = TripEdit(Trip(7_400u, 1_320u))))
         compose.onNodeWithText("Your trip").assertExists()

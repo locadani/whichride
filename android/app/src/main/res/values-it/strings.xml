@@ -251,4 +251,6 @@
     <string name="reset_distance">Riporta la distanza a %1$s km</string>
     <string name="reset_time">Riporta il tempo a %1$s min</string>
     <string name="your_trip">Il tuo viaggio</string>
+    <string name="type_trip">Oppure scrivi km e minuti</string>
+    <string name="manual_title_typed">Scrivi il tuo viaggio</string>
 </resources>

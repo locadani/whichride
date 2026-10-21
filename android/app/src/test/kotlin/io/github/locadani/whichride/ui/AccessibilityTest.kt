@@ -101,7 +101,7 @@ class AccessibilityTest(private val fontScale: Float) {
     }
 
     @Test fun home() {
-        show { HomeScreen(resultState().copy(stack = listOf(Screen.Home)), {}, {}, {}, {}, {}) }
+        show { HomeScreen(resultState().copy(stack = listOf(Screen.Home)), {}, {}, {}, {}, {}, {}) }
         rule.assertAccessible()
     }
 

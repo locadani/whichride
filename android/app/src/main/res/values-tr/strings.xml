@@ -251,4 +251,6 @@
     <string name="reset_distance">Mesafeyi %1$s km yap</string>
     <string name="reset_time">Süreyi %1$s dk yap</string>
     <string name="your_trip">Yolculuğun</string>
+    <string name="type_trip">Bunun yerine km ve dakika yaz</string>
+    <string name="manual_title_typed">Yolculuğunu yaz</string>
 </resources>

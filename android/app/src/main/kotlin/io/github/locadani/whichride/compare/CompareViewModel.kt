@@ -334,6 +334,17 @@ class CompareViewModel(
         showResult(Trip(metres, seconds))
     }
 
+    /** km and minutes typed on Home, without a destination (§8): no route, no Maps. */
+    fun typeTrip() {
+        tripJob?.cancel()
+        mutableState.update {
+            it.copy(
+                stack = listOf(Screen.Home, Screen.ManualTrip), target = null, trip = null, tripEdit = null, step = null,
+                manualReason = ManualReason.TYPED, manualKm = "", manualMinutes = "", manualKmInvalid = false, manualMinutesInvalid = false,
+            )
+        }
+    }
+
     private fun showResult(trip: Trip) {
         mutableState.update { it.copy(trip = trip, tripEdit = null, step = null, stack = listOf(Screen.Home, Screen.Result)) }
         reprice()
