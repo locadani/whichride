@@ -2,6 +2,11 @@ package io.github.locadani.whichride.ui
 
 import androidx.compose.foundation.BorderStroke
 import androidx.compose.foundation.background
+import androidx.compose.ui.graphics.PathEffect
+import androidx.compose.ui.geometry.Offset
+import androidx.compose.foundation.layout.fillMaxHeight
+import androidx.compose.foundation.border
+import androidx.compose.foundation.Canvas
 import androidx.compose.foundation.clickable
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Box
@@ -155,3 +160,26 @@ fun PlainRow(icon: ImageVector, title: String, subtitle: String?, onClick: () ->
         }
     }
 }
+
+/** Filled dot, dotted line, hollow square: start, route, destination. */
+/** Shared by Home and the trip details, so the two read as the same route. */
+@Composable
+fun RouteMarks(modifier: Modifier) {
+    val colors = WhichrideTheme.colors
+    val stroke = WhichrideTokens.Size.strokeStrong
+    Column(modifier.fillMaxHeight(), horizontalAlignment = Alignment.CenterHorizontally) {
+        Box(Modifier.size(Space.sm).clip(CircleShape).background(colors.accent))
+        Canvas(Modifier.weight(1f).width(stroke).padding(vertical = Space.xxs)) {
+            val dash = Space.xxs.toPx()
+            drawLine(
+                colors.outline,
+                Offset(size.width / 2, 0f),
+                Offset(size.width / 2, size.height),
+                strokeWidth = stroke.toPx(),
+                pathEffect = PathEffect.dashPathEffect(floatArrayOf(dash, dash)),
+            )
+        }
+        Box(Modifier.size(Space.sm).border(stroke, colors.onSurfaceMuted, RoundedCornerShape(Space.xxs)))
+    }
+}
+

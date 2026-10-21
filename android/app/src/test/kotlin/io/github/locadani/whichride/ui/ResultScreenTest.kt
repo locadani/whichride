@@ -216,11 +216,19 @@ class ResultScreenTest {
         show(resultState().copy(tripEdit = TripEdit(Trip(7_400u, 1_320u))))
         compose.onNodeWithText("7.4 km · 22 min", substring = true).assertDoesNotExist()
         compose.onNodeWithContentDescription("Hide trip details").assertExists()
-        compose.onNodeWithText("Your location").assertExists()
-        compose.onNodeWithText("Markthalle Neun").assertExists()
+        compose.onNodeWithText("Your location", useUnmergedTree = true).assertExists()
+        compose.onNodeWithText("Markthalle Neun", useUnmergedTree = true).assertExists()
         compose.onNodeWithText("7.4").assertExists()
         compose.onNodeWithText("22").assertExists()
         compose.onNodeWithContentDescription("Reset distance to 7.4 km").assertDoesNotExist()
+    }
+
+    @Test fun openTripDetailsDrawTheRouteAndNameItForTalkBack() {
+        show(resultState().copy(tripEdit = TripEdit(Trip(7_400u, 1_320u))))
+        compose.onNodeWithText("From").assertDoesNotExist()
+        compose.onNodeWithText("To").assertDoesNotExist()
+        compose.onNodeWithContentDescription("From: Your location").assertExists()
+        compose.onNodeWithContentDescription("To: Markthalle Neun").assertExists()
     }
 
     @Test fun anEditedNumberCanBeReset() {
@@ -237,9 +245,9 @@ class ResultScreenTest {
     @Test fun aChosenStartIsShownByName() {
         val start = Start.Chosen(Place("Alexanderplatz, Berlin", Coordinate(525_219_000, 134_132_000)))
         show(resultState().copy(start = start, tripEdit = TripEdit(Trip(7_400u, 1_320u))))
-        compose.onNodeWithText("Alexanderplatz").assertExists()
-        compose.onNodeWithText("Berlin").assertExists()
-        compose.onNodeWithText("Your location").assertDoesNotExist()
+        compose.onNodeWithText("Alexanderplatz", useUnmergedTree = true).assertExists()
+        compose.onNodeWithText("Berlin", useUnmergedTree = true).assertExists()
+        compose.onNodeWithText("Your location", useUnmergedTree = true).assertDoesNotExist()
     }
 
     @Test fun invalidTripNumbersSayWhatIsAllowed() {
