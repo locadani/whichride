@@ -16,7 +16,7 @@ async function* files(dir) {
     return;
   }
   for (const e of entries) {
-    if (['node_modules', 'build', '.gradle'].includes(e.name)) continue;
+    if (['node_modules', 'build', '.gradle', 'dist', '.astro', 'generated'].includes(e.name)) continue;
     const path = join(dir, e.name);
     if (e.isDirectory()) yield* files(path);
     else yield path;
