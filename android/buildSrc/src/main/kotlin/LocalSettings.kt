@@ -2,11 +2,15 @@ import java.io.File
 import java.util.Properties
 import org.gradle.api.DefaultTask
 import org.gradle.api.GradleException
+import org.gradle.api.file.ConfigurableFileCollection
 import org.gradle.api.file.RegularFileProperty
 import org.gradle.api.provider.ProviderFactory
 import org.gradle.api.provider.SetProperty
 import org.gradle.api.tasks.Input
 import org.gradle.api.tasks.InputFile
+import org.gradle.api.tasks.InputFiles
+import org.gradle.api.tasks.PathSensitive
+import org.gradle.api.tasks.PathSensitivity
 import org.gradle.api.tasks.TaskAction
 
 /**
@@ -40,21 +44,34 @@ class LocalSettings(private val providers: ProviderFactory, localFile: File) {
     }
 }
 
-/** Fails when the build reads a setting the template doesn't list, or the template lists one it never reads. */
+/**
+ * Fails when the build uses a setting the template doesn't list, or the template lists one it
+ * never uses. "Used" is every name read through [LocalSettings] plus every "whichride.…" string
+ * literal in the build scripts, so a read that skips [LocalSettings] is caught too.
+ */
 abstract class CheckLocalSettings : DefaultTask() {
     @get:Input abstract val names: SetProperty<String>
-    @get:InputFile abstract val template: RegularFileProperty
+    @get:InputFile @get:PathSensitive(PathSensitivity.RELATIVE) abstract val template: RegularFileProperty
+    @get:InputFiles @get:PathSensitive(PathSensitivity.RELATIVE) abstract val buildScripts: ConfigurableFileCollection
 
     @TaskAction
     fun check() {
         val listed = Properties().apply { template.get().asFile.inputStream().use(::load) }.stringPropertyNames()
-        val used = names.get()
-        val unlisted = used - listed
-        val unused = listed - used
-        if (unlisted.isNotEmpty() || unused.isNotEmpty()) {
-            throw GradleException(
-                "android/local.properties.example is out of date. Add: $unlisted. Remove: $unused.",
-            )
-        }
+        val used = names.get() + buildScripts.files.flatMap { settingNamesIn(it.readText()) }
+        templateProblem(used, listed)?.let { throw GradleException(it) }
     }
 }
+
+/** What is wrong between the settings the build uses and the ones the template lists, or null. */
+fun templateProblem(used: Set<String>, listed: Set<String>): String? {
+    val unlisted = (used - listed).sorted()
+    val unused = (listed - used).sorted()
+    if (unlisted.isEmpty() && unused.isEmpty()) return null
+    return "android/local.properties.example is out of date. Add: $unlisted. Remove: $unused."
+}
+
+private val settingLiteral = Regex(""""(whichride\.[A-Za-z][A-Za-z0-9_.]*[A-Za-z0-9])""")
+
+/** Setting names in string literals: `"whichride.serverUrl"`, or a message starting with one. */
+fun settingNamesIn(source: String): Set<String> =
+    settingLiteral.findAll(source).map { it.groupValues[1] }.toSet()

@@ -109,10 +109,18 @@ androidComponents.onVariants { variant ->
     variant.sources.assets?.addGeneratedSourceDirectory(bundledFiles, CopyIntoDirectory::outputDir)
 }
 
-tasks.register<CheckLocalSettings>("checkLocalSettings") {
-    names.set(settings.names)
+// Every build fails while local.properties.example and the settings the build uses disagree.
+val checkLocalSettings = tasks.register<CheckLocalSettings>("checkLocalSettings") {
+    names.set(provider { settings.names })
     template.set(rootProject.layout.projectDirectory.file("local.properties.example"))
+    buildScripts.from(
+        rootProject.fileTree(rootProject.projectDir) {
+            include("*.gradle.kts", "*/*.gradle.kts", "buildSrc/src/main/**/*.kt")
+            exclude("**/build/**")
+        },
+    )
 }
+tasks.named("preBuild") { dependsOn(checkLocalSettings) }
 
 useHostRustInTests()
 
