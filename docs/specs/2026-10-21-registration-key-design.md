@@ -27,6 +27,45 @@ So the server needs a second way to decide who may register, one that:
 | App build | Play Integrity | `whichride.registrationKey` in `~/.gradle/gradle.properties` | property removed |
 | Current location, address search, price reports on the phone | refused | work | work (installed from Play) |
 
+### In plain words
+
+**The question the server asks.** The server is public on the internet. Before it lets a
+request use the routing service or write a price, it asks: *is this really whichride on a real
+phone?* Without that check, anyone could write a script that pretends to be the app, uses up the
+routing quota and posts fake prices. `PLAY_INTEGRITY` chooses how the server answers:
+
+| Setting | How the server decides | Where it is used |
+|---|---|---|
+| `google` | Asks Google: "was this app installed from Google Play, unmodified?" Only Play installs pass. | Once the app is on Play. Today's setting, which is why a sideloaded phone is refused. |
+| `off` | Does not check: every request is accepted. | Only on the laptop, when the app talks to a server running on that laptop. The server refuses to start with `off` on Cloud Run. Already exists. |
+| `key` (new) | Checks for a password, the **registration key**. | The real server, while the owner is the only user and the app is not on Play. |
+
+**The registration key** is a long random password (about 64 characters) that only the owner
+knows. It is kept in two places: Google Cloud's secret store, where the server reads it, and
+the owner's `~/.gradle/gradle.properties`, from where it is built into the owner's copy of the
+app. The app sends it with every request that needs it; the server compares it with its copy.
+The server refuses to start with a key shorter than 32 bytes, so a short, guessable key such as
+`ciao` cannot be set by mistake.
+
+**"Attestation picked at build time."** Attestation is the proof the app attaches to a request:
+either a Play Integrity token (Google vouching that the app came from Play) or the registration
+key. The choice is made when the app is built on the laptop, not while it runs. `./gradlew` looks
+in `~/.gradle/gradle.properties`:
+
+| What the build finds | What the app does |
+|---|---|
+| `whichride.registrationKey=…` | Sends the key. The owner's phone build now. |
+| No key, but a Cloud project number | Asks Google for a Play Integrity token. The Play build later. |
+| Neither | Sends nothing. A test build without a server. |
+
+So the owner adds one line once and builds as usual; for Play, deletes that line and builds
+again. No code changes. The release workflow, which builds the file uploaded to Play, refuses to
+run when a key is set, so the password can never end up in the app on the store.
+
+In the code, the app already asks one component, "give me the proof for this request", without
+knowing how the proof is made. Today that component only knows Play; this change adds a second
+version that returns the key, and the build decides which one goes into the app.
+
 ## 3. Design
 
 ### 3.1 Server: a third integrity mode
