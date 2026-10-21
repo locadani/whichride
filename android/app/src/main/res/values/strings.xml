@@ -242,4 +242,6 @@
     <string name="line_started_km">Every started km counts</string>
     <string name="line_started_minutes">Every started minute counts</string>
     <string name="line_started_both">Every started km and minute counts</string>
+    <string name="remove">Remove</string>
+    <string name="option_removed">%1$s %2$s removed</string>
 </resources>

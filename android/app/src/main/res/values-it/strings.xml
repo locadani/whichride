@@ -241,4 +241,6 @@
     <string name="line_started_km">Ogni km iniziato si paga intero</string>
     <string name="line_started_minutes">Ogni minuto iniziato si paga intero</string>
     <string name="line_started_both">Ogni km e minuto iniziato si paga intero</string>
+    <string name="remove">Rimuovi</string>
+    <string name="option_removed">%1$s %2$s rimossa</string>
 </resources>

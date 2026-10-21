@@ -367,9 +367,29 @@ class CompareViewModel(
     fun remove(choice: Choice) {
         val choices = store.load() - choice
         store.save(choices)
-        mutableState.update { it.copy(choices = choices, selected = it.selected.takeIf { s -> s != choice }) }
+        mutableState.update {
+            val option = it.options?.ranked?.firstOrNull { o -> o.choice == choice }
+            it.copy(
+                choices = choices,
+                selected = it.selected.takeIf { s -> s != choice },
+                removed = option?.let { o -> Removed(o, wasSelected = it.selected == choice) },
+            )
+        }
         reprice()
     }
+
+    /** Puts the car just removed back, selected again if it was. */
+    fun undoRemove() {
+        val removed = state.value.removed ?: return
+        val choices = store.load() + removed.choice
+        store.save(choices)
+        mutableState.update {
+            it.copy(choices = choices, selected = if (removed.wasSelected) removed.choice else it.selected, removed = null)
+        }
+        reprice()
+    }
+
+    fun removedMessageShown() = mutableState.update { it.copy(removed = null) }
 
     fun select(choice: Choice) = mutableState.update { it.copy(selected = choice) }
 

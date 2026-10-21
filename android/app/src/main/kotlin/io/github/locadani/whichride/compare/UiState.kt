@@ -5,6 +5,7 @@ import io.github.locadani.whichride.core.Coordinate
 import io.github.locadani.whichride.core.Options
 import io.github.locadani.whichride.core.ProviderInfo
 import io.github.locadani.whichride.core.Question
+import io.github.locadani.whichride.core.RankedOption
 import io.github.locadani.whichride.core.Quote
 import io.github.locadani.whichride.core.Trip
 import io.github.locadani.whichride.crowd.PROPOSAL_PREFIX
@@ -80,6 +81,8 @@ data class UiState(
     val dealForm: DealForm? = null,
     /** Once discounts just used by Open <provider>, for the Undo snackbar (R5). */
     val usedOnce: List<String> = emptyList(),
+    /** The car just swiped away, for the Undo snackbar. */
+    val removed: Removed? = null,
     // Crowd (§7, §5.1)
     /** A server is configured, so reports and questions can be sent. */
     val crowdEnabled: Boolean = false,
@@ -100,3 +103,8 @@ fun UiState.reportTarget(): Quote? {
 
 /** Reports are possible for an added, accepted, unlocked offer (R9, R14). */
 fun UiState.canReport(): Boolean = reportTarget()?.let { !it.proposed && it.offerId !in lockedOffers } == true
+
+/** A car the user removed from the comparison, and whether it was the selected one. */
+data class Removed(val option: RankedOption, val wasSelected: Boolean) {
+    val choice get() = option.choice
+}

@@ -1,6 +1,7 @@
 package io.github.locadani.whichride.ui
 
 import androidx.compose.foundation.BorderStroke
+import androidx.compose.foundation.background
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Column
 import androidx.compose.foundation.layout.FlowRow
@@ -20,7 +21,7 @@ import io.github.locadani.whichride.personal.hasActiveRefuelCredit
 import io.github.locadani.whichride.personal.isActive
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.filled.Add
-import androidx.compose.material.icons.filled.Close
+import androidx.compose.material.icons.outlined.Delete
 import androidx.compose.material.icons.filled.KeyboardArrowDown
 import androidx.compose.material.icons.filled.KeyboardArrowUp
 import androidx.compose.material.icons.filled.Place
@@ -31,6 +32,8 @@ import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.OutlinedIconButton
 import androidx.compose.material3.IconButtonDefaults
 import androidx.compose.material3.Surface
+import androidx.compose.material3.SwipeToDismissBox
+import androidx.compose.material3.rememberSwipeToDismissBoxState
 import androidx.compose.material3.Text
 import androidx.compose.material3.TextButton
 import androidx.compose.runtime.Composable
@@ -41,6 +44,10 @@ import androidx.compose.runtime.setValue
 import io.github.locadani.whichride.compare.canReport
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
+import androidx.compose.ui.draw.clip
+import androidx.compose.ui.graphics.Shape
+import androidx.compose.ui.semantics.CustomAccessibilityAction
+import androidx.compose.ui.semantics.customActions
 import androidx.compose.ui.res.pluralStringResource
 import androidx.compose.ui.res.stringResource
 import androidx.compose.ui.semantics.Role
@@ -145,11 +152,16 @@ fun ResultScreen(state: UiState, actions: ResultActions) {
                 if (ranked.isEmpty()) {
                     item { Intro(state) }
                 } else {
-                    item {
-                        Hero(ranked.first(), state, selected = chosen == ranked.first() && ranked.size > 1, details(ranked.first()), actions.onSelect, actions.onRemove)
+                    // Keyed, so a swipe's state never moves on to the option that takes this place.
+                    item(key = ranked.first().choice.toString()) {
+                        Removable(ranked.first(), state, MaterialTheme.shapes.large, actions.onRemove) {
+                            Hero(ranked.first(), state, selected = chosen == ranked.first() && ranked.size > 1, details(ranked.first()), actions.onSelect)
+                        }
                     }
                     items(ranked.drop(1), key = { it.choice.toString() }) { option ->
-                        OptionRow(option, ranked.first().quote.totalCents, state, selected = chosen == option, details(option), actions.onSelect, actions.onRemove)
+                        Removable(option, state, MaterialTheme.shapes.small, actions.onRemove) {
+                            OptionRow(option, ranked.first().quote.totalCents, state, selected = chosen == option, details(option), actions.onSelect)
+                        }
                     }
                 }
                 item {
@@ -207,7 +219,7 @@ private fun Intro(state: UiState) {
 }
 
 @Composable
-private fun Hero(option: RankedOption, state: UiState, selected: Boolean, details: Details, onSelect: (Choice) -> Unit, onRemove: (Choice) -> Unit) {
+private fun Hero(option: RankedOption, state: UiState, selected: Boolean, details: Details, onSelect: (Choice) -> Unit) {
     val colors = WhichrideTheme.colors
     val provider = state.providers.nameOf(option.quote.providerId)
     Surface(
@@ -233,7 +245,6 @@ private fun Hero(option: RankedOption, state: UiState, selected: Boolean, detail
                     }
                 }
                 DetailsButton(option, provider, details)
-                RemoveButton(option, provider, onRemove)
             }
             if (details.open) {
                 PriceLines(option.quote.lines, muted = colors.onHero, Modifier.padding(start = Space.lg, end = Space.md, bottom = Space.md))
@@ -250,7 +261,6 @@ private fun OptionRow(
     selected: Boolean,
     details: Details,
     onSelect: (Choice) -> Unit,
-    onRemove: (Choice) -> Unit,
 ) {
     val colors = WhichrideTheme.colors
     val provider = state.providers.nameOf(option.quote.providerId)
@@ -283,7 +293,6 @@ private fun OptionRow(
                     }
                 }
                 DetailsButton(option, provider, details)
-                RemoveButton(option, provider, onRemove)
             }
             if (details.open) {
                 PriceLines(
@@ -311,11 +320,30 @@ private fun DetailsButton(option: RankedOption, provider: String, details: Detai
     }
 }
 
+/** Swiping an option left removes it; TalkBack gets the same as an action (no swipe needed). */
 @Composable
-private fun RemoveButton(option: RankedOption, provider: String, onRemove: (Choice) -> Unit) {
-    IconButton(onClick = { onRemove(option.choice) }) {
-        Icon(Icons.Filled.Close, contentDescription = stringResource(R.string.remove_option, provider, offerLabel(option)))
-    }
+private fun Removable(option: RankedOption, state: UiState, shape: Shape, onRemove: (Choice) -> Unit, content: @Composable () -> Unit) {
+    val colors = WhichrideTheme.colors
+    val label = stringResource(R.string.remove_option, state.providers.nameOf(option.quote.providerId), offerLabel(option))
+    val swipe = rememberSwipeToDismissBoxState()
+    SwipeToDismissBox(
+        swipe,
+        enableDismissFromStartToEnd = false,
+        onDismiss = { onRemove(option.choice) },
+        modifier = Modifier.clip(shape).semantics {
+            customActions = listOf(CustomAccessibilityAction(label) { onRemove(option.choice); true })
+        },
+        backgroundContent = {
+            Row(
+                Modifier.fillMaxSize().background(colors.error).padding(horizontal = Space.lg),
+                horizontalArrangement = Arrangement.spacedBy(Space.xs, Alignment.End),
+                verticalAlignment = Alignment.CenterVertically,
+            ) {
+                Icon(Icons.Outlined.Delete, contentDescription = null, tint = colors.onError)
+                Text(stringResource(R.string.remove), color = colors.onError, style = MaterialTheme.typography.labelLarge)
+            }
+        },
+    ) { content() }
 }
 
 @Composable

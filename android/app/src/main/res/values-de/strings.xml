@@ -241,4 +241,6 @@
     <string name="line_started_km">Jeder angefangene km zählt</string>
     <string name="line_started_minutes">Jede angefangene Minute zählt</string>
     <string name="line_started_both">Jeder angefangene km und jede angefangene Minute zählt</string>
+    <string name="remove">Entfernen</string>
+    <string name="option_removed">%1$s %2$s entfernt</string>
 </resources>

@@ -1,6 +1,12 @@
 package io.github.locadani.whichride.ui
 
+import androidx.compose.ui.semantics.SemanticsActions
+import androidx.compose.ui.semantics.getOrNull
+import androidx.compose.ui.test.SemanticsMatcher
 import androidx.compose.ui.test.assertIsEnabled
+import androidx.compose.ui.test.performTouchInput
+import androidx.compose.ui.test.swipeLeft
+import androidx.compose.ui.test.swipeRight
 import androidx.compose.ui.test.hasScrollAction
 import androidx.compose.ui.test.hasText
 import androidx.compose.ui.test.performScrollToNode
@@ -107,6 +113,39 @@ class ResultScreenTest {
         compose.onNodeWithText("7.4 km × €0.79").assertExists()
     }
 
+    private fun showRemovable(removed: MutableList<Choice>) {
+        val polo = RankedOption(Choice.Offer("bolt.polo"), QUOTES[2])
+        val miles = RankedOption(Choice.Offer("miles.s"), QUOTES[1])
+        compose.setContent { WhichrideTheme { ResultScreen(resultState(listOf(miles, polo)), ResultActions(onRemove = { removed += it })) } }
+    }
+
+    @Test fun swipingAnOptionLeftRemovesIt() {
+        val removed = mutableListOf<Choice>()
+        showRemovable(removed)
+        compose.onNodeWithText("Bolt Drive VW Polo").performTouchInput { swipeLeft() }
+        compose.waitForIdle()
+        assertEquals(listOf<Choice>(Choice.Offer("bolt.polo")), removed)
+    }
+
+    @Test fun swipingRightDoesNothing() {
+        val removed = mutableListOf<Choice>()
+        showRemovable(removed)
+        compose.onNodeWithText("Bolt Drive VW Polo").performTouchInput { swipeRight() }
+        compose.waitForIdle()
+        assertEquals(emptyList<Choice>(), removed)
+    }
+
+    @Test fun talkBackCanRemoveWithoutSwiping() {
+        val removed = mutableListOf<Choice>()
+        showRemovable(removed)
+        val label = "Remove MILES S"
+        val node = compose.onNode(SemanticsMatcher("has $label") {
+            it.config.getOrNull(SemanticsActions.CustomActions).orEmpty().any { action -> action.label == label }
+        }).fetchSemanticsNode()
+        compose.runOnUiThread { node.config[SemanticsActions.CustomActions].single { it.label == label }.action() }
+        assertEquals(listOf<Choice>(Choice.Offer("miles.s")), removed)
+    }
+
     @Test fun withoutOptionsOpenIsDisabledAndAddingIsTheWayOn() {
         show(resultState())
         compose.onNodeWithText("Add cars to compare").assertIsNotEnabled()
@@ -125,7 +164,7 @@ class ResultScreenTest {
         val cheaper = "1 car you did not add is cheaper: €7.90 (Bolt Drive Kia Picanto)."
         compose.onNode(hasScrollAction()).performScrollToNode(hasText(cheaper))
         compose.onNodeWithText(cheaper).assertExists()
-        compose.onNodeWithContentDescription("Remove Bolt Drive VW Polo").assertExists()
+        compose.onNodeWithContentDescription("Remove Bolt Drive VW Polo").assertDoesNotExist()
         compose.onNodeWithText("Open MILES").assertIsEnabled().performClick()
         assertEquals(1, opened)
     }

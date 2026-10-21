@@ -39,6 +39,7 @@ fun WhichrideNav(viewModel: CompareViewModel) {
     }
     val snackbar = remember { SnackbarHostState() }
     OnceUndo(state, snackbar, viewModel::undoOnce, viewModel::onceMessageShown)
+    RemovedUndo(state, snackbar, viewModel::undoRemove, viewModel::removedMessageShown)
     val crowdText = state.crowdMessage?.let { stringResource(it.text()) }
     LaunchedEffect(state.crowdMessage) {
         if (crowdText == null) return@LaunchedEffect

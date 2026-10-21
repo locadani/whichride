@@ -241,4 +241,6 @@
     <string name="line_started_km">Başlanan her km tam sayılır</string>
     <string name="line_started_minutes">Başlanan her dakika tam sayılır</string>
     <string name="line_started_both">Başlanan her km ve dakika tam sayılır</string>
+    <string name="remove">Kaldır</string>
+    <string name="option_removed">%1$s %2$s kaldırıldı</string>
 </resources>

@@ -297,6 +297,34 @@ class CompareViewModelTest {
         assertEquals(1, vm.state.value.options!!.ranked.size)
     }
 
+    @Test fun `a removed car can be put back with its selection`() = runTest(dispatcher) {
+        store.choices = setOf(Choice.Offer("bolt.vw-polo"), Choice.AnyOf("miles"))
+        val vm = viewModel()
+        vm.onShared(coordinateLink)
+        advanceUntilIdle()
+        vm.select(Choice.AnyOf("miles"))
+        vm.remove(Choice.AnyOf("miles"))
+        assertEquals(Choice.AnyOf("miles"), vm.state.value.removed?.choice)
+        assertEquals(1, vm.state.value.options!!.ranked.size)
+        vm.undoRemove()
+        assertEquals(setOf(Choice.Offer("bolt.vw-polo"), Choice.AnyOf("miles")), store.choices)
+        assertEquals(Choice.AnyOf("miles"), vm.state.value.selected)
+        assertEquals(null, vm.state.value.removed)
+        assertEquals(2, vm.state.value.options!!.ranked.size)
+    }
+
+    @Test fun `once the removed message is gone the car stays removed`() = runTest(dispatcher) {
+        store.choices = setOf(Choice.Offer("bolt.vw-polo"), Choice.AnyOf("miles"))
+        val vm = viewModel()
+        vm.onShared(coordinateLink)
+        advanceUntilIdle()
+        vm.remove(Choice.AnyOf("miles"))
+        vm.removedMessageShown()
+        assertEquals(null, vm.state.value.removed)
+        vm.undoRemove()
+        assertEquals(setOf(Choice.Offer("bolt.vw-polo")), store.choices)
+    }
+
     @Test fun `check in opens the provider without leaving step 2`() = runTest(dispatcher) {
         val vm = viewModel()
         vm.onShared(coordinateLink)
