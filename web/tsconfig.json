@@ -1,0 +1,6 @@
+{
+  "extends": "astro/tsconfigs/strict",
+  "include": [".astro/types.d.ts", "**/*"],
+  "exclude": ["dist", "src/generated"],
+  "compilerOptions": { "types": ["vitest/globals", "@testing-library/jest-dom/vitest"] }
+}
