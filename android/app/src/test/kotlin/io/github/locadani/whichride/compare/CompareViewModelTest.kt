@@ -449,6 +449,36 @@ class CompareViewModelTest {
         assertEquals(Trip(12_000u, 1_800u), vm.state.value.trip)
     }
 
+    @Test fun `back to Home keeps what was searched`() = runTest(dispatcher) {
+        val vm = viewModel()
+        vm.onQuery("Markthalle Neun")
+        vm.submitQuery()
+        advanceUntilIdle()
+        assertEquals(Screen.Result, vm.state.value.screen)
+        assertTrue(vm.back())
+        assertEquals(Screen.Home, vm.state.value.screen)
+        assertEquals("Markthalle Neun", vm.state.value.query)
+        assertTrue(vm.state.value.suggestions.isEmpty())
+    }
+
+    @Test fun `back to Home shows the picked place in full`() = runTest(dispatcher) {
+        val vm = viewModel()
+        vm.onQuery("Markth")
+        vm.pickSuggestion(Place("Markthalle Neun, Berlin", NEUN))
+        advanceUntilIdle()
+        assertTrue(vm.back())
+        assertEquals("Markthalle Neun, Berlin", vm.state.value.query)
+    }
+
+    @Test fun `back to Home keeps a shared link ready to compare again`() = runTest(dispatcher) {
+        val vm = viewModel()
+        vm.onShared(coordinateLink)
+        advanceUntilIdle()
+        assertTrue(vm.back())
+        assertEquals(coordinateLink, vm.state.value.query)
+        assertTrue(vm.state.value.linkInQuery)
+    }
+
     @Test fun `back walks the stack and cancels routing`() = runTest(dispatcher) {
         routes.routeGate = CompletableDeferred()
         val vm = viewModel()

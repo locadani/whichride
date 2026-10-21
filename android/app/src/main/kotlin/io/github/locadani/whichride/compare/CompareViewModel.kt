@@ -124,7 +124,7 @@ class CompareViewModel(
             mutableState.update { it.copy(stack = listOf(Screen.Home), step = null, inputError = e.toInputError()) }
             return
         }
-        startTrip(destination, sharedLabel(text))
+        startTrip(destination, sharedLabel(text), HomeInput(text.trim().take(MAX_QUERY_CHARS), link = true))
     }
 
     fun onQuery(text: String) {
@@ -156,10 +156,10 @@ class CompareViewModel(
         val text = state.value.query.trim()
         if (text.isEmpty()) return
         if (state.value.linkInQuery) return onShared(text)
-        startTrip(Destination.Place(text, null), null)
+        startTrip(Destination.Place(text, null), null, HomeInput(text, link = false))
     }
 
-    fun pickSuggestion(place: Place) = startTrip(Destination.Coordinates(place.at, place.label), null)
+    fun pickSuggestion(place: Place) = startTrip(Destination.Coordinates(place.at, place.label), null, HomeInput(place.label, link = false))
 
     // --- Start -------------------------------------------------------------------------
 
@@ -203,13 +203,16 @@ class CompareViewModel(
 
     // --- Trip --------------------------------------------------------------------------
 
-    private fun startTrip(destination: Destination, label: String?) {
+    /** What Home shows when the user comes back from a trip: what they searched, picked or shared. */
+    private data class HomeInput(val query: String, val link: Boolean)
+
+    private fun startTrip(destination: Destination, label: String?, home: HomeInput) {
         tripJob?.cancel()
         searchJob?.cancel()
         mutableState.update {
             it.copy(
                 stack = listOf(Screen.Home, Screen.Resolving),
-                query = "", linkInQuery = false, suggestions = emptyList(), inputError = null,
+                query = home.query, linkInQuery = home.link, suggestions = emptyList(), inputError = null,
                 target = Target(label, null, MapsTarget.Query(label.orEmpty())),
                 step = ResolvingStep.FINDING_PLACE, trip = null, manualReason = null, selected = null, refuel = false,
             )
