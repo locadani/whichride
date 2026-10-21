@@ -10,3 +10,8 @@ test('lockedVersion reads Cargo.lock entries', () => {
   expect(lockedVersion(lock, 'wasm-bindgen-macro')).toBeNull();
   expect(lockedVersion(root('Cargo.lock'), 'wasm-bindgen')).toMatch(/^\d+\.\d+\.\d+$/);
 });
+
+test('the Dockerfile installs the wasm-bindgen CLI that matches Cargo.lock', () => {
+  const version = lockedVersion(root('Cargo.lock'), 'wasm-bindgen');
+  expect(root('Dockerfile')).toContain(`cargo install wasm-bindgen-cli --version ${version} --locked`);
+});

@@ -14,6 +14,7 @@ Berlin, including your own discounts and subscriptions, then opens the provider'
 - [Feasibility spike: Rust on Android via UniFFI](spikes/uniffi-android/README.md)
 - [Design tokens and logo](design/README.md): every colour, font and size, in one file
 - [Android app](android/README.md): build, test, point it at a server
+- [Website](web/README.md): one page per language, the core in WebAssembly (`crates/wasm`), served by the server
 
 One Rust core (`crates/core`) holds every pricing rule. The Android app (UniFFI), the website
 (WebAssembly) and the server (Axum) all call it, so their numbers can never disagree.

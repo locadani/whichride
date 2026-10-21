@@ -7,3 +7,9 @@ infra
 .env
 .env.*
 **/*.md
+**/node_modules
+web/dist
+web/.astro
+web/src/generated
+android/**/build
+android/.gradle
