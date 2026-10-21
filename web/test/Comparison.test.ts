@@ -178,3 +178,11 @@ test('changes are remembered', async () => {
   const saved = JSON.parse(localStorage.getItem(KEY) ?? '{}');
   expect(saved).toMatchObject({ km: '7.4', minutes: '22', offers: [] });
 });
+
+test('a car remembered twice is listed and counted once, even without a trip', async () => {
+  localStorage.setItem(KEY, JSON.stringify({ km: '', minutes: '', offers: ['miles.s', 'miles.s'], savedAt: Date.now() }));
+  const user = await page();
+  expect(within(screen.getByRole('list')).getAllByRole('listitem')).toHaveLength(1);
+  await user.click(screen.getByRole('button', { name: 'Add more cars' }));
+  expect(within(screen.getByRole('dialog')).getByRole('button', { name: 'Add 1 car' })).toBeInTheDocument();
+});

@@ -101,7 +101,9 @@ fn parse_quality(text: &str) -> Option<u16> {
 async fn site_headers(request: Request, next: Next) -> Response {
     let hashed = request.uri().path().starts_with("/_astro/");
     let mut response = next.run(request).await;
-    let immutable = hashed && response.status().is_success();
+    // A 304 updates the cached copy's headers (RFC 9111 §4.3.4), so it must keep `immutable` too.
+    let immutable =
+        hashed && (response.status().is_success() || response.status() == StatusCode::NOT_MODIFIED);
     let headers = response.headers_mut();
     headers.insert(
         header::CACHE_CONTROL,

@@ -137,3 +137,21 @@ async fn the_api_and_the_site_share_one_router() {
     assert_eq!(status, StatusCode::NOT_FOUND);
     assert_eq!(error, r#"{"error":"not_found"}"#);
 }
+
+#[tokio::test]
+async fn a_revalidated_hashed_asset_stays_immutable() {
+    let router = site::router(&fake_site());
+    let (_, headers, _) = get(&router, "/_astro/app.1a2b3c.js", &[]).await;
+    let modified = headers[header::LAST_MODIFIED].to_str().unwrap().to_owned();
+    let (status, headers, _) = get(
+        &router,
+        "/_astro/app.1a2b3c.js",
+        &[("if-modified-since", modified.as_str())],
+    )
+    .await;
+    assert_eq!(status, StatusCode::NOT_MODIFIED);
+    assert_eq!(
+        headers[header::CACHE_CONTROL],
+        "public, max-age=31536000, immutable"
+    );
+}

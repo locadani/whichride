@@ -54,7 +54,8 @@ export function recall(storage: Storage | null, now: number): Remembered | null 
       offers.length <= MAX_OFFERS &&
       offers.every((o) => typeof o === 'string' && o.length <= 100)
     ) {
-      return { km: v.km, minutes: v.minutes, offers: offers as string[] };
+      // Each car once: duplicates would be counted twice and break keyed lists.
+      return { km: v.km, minutes: v.minutes, offers: [...new Set(offers as string[])] };
     }
   } catch {
     // malformed: forgotten below

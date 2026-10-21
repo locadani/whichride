@@ -34,3 +34,8 @@ test('storage that throws is ignored', () => {
   expect(recall(broken, NOW)).toBeNull();
   expect(recall(null, NOW)).toBeNull();
 });
+
+test('an offer remembered twice comes back once', () => {
+  localStorage.setItem(KEY, JSON.stringify({ ...VALUE, offers: ['miles.s', 'miles.s', 'bolt.vw-polo'], savedAt: NOW }));
+  expect(recall(localStorage, NOW)?.offers).toEqual(['miles.s', 'bolt.vw-polo']);
+});
