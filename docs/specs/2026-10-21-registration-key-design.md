@@ -119,6 +119,21 @@ fun interface IntegrityTokens { suspend fun token(requestHash: String): String? 
 
 `Installs`, `ServerApi` and every screen stay as they are.
 
+### 3.3 Infrastructure
+
+The `cloud-run-app` module attaches all secrets with one switch, `attach_secret_env`. A
+secret with no version stops Cloud Run from starting, so a new secret cannot be added and
+attached in one apply. The module changes the switch to a set:
+
+```hcl
+secret_env       = { ORS_API_KEY = "ors-api-key", REGISTRATION_KEY = "registration-key" }
+attached_secrets = ["ORS_API_KEY"]                       # step 1
+attached_secrets = ["ORS_API_KEY", "REGISTRATION_KEY"]   # step 3
+```
+
+The key is created by the owner in Cloud Shell, never by Terraform, so it is not in the
+Terraform state (same rule as `DATABASE_URL` and the ORS key).
+
 ### 3.4 Where the owner's local values live
 
 All of whichride's local, per-machine values move from `~/.gradle/gradle.properties` to
@@ -134,21 +149,6 @@ and `local.properties` is the usual Android place for per-project values that ar
   and environment variables, so CI and the release workflow keep working unchanged.
 - **Migration:** the owner moves the existing lines over once; the build also still accepts them
   from `~/.gradle/gradle.properties`.
-
-### 3.3 Infrastructure
-
-The `cloud-run-app` module attaches all secrets with one switch, `attach_secret_env`. A
-secret with no version stops Cloud Run from starting, so a new secret cannot be added and
-attached in one apply. The module changes the switch to a set:
-
-```hcl
-secret_env       = { ORS_API_KEY = "ors-api-key", REGISTRATION_KEY = "registration-key" }
-attached_secrets = ["ORS_API_KEY"]                       # step 1
-attached_secrets = ["ORS_API_KEY", "REGISTRATION_KEY"]   # step 3
-```
-
-The key is created by the owner in Cloud Shell, never by Terraform, so it is not in the
-Terraform state (same rule as `DATABASE_URL` and the ORS key).
 
 ## 4. Security
 
