@@ -29,6 +29,10 @@ pub async fn serve() -> anyhow::Result<()> {
         IntegrityMode::Google { package } => {
             Integrity::Google(GoogleIntegrity::new(package.clone()))
         }
+        IntegrityMode::Key(key) => {
+            info!("PLAY_INTEGRITY=key: only builds with the registration key can register");
+            Integrity::Key(key.clone())
+        }
         IntegrityMode::Off => {
             warn!("PLAY_INTEGRITY=off: writes are not checked (local development only)");
             Integrity::Off

@@ -6,6 +6,8 @@ use std::net::SocketAddr;
 use thiserror::Error;
 use url::Url;
 
+use crate::integrity::RegistrationKey;
+
 #[derive(Debug, Error, PartialEq, Eq)]
 pub enum ConfigError {
     #[error("{0} is not set (see .env.example)")]
@@ -19,6 +21,8 @@ pub enum ConfigError {
 pub enum IntegrityMode {
     /// Verdicts from Google for this Android package.
     Google { package: String },
+    /// Only builds holding the owner's registration key may register and write.
+    Key(RegistrationKey),
     /// No checks: for running the server next to an emulator. Refused on Cloud Run.
     Off,
 }
@@ -66,6 +70,14 @@ impl ServeConfig {
                     .trim()
                     .to_owned(),
             },
+            Some("key") => {
+                let key =
+                    get("REGISTRATION_KEY").ok_or(ConfigError::Missing("REGISTRATION_KEY"))?;
+                IntegrityMode::Key(
+                    RegistrationKey::new(&key)
+                        .map_err(|reason| invalid("REGISTRATION_KEY", reason))?,
+                )
+            }
             Some("off") if get("K_SERVICE").is_some() => {
                 return Err(invalid("PLAY_INTEGRITY", "cannot be off on Cloud Run"));
             }
@@ -73,7 +85,7 @@ impl ServeConfig {
             Some(other) => {
                 return Err(invalid(
                     "PLAY_INTEGRITY",
-                    format!("expected google or off, got {other:?}"),
+                    format!("expected google, key or off, got {other:?}"),
                 ));
             }
         };
@@ -200,5 +212,54 @@ mod tests {
         ]))
         .unwrap();
         assert!(!format!("{config:?}").contains("secret-key-123"));
+    }
+
+    const KEY: &str = "owner-test-key-owner-test-key-owner-test-key";
+
+    #[test]
+    fn key_mode_reads_the_registration_key() {
+        let config = ServeConfig::from_lookup(lookup(&[
+            ("ORS_API_KEY", "k"),
+            ("PLAY_INTEGRITY", "key"),
+            ("REGISTRATION_KEY", KEY),
+            ("K_SERVICE", "whichride"),
+        ]))
+        .unwrap();
+        assert_eq!(
+            config.integrity,
+            IntegrityMode::Key(RegistrationKey::new(KEY).unwrap())
+        );
+    }
+
+    #[test]
+    fn key_mode_needs_a_long_enough_key() {
+        let missing =
+            ServeConfig::from_lookup(lookup(&[("ORS_API_KEY", "k"), ("PLAY_INTEGRITY", "key")]))
+                .unwrap_err();
+        assert_eq!(missing, ConfigError::Missing("REGISTRATION_KEY"));
+        let short = ServeConfig::from_lookup(lookup(&[
+            ("ORS_API_KEY", "k"),
+            ("PLAY_INTEGRITY", "key"),
+            ("REGISTRATION_KEY", "short"),
+        ]))
+        .unwrap_err();
+        assert!(matches!(
+            short,
+            ConfigError::Invalid {
+                name: "REGISTRATION_KEY",
+                ..
+            }
+        ));
+    }
+
+    #[test]
+    fn debug_output_hides_the_registration_key() {
+        let config = ServeConfig::from_lookup(lookup(&[
+            ("ORS_API_KEY", "k"),
+            ("PLAY_INTEGRITY", "key"),
+            ("REGISTRATION_KEY", KEY),
+        ]))
+        .unwrap();
+        assert!(!format!("{config:?}").contains("owner"));
     }
 }
