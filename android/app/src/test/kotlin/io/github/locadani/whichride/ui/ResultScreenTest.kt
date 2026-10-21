@@ -113,7 +113,8 @@ class ResultScreenTest {
         var reported = false
         val polo = RankedOption(Choice.Offer("bolt.polo"), QUOTES[2])
         compose.setContent { WhichrideTheme { ResultScreen(resultState(listOf(polo)), ResultActions(onReport = { reported = true })) } }
-        compose.onNodeWithText("Price wrong? Tell us").performScrollTo().performClick()
+        compose.onNode(hasScrollAction()).performScrollToNode(hasText("Price wrong? Tell us"))
+        compose.onNodeWithText("Price wrong? Tell us").performClick()
         assertEquals(true, reported)
     }
 
