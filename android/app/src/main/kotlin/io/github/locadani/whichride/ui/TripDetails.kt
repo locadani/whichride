@@ -134,9 +134,9 @@ private fun PlaceLine(key: String, label: String) {
     val colors = WhichrideTheme.colors
     val spoken = "$key: $label"
     Column(Modifier.clearAndSetSemantics { contentDescription = spoken }) {
-        Text(label.substringBefore(", "), style = MaterialTheme.typography.titleSmall)
+        Text(label.substringBefore(", "), style = MaterialTheme.typography.titleMedium)
         label.substringAfter(", ", missingDelimiterValue = "").takeIf { it.isNotEmpty() }?.let {
-            Text(it, style = MaterialTheme.typography.bodySmall, color = colors.onSurfaceMuted)
+            Text(it, style = MaterialTheme.typography.bodyMedium, color = colors.onSurfaceMuted)
         }
     }
 }
