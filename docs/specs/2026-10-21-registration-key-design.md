@@ -1,6 +1,6 @@
 # Registration key: running without Google Play for now
 
-**Status:** Draft, awaiting owner approval · **Date:** 2026-10-21 · **Decision:** 77 (proposed)
+**Status:** Approved 2026-10-21 · **Date:** 2026-10-21 · **Decision:** 77
 
 ## 1. Why
 
@@ -192,7 +192,7 @@ verdicts. Acceptable with one user; it is the reason this mode is temporary.
    creates the empty `registration-key` secret.
 2. **Owner, Cloud Shell:** create the key and store it:
    ```bash
-   openssl rand -base64 48 | tr -d '\n' | gcloud secrets versions add registration-key --data-file=-
+   openssl rand -base64 48 | tr -d '\n' | gcloud secrets versions add whichride-registration-key --data-file=-
    ```
    Copy the same value into `android/local.properties` as `whichride.registrationKey=…`.
 3. **PR 2, infra:** `attached_secrets` adds `REGISTRATION_KEY`, `PLAY_INTEGRITY = "key"`. Apply.

@@ -167,7 +167,7 @@ Done once, in the Google Cloud console and Cloud Shell.
 
    These are identifiers, not credentials; they are secrets so GitHub masks them in public logs.
 8. **Connect the secrets.** Once both secrets have a version, a PR sets `attach_database_url = true` and
-   `attach_secret_env = true` in `prod/main.tf`; merge, then in Cloud Shell
+   `attached_secrets = ["ORS_API_KEY"]` in `prod/main.tf`; merge, then in Cloud Shell
    `cd ~/whichride && git pull && cd infra/prod`, then `terraform plan -out=attach.tfplan` and
    `terraform apply attach.tfplan`. The plan shows `DATABASE_URL` and `ORS_API_KEY` being added to the
    service, and the backup job and its schedule being created.
@@ -188,14 +188,20 @@ Done once, in the Google Cloud console and Cloud Shell.
 
     `terraform output service_url` prints the service URL. Then run a second `terraform plan`: it
     reports no changes.
-11. **Play Integrity.** Link Play Console's *App integrity* page to this Cloud project (its API is
-    already enabled here); steps in `docs/play/README.md` §5. Until then every write from a
-    real app is refused with `integrity_failed`, which is expected.
+11. **Integrity.** Until the app is on Play the server runs `PLAY_INTEGRITY=key`
+    (`docs/specs/2026-10-21-registration-key-design.md`):
+    1. After the PR that creates the `whichride-registration-key` secret is applied, store the key:
+       `openssl rand -base64 48 | tr -d '\n' | gcloud secrets versions add whichride-registration-key --data-file=-`
+    2. Put the same value in `android/local.properties` as `whichride.registrationKey=…`
+       (`gcloud secrets versions access latest --secret=whichride-registration-key`).
+    3. Open the follow-up PR: `attached_secrets = ["ORS_API_KEY", "REGISTRATION_KEY"]` and
+       `PLAY_INTEGRITY = "key"`. Apply.
+    Moving to Play: `docs/play/README.md` §5.
 
 ## Owner commands (emergency switch)
 
 From Cloud Shell, using `IMAGE` from step 10. `lock-offer`, `unlock-offer` and `revert-offer` take the
-same argument:
+same argument; `revoke-installs` takes none and makes every install register again:
 
 ```bash
 docker run --rm -e DATABASE_URL="$(gcloud secrets versions access latest --secret=whichride-database-url)" "$IMAGE" show-offer bolt.corsa
