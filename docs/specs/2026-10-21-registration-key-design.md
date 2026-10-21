@@ -24,7 +24,7 @@ So the server needs a second way to decide who may register, one that:
 |---|---|---|---|
 | Server `PLAY_INTEGRITY` | `google` | `key` | `google` |
 | Server secret | none | `REGISTRATION_KEY` | (left unused, can be deleted) |
-| App build | Play Integrity | `whichride.registrationKey` in `~/.gradle/gradle.properties` | property removed |
+| App build | Play Integrity | `whichride.registrationKey` in `android/local.properties` | property removed |
 | Current location, address search, price reports on the phone | refused | work | work (installed from Play) |
 
 ### In plain words
@@ -42,7 +42,7 @@ routing quota and posts fake prices. `PLAY_INTEGRITY` chooses how the server ans
 
 **The registration key** is a long random password (about 64 characters) that only the owner
 knows. It is kept in two places: Google Cloud's secret store, where the server reads it, and
-the owner's `~/.gradle/gradle.properties`, from where it is built into the owner's copy of the
+the owner's `android/local.properties`, from where it is built into the owner's copy of the
 app. The app sends it with every request that needs it; the server compares it with its copy.
 The server refuses to start with a key shorter than 32 bytes, so a short, guessable key such as
 `ciao` cannot be set by mistake.
@@ -50,7 +50,7 @@ The server refuses to start with a key shorter than 32 bytes, so a short, guessa
 **"Attestation picked at build time."** Attestation is the proof the app attaches to a request:
 either a Play Integrity token (Google vouching that the app came from Play) or the registration
 key. The choice is made when the app is built on the laptop, not while it runs. `./gradlew` looks
-in `~/.gradle/gradle.properties`:
+in `android/local.properties`:
 
 | What the build finds | What the app does |
 |---|---|
@@ -111,13 +111,29 @@ fun interface IntegrityTokens { suspend fun token(requestHash: String): String? 
   1. `BuildConfig.REGISTRATION_KEY` not empty → `RegistrationKeyTokens`;
   2. `CLOUD_PROJECT_NUMBER == 0` → no tokens (as today);
   3. otherwise → `PlayIntegrityTokens` (as today, unchanged).
-- `build.gradle.kts` reads `whichride.registrationKey` from Gradle properties (never from the
-  repo) into `BuildConfig.REGISTRATION_KEY`, default empty.
+- `build.gradle.kts` reads `whichride.registrationKey` from `android/local.properties` into
+  `BuildConfig.REGISTRATION_KEY`, default empty (§3.4).
 - **Guard:** the release workflow (`.github/workflows/release.yml`) fails if
   `whichride.registrationKey` is set, so a bundle meant for Play can never contain the key. The
   Gradle build fails too when `whichride.requireUploadKey=true` and a registration key is set.
 
 `Installs`, `ServerApi` and every screen stay as they are.
+
+### 3.4 Where the owner's local values live
+
+All of whichride's local, per-machine values move from `~/.gradle/gradle.properties` to
+`android/local.properties`: `whichride.serverUrl`, `whichride.cloudProjectNumber`,
+`whichride.registrationKey` and `whichride.upload.*`. The owner wants them kept with the app,
+and `local.properties` is the usual Android place for per-project values that are not committed
+(it already holds `sdk.dir`).
+
+- **Never committed:** `.gitignore` already lists `/android/local.properties`; gitleaks scans
+  every push; a new CI step fails if the file is ever tracked by git.
+- **Reading:** Gradle does not load `local.properties` by itself, so the build reads it once and
+  looks values up there first, then in Gradle properties (`-P…`, `~/.gradle/gradle.properties`)
+  and environment variables, so CI and the release workflow keep working unchanged.
+- **Migration:** the owner moves the existing lines over once; the build also still accepts them
+  from `~/.gradle/gradle.properties`.
 
 ### 3.3 Infrastructure
 
@@ -159,19 +175,19 @@ verdicts. Acceptable with one user; it is the reason this mode is temporary.
    ```bash
    openssl rand -base64 48 | tr -d '\n' | gcloud secrets versions add registration-key --data-file=-
    ```
-   Copy the same value into `~/.gradle/gradle.properties` as `whichride.registrationKey=…`.
+   Copy the same value into `android/local.properties` as `whichride.registrationKey=…`.
 3. **PR 2, infra:** `attached_secrets` adds `REGISTRATION_KEY`, `PLAY_INTEGRITY = "key"`. Apply.
 4. **Phone:** build and install; registration succeeds; location, search and reports work.
 
 ## 6. Switching to Google Play later
 
-1. Remove `whichride.registrationKey` from `~/.gradle/gradle.properties`.
+1. Remove `whichride.registrationKey` from `android/local.properties`.
 2. Terraform: `PLAY_INTEGRITY = "google"`, drop `REGISTRATION_KEY` from `attached_secrets`.
 3. Delete the installs registered with the key (owner command `delete-installs --before <date>`, added in PR 1, run like `lock-offer`), so only Play-verified installs remain.
 4. Optionally delete the `registration-key` secret.
 
 **Rotating the key** (if the APK leaks): add a new secret version, redeploy (Cloud Run reads
-`latest` on start), update `gradle.properties`, reinstall, and delete the old installs.
+`latest` on start), update `android/local.properties`, reinstall, and delete the old installs.
 
 ## 7. Testing
 
