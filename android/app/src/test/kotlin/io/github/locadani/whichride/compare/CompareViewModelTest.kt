@@ -165,6 +165,17 @@ class CompareViewModelTest {
         )
     }
 
+    @Test fun `from my location Maps starts where the phone is`() = runTest(dispatcher) {
+        val vm = viewModel()
+        vm.onShared(coordinateLink)
+        advanceUntilIdle()
+        vm.openMaps()
+        assertEquals(
+            "https://www.google.com/maps/dir/?api=1&destination=52.502287,13.431605&travelmode=driving",
+            launcher.urls.single(),
+        )
+    }
+
     @Test fun `choosing a start after a failed location routes the waiting trip`() = runTest(dispatcher) {
         here = null
         val vm = viewModel()

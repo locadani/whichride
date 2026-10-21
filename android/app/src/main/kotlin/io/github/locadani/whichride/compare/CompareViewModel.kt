@@ -454,9 +454,11 @@ class CompareViewModel(
         providerOf(providerId)?.let { launcher.openProvider(state.value.personal.appFor(it)) }
     }
 
+    /** From my location, Maps gets no origin: it then starts where the phone is, as "Your location". */
     fun openMaps() {
         val target = state.value.target ?: return
-        launcher.openUrl(mapsUrl(startCoordinateIfKnown(), target.maps))
+        val from = (state.value.start as? Start.Chosen)?.place?.at
+        launcher.openUrl(mapsUrl(from, target.maps))
     }
 
     fun openLicences() = push(Screen.Licences)
