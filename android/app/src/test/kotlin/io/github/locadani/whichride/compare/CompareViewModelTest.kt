@@ -19,6 +19,7 @@ import kotlinx.coroutines.test.runTest
 import kotlinx.coroutines.test.setMain
 import org.junit.After
 import org.junit.Assert.assertEquals
+import org.junit.Assert.assertNotEquals
 import org.junit.Assert.assertFalse
 import org.junit.Assert.assertNull
 import org.junit.Assert.assertTrue
@@ -356,17 +357,66 @@ class CompareViewModelTest {
         assertEquals(1, state.options!!.ranked.size)
     }
 
-    @Test fun `editing km and minutes keeps the result`() = runTest(dispatcher) {
+    @Test fun `trip details start from the trip and edits reprice at once`() = runTest(dispatcher) {
+        store.choices = setOf(Choice.AnyOf("miles"))
         val vm = viewModel()
         vm.onShared(coordinateLink)
         advanceUntilIdle()
-        vm.editTrip()
-        assertEquals("7.4", vm.state.value.manualKm)
-        assertEquals("22", vm.state.value.manualMinutes)
-        vm.onManualKm("10")
-        vm.submitManual()
+        val before = vm.state.value.options!!.ranked.map { it.quote.totalCents }
+        vm.toggleTrip()
+        val edit = vm.state.value.tripEdit!!
+        assertEquals("7.4", edit.km)
+        assertEquals("22", edit.minutes)
+        assertFalse(edit.kmEdited || edit.minutesEdited)
+        vm.onTripKm("20")
+        assertEquals(20_000u, vm.state.value.trip!!.metres)
+        assertTrue(vm.state.value.tripEdit!!.kmEdited)
+        assertNotEquals(before, vm.state.value.options!!.ranked.map { it.quote.totalCents })
         assertEquals(listOf(Screen.Home, Screen.Result), vm.state.value.stack)
-        assertEquals(10_000u, vm.state.value.trip!!.metres)
+    }
+
+    @Test fun `reset puts the routed value back`() = runTest(dispatcher) {
+        val vm = viewModel()
+        vm.onShared(coordinateLink)
+        advanceUntilIdle()
+        val routed = vm.state.value.trip!!
+        vm.toggleTrip()
+        vm.onTripKm("20")
+        vm.onTripMinutes("40")
+        vm.resetTripKm()
+        assertEquals(routed.metres, vm.state.value.trip!!.metres)
+        assertEquals("7.4", vm.state.value.tripEdit!!.km)
+        assertFalse(vm.state.value.tripEdit!!.kmEdited)
+        assertTrue(vm.state.value.tripEdit!!.minutesEdited)
+        vm.resetTripMinutes()
+        assertEquals(routed, vm.state.value.trip)
+    }
+
+    @Test fun `closing keeps the edited numbers as the new ones`() = runTest(dispatcher) {
+        val vm = viewModel()
+        vm.onShared(coordinateLink)
+        advanceUntilIdle()
+        vm.toggleTrip()
+        vm.onTripMinutes("40")
+        vm.toggleTrip()
+        assertNull(vm.state.value.tripEdit)
+        assertEquals(2_400u, vm.state.value.trip!!.seconds)
+        vm.toggleTrip()
+        assertEquals("40", vm.state.value.tripEdit!!.minutes)
+        assertFalse(vm.state.value.tripEdit!!.minutesEdited)
+    }
+
+    @Test fun `a number that isn't valid keeps the last good trip`() = runTest(dispatcher) {
+        val vm = viewModel()
+        vm.onShared(coordinateLink)
+        advanceUntilIdle()
+        val routed = vm.state.value.trip!!
+        vm.toggleTrip()
+        vm.onTripKm("abc")
+        vm.onTripMinutes("0")
+        assertEquals(routed, vm.state.value.trip)
+        assertTrue(vm.state.value.tripEdit!!.kmInvalid)
+        assertTrue(vm.state.value.tripEdit!!.minutesInvalid)
     }
 
     @Test fun `back walks the stack and cancels routing`() = runTest(dispatcher) {

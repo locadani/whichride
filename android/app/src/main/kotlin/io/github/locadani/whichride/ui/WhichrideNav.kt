@@ -61,7 +61,8 @@ fun WhichrideNav(viewModel: CompareViewModel) {
                 Screen.Result -> ResultScreen(
                     state,
                     ResultActions(
-                        onBack = { viewModel.back() }, onEdit = viewModel::editTrip, onChangeStart = viewModel::changeStart,
+                        onBack = { viewModel.back() }, onToggleTrip = viewModel::toggleTrip, onTripKm = viewModel::onTripKm,
+                        onTripMinutes = viewModel::onTripMinutes, onResetKm = viewModel::resetTripKm, onResetMinutes = viewModel::resetTripMinutes,
                         onAddCars = viewModel::addCars, onRemove = viewModel::remove, onSelect = viewModel::select,
                         onOpen = viewModel::openChosen, onOpenMaps = viewModel::openMaps, onDeals = viewModel::openDeals,
                         onRefuel = viewModel::setRefuel, onReport = viewModel::reportPrice,

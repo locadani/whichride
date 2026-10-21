@@ -29,7 +29,6 @@
     <string name="manual_title_offline">Routendienst nicht erreichbar</string>
     <string name="manual_title_no_route">Keine Route mit dem Auto</string>
     <string name="manual_title_no_location">Wir haben deinen Standort nicht gefunden</string>
-    <string name="manual_title_edit">Strecke und Zeit</string>
     <string name="manual_body">Gib Strecke und Zeit aus Google Maps ein. Der Vergleich klappt trotzdem.</string>
     <string name="trip_to">Nach %1$s</string>
     <string name="manual_km">Strecke (km)</string>
@@ -42,8 +41,6 @@
 
     <string name="trip_line">%1$s km · %2$s min</string>
     <string name="built_in_prices">Standardpreise</string>
-    <string name="edit">Bearbeiten</string>
-    <string name="change_start">Start ändern</string>
     <string name="loading_prices">Preise werden geladen…</string>
     <string name="intro_title">Welche Autos sind in deiner Nähe?</string>
     <string name="intro_title_accent">in deiner Nähe?</string>
@@ -243,4 +240,15 @@
     <string name="line_started_both">Jeder angefangene km und jede angefangene Minute zählt</string>
     <string name="remove">Entfernen</string>
     <string name="option_removed">%1$s %2$s entfernt</string>
+    <string name="trip_details_show">Fahrtdetails anzeigen</string>
+    <string name="trip_details_hide">Fahrtdetails ausblenden</string>
+    <string name="trip_from">Von</string>
+    <string name="trip_to_label">Nach</string>
+    <string name="trip_distance">Strecke</string>
+    <string name="trip_time">Zeit</string>
+    <string name="unit_km">km</string>
+    <string name="unit_min">Min.</string>
+    <string name="reset_distance">Strecke auf %1$s km zurücksetzen</string>
+    <string name="reset_time">Zeit auf %1$s Min. zurücksetzen</string>
+    <string name="your_trip">Deine Fahrt</string>
 </resources>

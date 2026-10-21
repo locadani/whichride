@@ -18,7 +18,11 @@ import androidx.compose.ui.test.onNodeWithText
 import androidx.compose.ui.test.performClick
 import androidx.test.ext.junit.runners.AndroidJUnit4
 import io.github.locadani.whichride.compare.Screen
+import io.github.locadani.whichride.compare.Start
 import io.github.locadani.whichride.compare.Target
+import io.github.locadani.whichride.compare.TripEdit
+import io.github.locadani.whichride.core.Coordinate
+import io.github.locadani.whichride.server.Place
 import io.github.locadani.whichride.compare.UiState
 import io.github.locadani.whichride.core.AppInfo
 import io.github.locadani.whichride.core.CardKind
@@ -67,11 +71,11 @@ class ResultScreenTest {
     @get:Rule val compose = createComposeRule()
     private var opened = 0
     private var added = 0
-    private var startChanged = 0
+    private var tripToggled = 0
 
     private fun show(state: UiState) = compose.setContent {
         WhichrideTheme {
-            ResultScreen(state, ResultActions(onChangeStart = { startChanged++ }, onAddCars = { added++ }, onOpen = { opened++ }))
+            ResultScreen(state, ResultActions(onToggleTrip = { tripToggled++ }, onAddCars = { added++ }, onOpen = { opened++ }))
         }
     }
 
@@ -110,6 +114,7 @@ class ResultScreenTest {
         compose.onNodeWithText("22 min × €0.11").assertDoesNotExist()
         compose.onNodeWithContentDescription("Show price details for Bolt Drive Kia Picanto").performClick()
         compose.onNodeWithText("22 min × €0.11").assertExists()
+        compose.onNode(hasScrollAction()).performScrollToNode(hasText("7.4 km × €0.79"))
         compose.onNodeWithText("7.4 km × €0.79").assertExists()
     }
 
@@ -174,10 +179,51 @@ class ResultScreenTest {
         compose.onNodeWithText("7.4 km · 22 min · built-in prices").assertExists()
     }
 
-    @Test fun theStartCanBeChangedFromTheResult() {
+    @Test fun closedTripDetailsShowTheLineAndOpenFromTheTitle() {
         show(resultState())
-        compose.onNodeWithText("Change start").performClick()
-        assertEquals(1, startChanged)
+        compose.onNodeWithText("Change start").assertDoesNotExist()
+        compose.onNodeWithText("Edit").assertDoesNotExist()
+        compose.onNodeWithText("From").assertDoesNotExist()
+        compose.onNodeWithContentDescription("Show trip details").performClick()
+        assertEquals(1, tripToggled)
+    }
+
+    @Test fun openTripDetailsShowStartDestinationAndFieldsOnce() {
+        show(resultState().copy(tripEdit = TripEdit(Trip(7_400u, 1_320u))))
+        compose.onNodeWithText("7.4 km · 22 min", substring = true).assertDoesNotExist()
+        compose.onNodeWithContentDescription("Hide trip details").assertExists()
+        compose.onNodeWithText("Your location").assertExists()
+        compose.onNodeWithText("Markthalle Neun").assertExists()
+        compose.onNodeWithText("7.4").assertExists()
+        compose.onNodeWithText("22").assertExists()
+        compose.onNodeWithContentDescription("Reset distance to 7.4 km").assertDoesNotExist()
+    }
+
+    @Test fun anEditedNumberCanBeReset() {
+        var reset = 0
+        val edited = TripEdit(Trip(7_400u, 1_320u), minutes = "30")
+        compose.setContent {
+            WhichrideTheme { ResultScreen(resultState().copy(tripEdit = edited), ResultActions(onResetMinutes = { reset++ })) }
+        }
+        compose.onNodeWithContentDescription("Reset distance to 7.4 km").assertDoesNotExist()
+        compose.onNodeWithContentDescription("Reset time to 22 min").performClick()
+        assertEquals(1, reset)
+    }
+
+    @Test fun aChosenStartIsShownByName() {
+        val start = Start.Chosen(Place("Alexanderplatz, Berlin", Coordinate(525_219_000, 134_132_000)))
+        show(resultState().copy(start = start, tripEdit = TripEdit(Trip(7_400u, 1_320u))))
+        compose.onNodeWithText("Alexanderplatz").assertExists()
+        compose.onNodeWithText("Berlin").assertExists()
+        compose.onNodeWithText("Your location").assertDoesNotExist()
+    }
+
+    @Test fun aTypedTripHasNoPlaces() {
+        show(resultState().copy(target = null, tripEdit = TripEdit(Trip(7_400u, 1_320u))))
+        compose.onNodeWithText("Your trip").assertExists()
+        compose.onNodeWithText("From").assertDoesNotExist()
+        compose.onNodeWithText("To").assertDoesNotExist()
+        compose.onNodeWithText("7.4").assertExists()
     }
 
     @Test fun `the refuel switch shows only with an active credit`() {

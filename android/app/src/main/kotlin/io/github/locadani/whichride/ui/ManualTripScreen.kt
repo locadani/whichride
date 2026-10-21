@@ -54,7 +54,6 @@ fun ManualTripScreen(
                         ManualReason.BUSY -> R.string.manual_title_busy
                         ManualReason.NO_ROUTE -> R.string.manual_title_no_route
                         ManualReason.NO_LOCATION -> R.string.manual_title_no_location
-                        ManualReason.EDIT -> R.string.manual_title_edit
                         ManualReason.OFFLINE, null -> R.string.manual_title_offline
                     },
                 ),

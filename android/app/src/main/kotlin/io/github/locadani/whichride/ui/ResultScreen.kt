@@ -70,8 +70,11 @@ private val Size = WhichrideTokens.Size
 /** Everything the result screen can ask the ViewModel to do. */
 data class ResultActions(
     val onBack: () -> Unit = {},
-    val onEdit: () -> Unit = {},
-    val onChangeStart: () -> Unit = {},
+    val onToggleTrip: () -> Unit = {},
+    val onTripKm: (String) -> Unit = {},
+    val onTripMinutes: (String) -> Unit = {},
+    val onResetKm: () -> Unit = {},
+    val onResetMinutes: () -> Unit = {},
     val onAddCars: () -> Unit = {},
     val onRemove: (Choice) -> Unit = {},
     val onSelect: (Choice) -> Unit = {},
@@ -97,26 +100,9 @@ fun ResultScreen(state: UiState, actions: ResultActions) {
         }
     }
     Column(Modifier.fillMaxSize()) {
-        TopBar(actions.onBack) {
-            Column(Modifier.weight(1f)) {
-                Text(
-                    stringResource(R.string.trip_to, state.target?.label ?: stringResource(R.string.resolving_unnamed)),
-                    style = MaterialTheme.typography.titleMedium, maxLines = 1, overflow = TextOverflow.Ellipsis,
-                    modifier = Modifier.semantics { heading() },
-                )
-                state.trip?.let { trip ->
-                    val line = stringResource(R.string.trip_line, formatKilometres(trip.metres, locale()), formatMinutes(trip.seconds))
-                    val builtIn = if (state.priceSource == PriceSource.BUILT_IN) " · " + stringResource(R.string.built_in_prices) else ""
-                    Text(line + builtIn, style = WhichrideTheme.numbers.small, color = colors.onSurfaceMuted)
-                }
-            }
-        }
-        // Own row, wrapping: beside the title, long labels (Italian, 200 % font) crushed the trip line.
-        FlowRow(
-            Modifier.fillMaxWidth().padding(horizontal = Space.md),
-            horizontalArrangement = Arrangement.spacedBy(Space.xxs),
-            itemVerticalAlignment = Alignment.CenterVertically,
-        ) {
+        TopBar(actions.onBack) { TripTitle(state, actions.onToggleTrip) }
+        state.tripEdit?.let { TripDetails(state, it, actions, Modifier.padding(horizontal = Space.md)) }
+        Row(Modifier.fillMaxWidth().padding(horizontal = Space.md, vertical = Space.xxs)) {
             val active = state.personal.deals.count { it.isActive(state.today) }
             Surface(
                 onClick = actions.onDeals,
@@ -131,9 +117,7 @@ fun ResultScreen(state: UiState, actions: ResultActions) {
                     modifier = Modifier.wrapContentHeight().padding(horizontal = Space.sm, vertical = Space.xs),
                 )
             }
-            TextButton(onClick = actions.onChangeStart) { Text(stringResource(R.string.change_start), color = colors.accentText) }
-            TextButton(onClick = actions.onEdit) { Text(stringResource(R.string.edit), color = colors.accentText) }
-    }
+        }
         val options = state.options
         if (options == null) {
             Column(Modifier.weight(1f).padding(Space.md), verticalArrangement = Arrangement.spacedBy(Space.sm)) {

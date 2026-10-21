@@ -29,7 +29,6 @@
     <string name="manual_title_offline">Servizio percorsi non raggiungibile</string>
     <string name="manual_title_no_route">Nessun percorso in auto</string>
     <string name="manual_title_no_location">Non abbiamo trovato la tua posizione</string>
-    <string name="manual_title_edit">Distanza e tempo</string>
     <string name="manual_body">Inserisci distanza e tempo da Google Maps. Il confronto funziona lo stesso.</string>
     <string name="trip_to">Verso %1$s</string>
     <string name="manual_km">Distanza (km)</string>
@@ -42,8 +41,6 @@
 
     <string name="trip_line">%1$s km · %2$s min</string>
     <string name="built_in_prices">prezzi integrati</string>
-    <string name="edit">Modifica</string>
-    <string name="change_start">Cambia partenza</string>
     <string name="loading_prices">Carico i prezzi…</string>
     <string name="intro_title">Quali auto ci sono vicino a te?</string>
     <string name="intro_title_accent">vicino a te?</string>
@@ -243,4 +240,15 @@
     <string name="line_started_both">Ogni km e minuto iniziato si paga intero</string>
     <string name="remove">Rimuovi</string>
     <string name="option_removed">%1$s %2$s rimossa</string>
+    <string name="trip_details_show">Mostra i dettagli del viaggio</string>
+    <string name="trip_details_hide">Nascondi i dettagli del viaggio</string>
+    <string name="trip_from">Da</string>
+    <string name="trip_to_label">A</string>
+    <string name="trip_distance">Distanza</string>
+    <string name="trip_time">Tempo</string>
+    <string name="unit_km">km</string>
+    <string name="unit_min">min</string>
+    <string name="reset_distance">Riporta la distanza a %1$s km</string>
+    <string name="reset_time">Riporta il tempo a %1$s min</string>
+    <string name="your_trip">Il tuo viaggio</string>
 </resources>

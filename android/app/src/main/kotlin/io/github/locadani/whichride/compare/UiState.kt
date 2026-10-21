@@ -9,6 +9,10 @@ import io.github.locadani.whichride.core.RankedOption
 import io.github.locadani.whichride.core.Quote
 import io.github.locadani.whichride.core.Trip
 import io.github.locadani.whichride.crowd.PROPOSAL_PREFIX
+import io.github.locadani.whichride.format.formatMinutes
+import io.github.locadani.whichride.format.kilometresInput
+import io.github.locadani.whichride.format.parseKilometres
+import io.github.locadani.whichride.format.parseMinutes
 import io.github.locadani.whichride.crowd.PriceForm
 import io.github.locadani.whichride.launch.MapsTarget
 import io.github.locadani.whichride.personal.DealForm
@@ -17,7 +21,7 @@ import io.github.locadani.whichride.prices.PriceSource
 import io.github.locadani.whichride.server.Place
 
 /** Why the user is asked for km and minutes (R25). */
-enum class ManualReason { BUSY, OFFLINE, NO_ROUTE, NO_LOCATION, EDIT }
+enum class ManualReason { BUSY, OFFLINE, NO_ROUTE, NO_LOCATION }
 
 enum class InputError { NOT_A_MAPS_LINK, NO_DESTINATION, NOT_FOUND, TOO_LONG }
 
@@ -63,6 +67,8 @@ data class UiState(
     val manualKmInvalid: Boolean = false,
     val manualMinutesInvalid: Boolean = false,
     val trip: Trip? = null,
+    /** The trip details under the result's title, while they are open. */
+    val tripEdit: TripEdit? = null,
     // Prices and options
     val priceSource: PriceSource? = null,
     val providers: List<ProviderInfo> = emptyList(),
@@ -108,3 +114,19 @@ fun UiState.canReport(): Boolean = reportTarget()?.let { !it.proposed && it.offe
 data class Removed(val option: RankedOption, val wasSelected: Boolean) {
     val choice get() = option.choice
 }
+
+/**
+ * The km and minutes being edited in the trip details. `original` is the trip when they were
+ * opened; closing them keeps the edited trip, which is then the original next time.
+ */
+data class TripEdit(
+    val original: Trip,
+    val km: String = kilometresInput(original.metres),
+    val minutes: String = formatMinutes(original.seconds),
+    val kmInvalid: Boolean = false,
+    val minutesInvalid: Boolean = false,
+) {
+    val kmEdited get() = parseKilometres(km) != parseKilometres(kilometresInput(original.metres))
+    val minutesEdited get() = parseMinutes(minutes) != parseMinutes(formatMinutes(original.seconds))
+}
+

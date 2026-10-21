@@ -334,12 +334,45 @@ class CompareViewModel(
         showResult(Trip(metres, seconds))
     }
 
-    /** Manual entry is always available (§8), prefilled with the current trip. */
-    fun editTrip() = manual(ManualReason.EDIT)
-
     private fun showResult(trip: Trip) {
-        mutableState.update { it.copy(trip = trip, step = null, stack = listOf(Screen.Home, Screen.Result)) }
+        mutableState.update { it.copy(trip = trip, tripEdit = null, step = null, stack = listOf(Screen.Home, Screen.Result)) }
         reprice()
+    }
+
+    // --- Trip details under the result's title -----------------------------------------
+
+    /** Opens the trip details from the current trip, or closes them keeping what was typed. */
+    fun toggleTrip() = mutableState.update {
+        val trip = it.trip ?: return@update it
+        it.copy(tripEdit = if (it.tripEdit == null) TripEdit(trip) else null)
+    }
+
+    /** Prices follow every valid change at once; an invalid one keeps the last good trip. */
+    fun onTripKm(text: String) = changeTrip { edit, trip ->
+        val metres = parseKilometres(text)?.let { if (it == parseKilometres(kilometresInput(edit.original.metres))) edit.original.metres else it }
+        edit.copy(km = text, kmInvalid = metres == null) to (metres?.let { trip.copy(metres = it) } ?: trip)
+    }
+
+    fun onTripMinutes(text: String) = changeTrip { edit, trip ->
+        val seconds = parseMinutes(text)?.let { if (it == parseMinutes(formatMinutes(edit.original.seconds))) edit.original.seconds else it }
+        edit.copy(minutes = text, minutesInvalid = seconds == null) to (seconds?.let { trip.copy(seconds = it) } ?: trip)
+    }
+
+    fun resetTripKm() = changeTrip { edit, trip ->
+        edit.copy(km = kilometresInput(edit.original.metres), kmInvalid = false) to trip.copy(metres = edit.original.metres)
+    }
+
+    fun resetTripMinutes() = changeTrip { edit, trip ->
+        edit.copy(minutes = formatMinutes(edit.original.seconds), minutesInvalid = false) to trip.copy(seconds = edit.original.seconds)
+    }
+
+    private fun changeTrip(change: (TripEdit, Trip) -> Pair<TripEdit, Trip>) {
+        val state = state.value
+        val edit = state.tripEdit ?: return
+        val trip = state.trip ?: return
+        val (nextEdit, nextTrip) = change(edit, trip)
+        mutableState.update { it.copy(tripEdit = nextEdit, trip = nextTrip) }
+        if (nextTrip != trip) reprice()
     }
 
     // --- Cars near you (§4.1) ----------------------------------------------------------
