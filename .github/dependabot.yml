@@ -18,6 +18,13 @@ updates:
     groups:
       design-dependencies:
         patterns: ["*"]
+  - package-ecosystem: npm
+    directory: /web
+    schedule:
+      interval: weekly
+    groups:
+      web-dependencies:
+        patterns: ["*"]
   - package-ecosystem: gradle
     directory: /android
     schedule:

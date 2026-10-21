@@ -25,18 +25,20 @@ reqwest = { version = "0.13", default-features = false, features = ["json", "que
 rustls = { version = "0.23", default-features = false, features = ["ring", "std"] }
 serde = { version = "1", features = ["derive"] }
 serde_json = "1"
+serde-wasm-bindgen = "0.6.5"
 sha2 = "0.11"
 sqlx = { version = "0.9", default-features = false, features = ["json", "macros", "migrate", "postgres", "runtime-tokio", "tls-rustls-ring-webpki", "uuid"] }
 subtle = "2.6"
 thiserror = "2"
 tokio = { version = "1.53", features = ["macros", "rt-multi-thread"] }
 tower = { version = "0.5.3", default-features = false, features = ["util"] }
-tower-http = { version = "0.7.1", features = ["catch-panic", "limit", "request-id", "trace"] }
+tower-http = { version = "0.7.1", features = ["catch-panic", "fs", "limit", "request-id", "set-status", "trace"] }
 tracing = "0.1.44"
 tracing-subscriber = { version = "0.3.23", default-features = false, features = ["ansi", "env-filter", "fmt"] }
 uniffi = "0.32.2"
 url = "2"
 uuid = { version = "1", features = ["serde", "v4"] }
+wasm-bindgen = "0.2.129"
 whichride-ffi = { path = "crates/ffi" }
 whichride-server = { path = "crates/server" }
 wiremock = "0.6"
@@ -57,5 +59,13 @@ strip = true
 [profile.android]
 inherits = "release"
 opt-level = "z"
+lto = true
+codegen-units = 1
+
+# The website's WebAssembly (cargo build --profile web --target wasm32-unknown-unknown): small
+# download, no unwinding in wasm32 anyway.
+[profile.web]
+inherits = "release"
+opt-level = "s"
 lto = true
 codegen-units = 1

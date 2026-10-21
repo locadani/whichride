@@ -17,8 +17,9 @@ use crate::state::AppState;
 /// Largest request body accepted; real requests are well under 2 KiB.
 pub const BODY_LIMIT_BYTES: usize = 16 * 1024;
 
-pub fn router(state: AppState) -> Router {
-    Router::new()
+/// The API, and the website behind it when `site` is given (`site::router`).
+pub fn router(state: AppState, site: Option<Router>) -> Router {
+    let api = Router::new()
         .route("/health", get(|| async { "ok" }))
         .route("/v1/catalogue", get(crate::catalogue::get_catalogue))
         .route("/v1/installs", post(crate::installs::register))
@@ -32,9 +33,12 @@ pub fn router(state: AppState) -> Router {
         .route("/v1/geocode", post(crate::routing::post_geocode))
         .route("/v1/autocomplete", post(crate::routing::post_autocomplete))
         .route("/v1/expand", post(crate::expand::post_expand))
-        .fallback(|| async { ApiError::NotFound })
-        .method_not_allowed_fallback(|| async { ApiError::MethodNotAllowed })
-        .with_state(state)
+        .method_not_allowed_fallback(|| async { ApiError::MethodNotAllowed });
+    let api = match site {
+        Some(site) => api.fallback_service(site),
+        None => api.fallback(|| async { ApiError::NotFound }),
+    };
+    api.with_state(state)
         .layer(DefaultBodyLimit::max(BODY_LIMIT_BYTES))
         .layer(CatchPanicLayer::custom(panic_response))
         .layer(PropagateRequestIdLayer::x_request_id())

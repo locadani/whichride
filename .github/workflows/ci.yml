@@ -57,6 +57,11 @@ jobs:
           cache-from: type=gha
           cache-to: type=gha,mode=max
       - run: docker run --rm whichride-server:ci --help
+      - name: the image carries the website
+        run: |
+          id=$(docker create whichride-server:ci)
+          docker cp "$id:/srv/web/en/index.html" - | tar -xO | grep -q '<html lang="en"'
+          docker rm "$id"
 
   design:
     name: design tokens · contrast · generated files
@@ -85,6 +90,37 @@ jobs:
             echo "::error::Generated files are stale: run 'npm run build' in design/ and commit the result"
             exit 1
           fi
+
+  web:
+    name: website (WASM core, Astro, Vitest)
+    runs-on: ubuntu-latest
+    defaults:
+      run:
+        working-directory: web
+    steps:
+      - uses: actions/checkout@v7
+        with:
+          persist-credentials: false
+      - uses: dtolnay/rust-toolchain@stable
+        with:
+          targets: wasm32-unknown-unknown
+      - uses: Swatinem/rust-cache@v2
+      - name: wasm-bindgen CLI at the Cargo.lock version
+        working-directory: .
+        run: |
+          version=$(awk '/^name = "wasm-bindgen"$/ { getline; gsub(/version = |"/, ""); print }' Cargo.lock)
+          cargo install wasm-bindgen-cli --version "$version" --locked
+      - uses: actions/setup-node@v7
+        with:
+          node-version-file: web/.nvmrc
+          cache: npm
+          cache-dependency-path: web/package-lock.json
+      - run: npm ci
+      - run: npm run generate
+      - run: npm run check
+      - run: npm test
+      - run: npm run build
+      - run: npm run test:dist
 
   android:
     name: android (Rust core, designsystem, app)

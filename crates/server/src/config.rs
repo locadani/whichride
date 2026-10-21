@@ -2,6 +2,7 @@
 
 use std::fmt;
 use std::net::SocketAddr;
+use std::path::PathBuf;
 
 use thiserror::Error;
 use url::Url;
@@ -34,6 +35,8 @@ pub struct ServeConfig {
     pub ors_api_key: String,
     pub ors_base_url: Url,
     pub integrity: IntegrityMode,
+    /// The built website (`WEB_DIR`); `None` serves the API only.
+    pub web_dir: Option<PathBuf>,
 }
 
 impl fmt::Debug for ServeConfig {
@@ -43,6 +46,7 @@ impl fmt::Debug for ServeConfig {
             .field("ors_api_key", &"<hidden>")
             .field("ors_base_url", &self.ors_base_url.as_str())
             .field("integrity", &self.integrity)
+            .field("web_dir", &self.web_dir)
             .finish()
     }
 }
@@ -89,11 +93,13 @@ impl ServeConfig {
                 ));
             }
         };
+        let web_dir = get("WEB_DIR").map(|dir| PathBuf::from(dir.trim()));
         Ok(ServeConfig {
             bind_addr,
             ors_api_key: ors_api_key.trim().to_owned(),
             ors_base_url,
             integrity,
+            web_dir,
         })
     }
 }
@@ -128,6 +134,18 @@ mod tests {
 
     const MINIMAL: &[(&str, &str)] =
         &[("ORS_API_KEY", "key"), ("ANDROID_PACKAGE", "app.whichride")];
+
+    #[test]
+    fn web_dir_is_optional() {
+        assert_eq!(
+            ServeConfig::from_lookup(lookup(MINIMAL)).unwrap().web_dir,
+            None
+        );
+        let mut pairs = MINIMAL.to_vec();
+        pairs.push(("WEB_DIR", " /srv/web "));
+        let config = ServeConfig::from_lookup(lookup(&pairs)).unwrap();
+        assert_eq!(config.web_dir, Some(std::path::PathBuf::from("/srv/web")));
+    }
 
     #[test]
     fn defaults() {

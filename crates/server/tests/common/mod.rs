@@ -3,6 +3,7 @@
 #![allow(dead_code)] // each test file uses a different subset
 
 use std::io::Write;
+use std::path::PathBuf;
 use std::sync::atomic::{AtomicI32, AtomicU32, Ordering};
 use std::sync::{Arc, Mutex};
 use std::time::{Duration, SystemTime, UNIX_EPOCH};
@@ -111,12 +112,31 @@ pub fn fixture_catalogue() -> Catalogue {
     Catalogue::from_json(include_str!("catalogue.json")).expect("valid fixture")
 }
 
+/// The smallest built site: two language pages, the 404 page and a hashed asset with its gzip.
+pub fn fake_site() -> PathBuf {
+    let dir = std::env::temp_dir().join(format!("whichride-site-{}", Uuid::new_v4()));
+    for (path, body) in [
+        ("en/index.html", "<h1>en</h1>"),
+        ("it/index.html", "<h1>it</h1>"),
+        ("404.html", "<h1>missing</h1>"),
+        ("_astro/app.1a2b3c.js", "console.log(1)"),
+        ("_astro/app.1a2b3c.js.gz", "gzipped"),
+    ] {
+        let file = dir.join(path);
+        std::fs::create_dir_all(file.parent().unwrap()).unwrap();
+        std::fs::write(file, body).unwrap();
+    }
+    dir
+}
+
 pub struct Options {
     pub integrity: Integrity,
     /// One hourly limit for every kind.
     pub per_hour: Option<u32>,
     /// Hourly limits of single kinds.
     pub limits: Vec<(Kind, u32)>,
+    /// A built website to serve next to the API (see [`fake_site`]).
+    pub site: Option<PathBuf>,
 }
 
 impl Default for Options {
@@ -125,6 +145,7 @@ impl Default for Options {
             integrity: Integrity::Off,
             per_hour: None,
             limits: Vec::new(),
+            site: None,
         }
     }
 }
@@ -186,7 +207,10 @@ impl TestApp {
             )),
         };
         Some(TestApp {
-            router: router(state),
+            router: router(
+                state,
+                options.site.as_deref().map(whichride_server::site::router),
+            ),
             pool,
             upstream,
             today,

@@ -1,0 +1,50 @@
+---
+import '../styles/tokens.css';
+import '../styles/site.css';
+import { LANGS, LANGUAGE_NAMES, type Lang } from '../i18n/format';
+import type { WebStrings } from '../i18n/web';
+
+interface Props {
+  lang: Lang;
+  web: WebStrings;
+  /** A language page: canonical + hreflang alternates. The 404 page has none and is noindex. */
+  indexable: boolean;
+}
+const { lang, web, indexable } = Astro.props;
+const url = (l: Lang) => new URL(`${l}/`, Astro.site).href;
+const SOURCE = 'https://github.com/locadani/whichride';
+---
+<!doctype html>
+<html lang={lang}>
+  <head>
+    <meta charset="utf-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1" />
+    <title>{web.title}</title>
+    <meta name="description" content={web.description} />
+    <link rel="icon" href="/favicon.svg" type="image/svg+xml" />
+    {indexable && <link rel="canonical" href={url(lang)} />}
+    {indexable && LANGS.map((l) => <link rel="alternate" hreflang={l} href={url(l)} />)}
+    {indexable && <link rel="alternate" hreflang="x-default" href={url('en')} />}
+    {!indexable && <meta name="robots" content="noindex" />}
+  </head>
+  <body>
+    <header class="top page">
+      <a class="brand" href={`/${lang}/`}><img src="/favicon.svg" alt="" />whichride</a>
+      <details class="languages">
+        <summary aria-label={`${web.languages}: ${LANGUAGE_NAMES[lang]}`}>{lang.toUpperCase()}</summary>
+        <ul>
+          {LANGS.map((l) => (
+            <li>
+              <a href={`/${l}/`} hreflang={l} lang={l} aria-current={l === lang ? 'page' : undefined}>{LANGUAGE_NAMES[l]}</a>
+            </li>
+          ))}
+        </ul>
+      </details>
+    </header>
+    <main class="page"><slot /></main>
+    <footer class="footer page">
+      <p>{web.not_affiliated}</p>
+      <a href={SOURCE}>{web.source_code}</a>
+    </footer>
+  </body>
+</html>

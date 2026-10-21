@@ -1,0 +1,33 @@
+{
+  "name": "whichride-web",
+  "private": true,
+  "type": "module",
+  "description": "whichride's website: Astro pages and one Svelte island over the Rust core in WebAssembly.",
+  "engines": {
+    "node": ">=24"
+  },
+  "scripts": {
+    "generate": "node scripts/generate.mjs",
+    "dev": "astro dev",
+    "build": "astro build && node scripts/compress.mjs",
+    "check": "astro check",
+    "test": "vitest run",
+    "test:dist": "vitest run --config vitest.dist.config.ts"
+  },
+  "dependencies": {
+    "@astrojs/svelte": "9.0.1",
+    "astro": "7.3.6",
+    "svelte": "5.57.2"
+  },
+  "devDependencies": {
+    "@astrojs/check": "0.9.10",
+    "@testing-library/jest-dom": "7.0.1",
+    "@testing-library/svelte": "5.4.2",
+    "@testing-library/user-event": "14.6.7",
+    "@types/node": "24.19.1",
+    "fast-xml-parser": "5.11.2",
+    "jsdom": "30.1.2",
+    "typescript": "6.0.3",
+    "vitest": "5.0.3"
+  }
+}

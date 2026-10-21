@@ -15,7 +15,7 @@ written only when the previous milestone is done, so it builds on real code inst
 | 5b | **Android app v1: personal and crowd** | Personal discounts and passes (§6), price reports and confirmations with Play Integrity (§7), "Car not listed? Add it" (§5.1), per-user choice of which app opens a provider (e.g. SIXT through Jelbi or the official app), EN/IT/DE/TR, accessibility pass (TalkBack, 200 % font) | §5.1, §6, §7, §11 | `05b-personal-and-crowd.md` ✅ |
 | 6 | **Release** | Privacy policy, Play Console, closed test (12 testers × 14 days), production; link Play Integrity to the Cloud project in Play Console | §12 | `06-release.md` (code done; owner steps in `docs/play/README.md`) |
 | 6a | **Registration key** | Owner-only server access before Play (decision 77) | — | `06a-registration-key.md` |
-| 7 | **Website** | Astro site, core via WebAssembly, Turnstile, per-provider SEO pages | §8.1, §10.4 | — |
+| 7 | **Website** | Astro page per language with one Svelte island; core via WebAssembly (`crates/wasm`); km + minutes and a car picker only (no Turnstile, no SEO provider pages: decisions 85, 90); served by the server | §8.1, §10.4, website spec | `07-website.md` |
 | 8 | **Free2move** | Added through the §5.1 process, as its real test (SIXT share moved into v1, decision 48) | §5.1 | — |
 | 9 | **Zone fees** | Airport/zone fees (e.g. MILES at BER) from start/destination coordinates | §5 | — |
 | 10 | **Availability feeds** *(only if the IVSG reform requires them)* | Nearby cars from official feeds via Mobilithek, replacing manual marking where available | §4.1 | — |
