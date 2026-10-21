@@ -32,7 +32,7 @@ subtle = "2.6"
 thiserror = "2"
 tokio = { version = "1.53", features = ["macros", "rt-multi-thread"] }
 tower = { version = "0.5.3", default-features = false, features = ["util"] }
-tower-http = { version = "0.7.1", features = ["catch-panic", "limit", "request-id", "trace"] }
+tower-http = { version = "0.7.1", features = ["catch-panic", "fs", "limit", "request-id", "set-status", "trace"] }
 tracing = "0.1.44"
 tracing-subscriber = { version = "0.3.23", default-features = false, features = ["ansi", "env-filter", "fmt"] }
 uniffi = "0.32.2"

@@ -50,11 +50,19 @@ pub async fn serve() -> anyhow::Result<()> {
         limits: Arc::new(RateLimits::new()),
         expander: Arc::new(Expander::new()),
     };
+    let site = match &config.web_dir {
+        Some(dir) => {
+            crate::site::check(dir).map_err(anyhow::Error::msg)?;
+            info!(dir = %dir.display(), "serving the website");
+            Some(crate::site::router(dir))
+        }
+        None => None,
+    };
     let listener = TcpListener::bind(config.bind_addr)
         .await
         .with_context(|| format!("cannot listen on {}", config.bind_addr))?;
     info!(addr = %config.bind_addr, "listening");
-    axum::serve(listener, router(state))
+    axum::serve(listener, router(state, site))
         .with_graceful_shutdown(shutdown_signal())
         .await?;
     Ok(())
