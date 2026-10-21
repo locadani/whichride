@@ -32,7 +32,14 @@ pub struct RateCard {
     pub minute_rounding: Rounding,
 }
 
-fn rounding_from(r: cc::Rounding) -> Rounding {
+pub(crate) fn kind_from(k: cc::CardKind) -> CardKind {
+    match k {
+        cc::CardKind::Standard => CardKind::Standard,
+        cc::CardKind::Package => CardKind::Package,
+    }
+}
+
+pub(crate) fn rounding_from(r: cc::Rounding) -> Rounding {
     match r {
         cc::Rounding::StartedUnit => Rounding::StartedUnit,
         cc::Rounding::Exact => Rounding::Exact,
@@ -50,10 +57,7 @@ impl From<&cc::RateCard> for RateCard {
     fn from(c: &cc::RateCard) -> Self {
         RateCard {
             label: c.label.clone(),
-            kind: match c.kind {
-                cc::CardKind::Standard => CardKind::Standard,
-                cc::CardKind::Package => CardKind::Package,
-            },
+            kind: kind_from(c.kind),
             base_fee: c.base_fee.0,
             per_km: c.per_km.0,
             per_minute: c.per_minute.0,

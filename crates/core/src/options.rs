@@ -103,6 +103,7 @@ mod tests {
             card_label: "Standard".into(),
             total: Cents(total),
             overridden: false,
+            lines: vec![],
         }
     }
 

@@ -2,7 +2,7 @@
 
 use serde::{Deserialize, Serialize};
 
-use crate::adjustments::Adjustments;
+use crate::adjustments::{Adjustments, PriceLine};
 use crate::catalogue::{Catalogue, OfferId, ProviderId};
 use crate::money::Cents;
 use crate::usage::Trip;
@@ -18,6 +18,8 @@ pub struct Quote {
     pub total: Cents,
     /// The price comes from the user's own override, not the shared price.
     pub overridden: bool,
+    /// What `total` is made of.
+    pub lines: Vec<PriceLine>,
 }
 
 /// Prices every offer of every provider and returns them cheapest first.
@@ -31,16 +33,17 @@ pub fn compare(catalogue: &Catalogue, trip: &Trip, adjustments: &Adjustments) ->
             let (cards, overridden) = adjustments.cards_for(offer);
             let cheapest = cards
                 .iter()
-                .map(|card| (card, adjustments.price(provider, card, trip)))
-                .min_by_key(|(_, total)| *total);
-            if let Some((card, total)) = cheapest {
+                .map(|card| (card, adjustments.priced(provider, card, trip)))
+                .min_by_key(|(_, price)| price.total);
+            if let Some((card, price)) = cheapest {
                 quotes.push(Quote {
                     provider: provider.id.clone(),
                     offer: offer.id.clone(),
                     offer_name: offer.name.clone(),
                     card_label: card.label.clone(),
-                    total,
+                    total: price.total,
                     overridden,
+                    lines: price.lines,
                 });
             }
         }
@@ -125,6 +128,27 @@ mod tests {
         let quotes = compare(&catalogue(), &TRIP, &adjustments);
         let bolt = quotes.iter().find(|q| q.offer.0 == "bolt.corsa").unwrap();
         assert_eq!((bolt.total, bolt.overridden), (Cents(473), false));
+    }
+
+    #[test]
+    fn quotes_carry_the_lines_of_their_cheapest_card() {
+        let c = catalogue();
+        let adjustments = Adjustments::default();
+        for quote in compare(&c, &TRIP, &adjustments) {
+            let provider = c.provider(&quote.provider).unwrap();
+            let offer = provider
+                .offers
+                .iter()
+                .find(|o| o.id == quote.offer)
+                .unwrap();
+            let card = offer
+                .cards
+                .iter()
+                .find(|card| card.label == quote.card_label)
+                .unwrap();
+            assert_eq!(quote.lines, adjustments.priced(provider, card, &TRIP).lines);
+            assert!(!quote.lines.is_empty());
+        }
     }
 
     #[test]
