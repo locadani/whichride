@@ -3,6 +3,7 @@ package io.github.locadani.whichride.ui
 import androidx.compose.foundation.BorderStroke
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Column
+import androidx.compose.foundation.layout.FlowRow
 import androidx.compose.foundation.layout.PaddingValues
 import androidx.compose.foundation.layout.Row
 import androidx.compose.foundation.layout.fillMaxSize
@@ -10,6 +11,7 @@ import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.layout.heightIn
 import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.layout.size
+import androidx.compose.foundation.layout.wrapContentHeight
 import androidx.compose.foundation.lazy.LazyColumn
 import androidx.compose.foundation.lazy.items
 import androidx.compose.foundation.selection.selectable
@@ -87,6 +89,13 @@ fun ResultScreen(state: UiState, actions: ResultActions) {
                     Text(line + builtIn, style = WhichrideTheme.numbers.small, color = colors.onSurfaceMuted)
                 }
             }
+        }
+        // Own row, wrapping: beside the title, long labels (Italian, 200 % font) crushed the trip line.
+        FlowRow(
+            Modifier.fillMaxWidth().padding(horizontal = Space.md),
+            horizontalArrangement = Arrangement.spacedBy(Space.xxs),
+            itemVerticalAlignment = Alignment.CenterVertically,
+        ) {
             val active = state.personal.deals.count { it.isActive(state.today) }
             Surface(
                 onClick = actions.onDeals,
@@ -98,12 +107,12 @@ fun ResultScreen(state: UiState, actions: ResultActions) {
                     if (active == 0) stringResource(R.string.discounts_pill_none)
                     else pluralStringResource(R.plurals.discounts_pill, active, active),
                     style = MaterialTheme.typography.labelMedium,
-                    modifier = Modifier.padding(horizontal = Space.sm, vertical = Space.xs),
+                    modifier = Modifier.wrapContentHeight().padding(horizontal = Space.sm, vertical = Space.xs),
                 )
             }
             TextButton(onClick = actions.onChangeStart) { Text(stringResource(R.string.change_start), color = colors.accentText) }
             TextButton(onClick = actions.onEdit) { Text(stringResource(R.string.edit), color = colors.accentText) }
-        }
+    }
         val options = state.options
         if (options == null) {
             Column(Modifier.weight(1f).padding(Space.md), verticalArrangement = Arrangement.spacedBy(Space.sm)) {
