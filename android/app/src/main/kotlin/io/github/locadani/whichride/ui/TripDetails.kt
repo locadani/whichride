@@ -2,7 +2,6 @@ package io.github.locadani.whichride.ui
 
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.ui.semantics.clearAndSetSemantics
-import androidx.compose.foundation.layout.heightIn
 import androidx.compose.foundation.layout.height
 import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.layout.IntrinsicSize
@@ -88,13 +87,13 @@ fun RowScope.TripTitle(state: UiState, onToggle: () -> Unit) {
 fun TripDetails(state: UiState, edit: TripEdit, actions: ResultActions, modifier: Modifier = Modifier) {
     val colors = WhichrideTheme.colors
     Surface(shape = MaterialTheme.shapes.large, color = colors.surface, modifier = modifier) {
-        Column(Modifier.padding(Space.md), verticalArrangement = Arrangement.spacedBy(Space.lg)) {
+        Column(Modifier.padding(Space.md), verticalArrangement = Arrangement.spacedBy(Space.sm)) {
             state.target?.let { target ->
                 val to = target.label ?: stringResource(R.string.resolving_unnamed)
                 val hasArea = to.contains(", ")
                 Row(Modifier.height(IntrinsicSize.Min), horizontalArrangement = Arrangement.spacedBy(Space.md)) {
                     // Dot on the start's line; square on the middle of the destination's two lines.
-                    RouteMarks(Modifier.padding(top = Space.xxs, bottom = if (hasArea) Space.md else Space.xxs))
+                    RouteMarks(Modifier.padding(top = Space.xxs, bottom = if (hasArea) Space.sm else Space.xxs))
                     Column(Modifier.weight(1f), verticalArrangement = Arrangement.spacedBy(Space.sm)) {
                         PlaceLine(
                             stringResource(R.string.trip_from),
@@ -157,7 +156,7 @@ private fun NumberField(
 ) {
     val colors = WhichrideTheme.colors
     Column(modifier) {
-        Row(Modifier.heightIn(min = WhichrideTokens.Size.touchTarget), verticalAlignment = Alignment.CenterVertically) {
+        Row(verticalAlignment = Alignment.CenterVertically) {
             Text(label, style = MaterialTheme.typography.labelMedium, color = colors.onSurfaceMuted, modifier = Modifier.weight(1f))
             if (reset != null) {
                 val description = resetLabel(reset)
