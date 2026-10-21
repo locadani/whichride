@@ -160,25 +160,3 @@ fun HomeScreen(
         }
     }
 }
-
-/** Filled dot, dotted line, hollow square: start, route, destination. */
-@Composable
-private fun RouteMarks(modifier: Modifier) {
-    val colors = WhichrideTheme.colors
-    val stroke = WhichrideTokens.Size.strokeStrong
-    Column(modifier.fillMaxHeight(), horizontalAlignment = Alignment.CenterHorizontally) {
-        Box(Modifier.size(Space.sm).clip(CircleShape).background(colors.accent))
-        Canvas(Modifier.weight(1f).width(stroke).padding(vertical = Space.xxs)) {
-            val dash = Space.xxs.toPx()
-            drawLine(
-                colors.outline,
-                Offset(size.width / 2, 0f),
-                Offset(size.width / 2, size.height),
-                strokeWidth = stroke.toPx(),
-                pathEffect = PathEffect.dashPathEffect(floatArrayOf(dash, dash)),
-            )
-        }
-        Box(Modifier.size(Space.sm).border(stroke, colors.onSurfaceMuted, RoundedCornerShape(Space.xxs)))
-    }
-}
-
