@@ -25,6 +25,17 @@ class UnitsTest {
         listOf("", "0", "1441", "2.5", "-1", "x").forEach { assertNull(it, parseMinutes(it)) }
         assertEquals(86_400u, parseMinutes("1440"))
     }
+    @Test fun billedKilometresAreWholeWhenWholeElseOneDecimal() {
+        assertEquals("11", formatBilledKilometres(11_000uL, Locale.UK))
+        assertEquals("10.2", formatBilledKilometres(10_200uL, Locale.UK))
+        assertEquals("10,2", formatBilledKilometres(10_200uL, Locale.ITALY))
+        assertEquals("0", formatBilledKilometres(0uL, Locale.UK))
+    }
+    @Test fun billedMinutesAreWholeWhenWholeElseOneDecimal() {
+        assertEquals("25", formatBilledMinutes(1_500uL, Locale.UK))
+        assertEquals("22.5", formatBilledMinutes(1_350uL, Locale.UK))
+        assertEquals("22,5", formatBilledMinutes(1_350uL, Locale.GERMANY))
+    }
     @Test fun kilometresAreShownWithOneDecimalInTheLocalesStyle() {
         assertEquals("7.4", formatKilometres(7_449u, Locale.UK))
         assertEquals("7.5", formatKilometres(7_450u, Locale.UK))

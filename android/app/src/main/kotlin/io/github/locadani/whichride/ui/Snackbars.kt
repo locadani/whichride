@@ -25,3 +25,19 @@ fun OnceUndo(state: UiState, snackbar: SnackbarHostState, onUndo: () -> Unit, on
         if (result == SnackbarResult.ActionPerformed) onUndo() else onShown()
     }
 }
+
+/** "Bolt Drive VW Polo removed · Undo" after a swipe; it times out like any snackbar. */
+@Composable
+fun RemovedUndo(state: UiState, snackbar: SnackbarHostState, onUndo: () -> Unit, onShown: () -> Unit) {
+    val removed = state.removed
+    val text = removed?.let {
+        stringResource(R.string.option_removed, state.providers.nameOf(it.option.quote.providerId), offerLabel(it.option))
+    }
+    val undo = stringResource(R.string.undo)
+    LaunchedEffect(removed) {
+        if (text == null) return@LaunchedEffect
+        val result = snackbar.showSnackbar(text, actionLabel = undo, duration = SnackbarDuration.Long)
+        if (result == SnackbarResult.ActionPerformed) onUndo() else onShown()
+    }
+}
+

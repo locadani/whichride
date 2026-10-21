@@ -3,7 +3,7 @@
 use serde::{Deserialize, Serialize};
 
 use crate::money::Cents;
-use crate::usage::{METRES_PER_KM, Rounding, SECONDS_PER_MINUTE, Trip, usage_charge};
+use crate::usage::{METRES_PER_KM, Rounding, SECONDS_PER_MINUTE, Trip, billed, usage_charge};
 
 /// Whether a rate card is the pay-as-you-go tariff or a bundle bought before the trip.
 #[derive(Debug, Clone, Copy, PartialEq, Eq, Serialize, Deserialize)]
@@ -40,6 +40,10 @@ pub struct Charges {
     pub base_fee: Cents,
     pub distance: Cents,
     pub time: Cents,
+    /// The metres `distance` is charged for, after rounding and included km.
+    pub billed_metres: u64,
+    /// The seconds `time` is charged for, after rounding and included minutes.
+    pub billed_seconds: u64,
 }
 
 impl Charges {
@@ -51,6 +55,18 @@ impl Charges {
 impl RateCard {
     /// What this tariff charges for the trip, before adjustments and before the minimum.
     pub fn charges(&self, trip: &Trip) -> Charges {
+        let billed_metres = billed(
+            trip.metres,
+            METRES_PER_KM,
+            self.included_km,
+            self.km_rounding,
+        );
+        let billed_seconds = billed(
+            trip.seconds,
+            SECONDS_PER_MINUTE,
+            self.included_minutes,
+            self.minute_rounding,
+        );
         Charges {
             base_fee: self.base_fee,
             distance: usage_charge(
@@ -67,6 +83,8 @@ impl RateCard {
                 self.included_minutes,
                 self.minute_rounding,
             ),
+            billed_metres,
+            billed_seconds,
         }
     }
 }
@@ -142,7 +160,9 @@ mod tests {
             Charges {
                 base_fee: Cents(100),
                 distance: Cents(869),
-                time: Cents::ZERO
+                time: Cents::ZERO,
+                billed_metres: 11_000,
+                billed_seconds: 25 * 60,
             }
         );
         assert_eq!(charges.total(), Cents(969));

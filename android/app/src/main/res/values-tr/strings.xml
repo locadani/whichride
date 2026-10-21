@@ -29,7 +29,6 @@
     <string name="manual_title_offline">Rota hizmetine ulaşılamıyor</string>
     <string name="manual_title_no_route">Araçla gidilecek rota yok</string>
     <string name="manual_title_no_location">Konumunu bulamadık</string>
-    <string name="manual_title_edit">Mesafe ve süre</string>
     <string name="manual_body">Mesafeyi ve süreyi Google Maps uygulamasından gir. Karşılaştırma yine çalışır.</string>
     <string name="trip_to">Varış: %1$s</string>
     <string name="manual_km">Mesafe (km)</string>
@@ -42,8 +41,6 @@
 
     <string name="trip_line">%1$s km · %2$s min</string>
     <string name="built_in_prices">yerleşik fiyatlar</string>
-    <string name="edit">Düzenle</string>
-    <string name="change_start">Başlangıcı değiştir</string>
     <string name="loading_prices">Fiyatlar yükleniyor…</string>
     <string name="intro_title">Hangi araçlar yakınında?</string>
     <string name="intro_title_accent">yakınında?</string>
@@ -225,4 +222,35 @@
     <string name="crowd_proposal_not_sent">Aracı şu anda gönderemedik. Daha sonra tekrar dene.</string>
     <string name="crowd_locked">Bu fiyat şimdilik kilitli; rakamların yine sana uygulanır.</string>
     <string name="crowd_already_current">Bu zaten herkesin gördüğü fiyat.</string>
+    <string name="price_details_show">%1$s %2$s fiyat ayrıntılarını göster</string>
+    <string name="price_details_hide">%1$s %2$s fiyat ayrıntılarını gizle</string>
+    <string name="line_unlock_fee">Kilit açma ücreti</string>
+    <string name="line_package">Paket fiyatı</string>
+    <string name="line_distance">%1$s km × %2$s</string>
+    <string name="line_time">%1$s dk × %2$s</string>
+    <plurals name="line_included_km"><item quantity="one">ilk %d km dahil</item><item quantity="other">ilk %d km dahil</item></plurals>
+    <plurals name="line_included_minutes"><item quantity="one">ilk %d dakika dahil</item><item quantity="other">ilk %d dakika dahil</item></plurals>
+    <string name="line_subscription">Abonelik</string>
+    <string name="line_percent_discount">İndirim −%%%1$s</string>
+    <string name="line_amount_discount">İndirim</string>
+    <string name="line_refuel_credit">Yakıt alma kredisi</string>
+    <string name="line_minimum">Asgari ücret %1$s</string>
+    <string name="line_started_km">Başlanan her km tam sayılır</string>
+    <string name="line_started_minutes">Başlanan her dakika tam sayılır</string>
+    <string name="line_started_both">Başlanan her km ve dakika tam sayılır</string>
+    <string name="remove">Kaldır</string>
+    <string name="option_removed">%1$s %2$s kaldırıldı</string>
+    <string name="trip_details_show">Yolculuk ayrıntılarını göster</string>
+    <string name="trip_details_hide">Yolculuk ayrıntılarını gizle</string>
+    <string name="trip_from">Nereden</string>
+    <string name="trip_to_label">Nereye</string>
+    <string name="trip_distance">Mesafe</string>
+    <string name="trip_time">Süre</string>
+    <string name="unit_km">km</string>
+    <string name="unit_min">dk</string>
+    <string name="reset_distance">Mesafeyi %1$s km yap</string>
+    <string name="reset_time">Süreyi %1$s dk yap</string>
+    <string name="your_trip">Yolculuğun</string>
+    <string name="type_trip">Bunun yerine km ve dakika yaz</string>
+    <string name="manual_title_typed">Yolculuğunu yaz</string>
 </resources>

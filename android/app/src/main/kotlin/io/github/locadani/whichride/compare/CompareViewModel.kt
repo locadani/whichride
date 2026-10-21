@@ -124,7 +124,9 @@ class CompareViewModel(
             mutableState.update { it.copy(stack = listOf(Screen.Home), step = null, inputError = e.toInputError()) }
             return
         }
-        startTrip(destination, sharedLabel(text))
+        // Cut short, a long share could lose its link; then Home is left empty as before.
+        val home = text.trim().takeIf { it.length <= MAX_QUERY_CHARS }?.let { HomeInput(it, link = true) } ?: HomeInput("", link = false)
+        startTrip(destination, sharedLabel(text), home)
     }
 
     fun onQuery(text: String) {
@@ -156,10 +158,10 @@ class CompareViewModel(
         val text = state.value.query.trim()
         if (text.isEmpty()) return
         if (state.value.linkInQuery) return onShared(text)
-        startTrip(Destination.Place(text, null), null)
+        startTrip(Destination.Place(text, null), null, HomeInput(text, link = false))
     }
 
-    fun pickSuggestion(place: Place) = startTrip(Destination.Coordinates(place.at, place.label), null)
+    fun pickSuggestion(place: Place) = startTrip(Destination.Coordinates(place.at, place.label), null, HomeInput(place.label, link = false))
 
     // --- Start -------------------------------------------------------------------------
 
@@ -203,13 +205,16 @@ class CompareViewModel(
 
     // --- Trip --------------------------------------------------------------------------
 
-    private fun startTrip(destination: Destination, label: String?) {
+    /** What Home shows when the user comes back from a trip: what they searched, picked or shared. */
+    private data class HomeInput(val query: String, val link: Boolean)
+
+    private fun startTrip(destination: Destination, label: String?, home: HomeInput) {
         tripJob?.cancel()
         searchJob?.cancel()
         mutableState.update {
             it.copy(
                 stack = listOf(Screen.Home, Screen.Resolving),
-                query = "", linkInQuery = false, suggestions = emptyList(), inputError = null,
+                query = home.query, linkInQuery = home.link, suggestions = emptyList(), inputError = null,
                 target = Target(label, null, MapsTarget.Query(label.orEmpty())),
                 step = ResolvingStep.FINDING_PLACE, trip = null, manualReason = null, selected = null, refuel = false,
             )
@@ -334,12 +339,57 @@ class CompareViewModel(
         showResult(Trip(metres, seconds))
     }
 
-    /** Manual entry is always available (§8), prefilled with the current trip. */
-    fun editTrip() = manual(ManualReason.EDIT)
+    /** km and minutes typed on Home, without a destination (§8): no route, no Maps. */
+    fun typeTrip() {
+        tripJob?.cancel()
+        mutableState.update {
+            it.copy(
+                stack = listOf(Screen.Home, Screen.ManualTrip), target = null, trip = null, tripEdit = null, step = null,
+                selected = null, refuel = false,
+                manualReason = ManualReason.TYPED, manualKm = "", manualMinutes = "", manualKmInvalid = false, manualMinutesInvalid = false,
+            )
+        }
+    }
 
     private fun showResult(trip: Trip) {
-        mutableState.update { it.copy(trip = trip, step = null, stack = listOf(Screen.Home, Screen.Result)) }
+        mutableState.update { it.copy(trip = trip, tripEdit = null, step = null, stack = listOf(Screen.Home, Screen.Result)) }
         reprice()
+    }
+
+    // --- Trip details under the result's title -----------------------------------------
+
+    /** Opens the trip details from the current trip, or closes them keeping what was typed. */
+    fun toggleTrip() = mutableState.update {
+        val trip = it.trip ?: return@update it
+        it.copy(tripEdit = if (it.tripEdit == null) TripEdit(trip) else null)
+    }
+
+    /** Prices follow every valid change at once; an invalid one keeps the last good trip. */
+    fun onTripKm(text: String) = changeTrip { edit, trip ->
+        val metres = parseKilometres(text)?.let { if (it == parseKilometres(edit.originalKm)) edit.original.metres else it }
+        edit.copy(km = text, kmInvalid = metres == null) to (metres?.let { trip.copy(metres = it) } ?: trip)
+    }
+
+    fun onTripMinutes(text: String) = changeTrip { edit, trip ->
+        val seconds = parseMinutes(text)?.let { if (it == parseMinutes(edit.originalMinutes)) edit.original.seconds else it }
+        edit.copy(minutes = text, minutesInvalid = seconds == null) to (seconds?.let { trip.copy(seconds = it) } ?: trip)
+    }
+
+    fun resetTripKm() = changeTrip { edit, trip ->
+        edit.copy(km = edit.originalKm, kmInvalid = false) to trip.copy(metres = edit.original.metres)
+    }
+
+    fun resetTripMinutes() = changeTrip { edit, trip ->
+        edit.copy(minutes = edit.originalMinutes, minutesInvalid = false) to trip.copy(seconds = edit.original.seconds)
+    }
+
+    private fun changeTrip(change: (TripEdit, Trip) -> Pair<TripEdit, Trip>) {
+        val state = state.value
+        val edit = state.tripEdit ?: return
+        val trip = state.trip ?: return
+        val (nextEdit, nextTrip) = change(edit, trip)
+        mutableState.update { it.copy(tripEdit = nextEdit, trip = nextTrip) }
+        if (nextTrip != trip) reprice()
     }
 
     // --- Cars near you (§4.1) ----------------------------------------------------------
@@ -367,9 +417,29 @@ class CompareViewModel(
     fun remove(choice: Choice) {
         val choices = store.load() - choice
         store.save(choices)
-        mutableState.update { it.copy(choices = choices, selected = it.selected.takeIf { s -> s != choice }) }
+        mutableState.update {
+            val option = it.options?.ranked?.firstOrNull { o -> o.choice == choice }
+            it.copy(
+                choices = choices,
+                selected = it.selected.takeIf { s -> s != choice },
+                removed = option?.let { o -> Removed(o, wasSelected = it.selected == choice) },
+            )
+        }
         reprice()
     }
+
+    /** Puts the car just removed back, selected again if it was. */
+    fun undoRemove() {
+        val removed = state.value.removed ?: return
+        val choices = store.load() + removed.choice
+        store.save(choices)
+        mutableState.update {
+            it.copy(choices = choices, selected = if (removed.wasSelected) removed.choice else it.selected, removed = null)
+        }
+        reprice()
+    }
+
+    fun removedMessageShown() = mutableState.update { it.copy(removed = null) }
 
     fun select(choice: Choice) = mutableState.update { it.copy(selected = choice) }
 
@@ -401,9 +471,11 @@ class CompareViewModel(
         providerOf(providerId)?.let { launcher.openProvider(state.value.personal.appFor(it)) }
     }
 
+    /** From my location, Maps gets no origin: it then starts where the phone is, as "Your location". */
     fun openMaps() {
         val target = state.value.target ?: return
-        launcher.openUrl(mapsUrl(startCoordinateIfKnown(), target.maps))
+        val from = (state.value.start as? Start.Chosen)?.place?.at
+        launcher.openUrl(mapsUrl(from, target.maps))
     }
 
     fun openLicences() = push(Screen.Licences)

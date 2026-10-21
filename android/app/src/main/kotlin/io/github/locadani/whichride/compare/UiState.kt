@@ -5,18 +5,24 @@ import io.github.locadani.whichride.core.Coordinate
 import io.github.locadani.whichride.core.Options
 import io.github.locadani.whichride.core.ProviderInfo
 import io.github.locadani.whichride.core.Question
+import io.github.locadani.whichride.core.RankedOption
 import io.github.locadani.whichride.core.Quote
 import io.github.locadani.whichride.core.Trip
 import io.github.locadani.whichride.crowd.PROPOSAL_PREFIX
+import io.github.locadani.whichride.format.formatMinutes
+import io.github.locadani.whichride.format.formatKilometres
+import io.github.locadani.whichride.format.parseKilometres
+import io.github.locadani.whichride.format.parseMinutes
 import io.github.locadani.whichride.crowd.PriceForm
 import io.github.locadani.whichride.launch.MapsTarget
 import io.github.locadani.whichride.personal.DealForm
 import io.github.locadani.whichride.personal.Personal
 import io.github.locadani.whichride.prices.PriceSource
 import io.github.locadani.whichride.server.Place
+import java.util.Locale
 
 /** Why the user is asked for km and minutes (R25). */
-enum class ManualReason { BUSY, OFFLINE, NO_ROUTE, NO_LOCATION, EDIT }
+enum class ManualReason { BUSY, OFFLINE, NO_ROUTE, NO_LOCATION, TYPED }
 
 enum class InputError { NOT_A_MAPS_LINK, NO_DESTINATION, NOT_FOUND, TOO_LONG }
 
@@ -62,6 +68,8 @@ data class UiState(
     val manualKmInvalid: Boolean = false,
     val manualMinutesInvalid: Boolean = false,
     val trip: Trip? = null,
+    /** The trip details under the result's title, while they are open. */
+    val tripEdit: TripEdit? = null,
     // Prices and options
     val priceSource: PriceSource? = null,
     val providers: List<ProviderInfo> = emptyList(),
@@ -80,6 +88,8 @@ data class UiState(
     val dealForm: DealForm? = null,
     /** Once discounts just used by Open <provider>, for the Undo snackbar (R5). */
     val usedOnce: List<String> = emptyList(),
+    /** The car just swiped away, for the Undo snackbar. */
+    val removed: Removed? = null,
     // Crowd (§7, §5.1)
     /** A server is configured, so reports and questions can be sent. */
     val crowdEnabled: Boolean = false,
@@ -100,3 +110,28 @@ fun UiState.reportTarget(): Quote? {
 
 /** Reports are possible for an added, accepted, unlocked offer (R9, R14). */
 fun UiState.canReport(): Boolean = reportTarget()?.let { !it.proposed && it.offerId !in lockedOffers } == true
+
+/** A car the user removed from the comparison, and whether it was the selected one. */
+data class Removed(val option: RankedOption, val wasSelected: Boolean) {
+    val choice get() = option.choice
+}
+
+/**
+ * The km and minutes being edited in the trip details. `original` is the trip when they were
+ * opened; closing them keeps the edited trip, which is then the original next time.
+ */
+data class TripEdit(
+    val original: Trip,
+    val locale: Locale = Locale.getDefault(),
+    val km: String = formatKilometres(original.metres, locale),
+    val minutes: String = formatMinutes(original.seconds),
+    val kmInvalid: Boolean = false,
+    val minutesInvalid: Boolean = false,
+) {
+    /** As on the title line ("7,4" in German): metres would read as thousands of km. */
+    val originalKm get() = formatKilometres(original.metres, locale)
+    val originalMinutes get() = formatMinutes(original.seconds)
+    val kmEdited get() = parseKilometres(km) != parseKilometres(originalKm)
+    val minutesEdited get() = parseMinutes(minutes) != parseMinutes(originalMinutes)
+}
+

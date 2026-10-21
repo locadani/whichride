@@ -37,6 +37,18 @@ fun kilometresInput(metres: UInt): String {
     return if (fraction.isEmpty()) "${metres / 1_000u}" else "${metres / 1_000u}.$fraction"
 }
 
+/** Billed kilometres: "11" for whole km (started-unit billing), else one decimal ("10.2"). */
+fun formatBilledKilometres(metres: ULong, locale: Locale): String = wholeOrOneDecimal(metres, 1_000uL, locale)
+
+/** Billed minutes: "25" for whole minutes, else one decimal ("22.5"). */
+fun formatBilledMinutes(seconds: ULong, locale: Locale): String = wholeOrOneDecimal(seconds, 60uL, locale)
+
+private fun wholeOrOneDecimal(amount: ULong, unit: ULong, locale: Locale): String {
+    if (amount % unit == 0uL) return "${amount / unit}"
+    val tenths = (amount * 10uL + unit / 2uL) / unit
+    return "${tenths / 10uL}${DecimalFormatSymbols.getInstance(locale).decimalSeparator}${tenths % 10uL}"
+}
+
 /** Started minutes, as providers bill them. */
 fun formatMinutes(seconds: UInt): String = ((seconds + 59u) / 60u).toString()
 

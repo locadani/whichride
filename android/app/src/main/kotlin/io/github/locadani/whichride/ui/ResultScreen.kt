@@ -1,6 +1,7 @@
 package io.github.locadani.whichride.ui
 
 import androidx.compose.foundation.BorderStroke
+import androidx.compose.foundation.background
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Column
 import androidx.compose.foundation.layout.FlowRow
@@ -20,7 +21,9 @@ import io.github.locadani.whichride.personal.hasActiveRefuelCredit
 import io.github.locadani.whichride.personal.isActive
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.filled.Add
-import androidx.compose.material.icons.filled.Close
+import androidx.compose.material.icons.outlined.Delete
+import androidx.compose.material.icons.filled.KeyboardArrowDown
+import androidx.compose.material.icons.filled.KeyboardArrowUp
 import androidx.compose.material.icons.filled.Place
 import androidx.compose.material3.Icon
 import androidx.compose.material3.IconButton
@@ -29,12 +32,25 @@ import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.OutlinedIconButton
 import androidx.compose.material3.IconButtonDefaults
 import androidx.compose.material3.Surface
+import androidx.compose.material3.SwipeToDismissBox
+import androidx.compose.material3.SwipeToDismissBoxDefaults
+import androidx.compose.material3.SwipeToDismissBoxState
+import androidx.compose.material3.SwipeToDismissBoxValue
 import androidx.compose.material3.Text
 import androidx.compose.material3.TextButton
 import androidx.compose.runtime.Composable
+import androidx.compose.runtime.getValue
+import androidx.compose.runtime.remember
+import androidx.compose.runtime.mutableStateOf
+import androidx.compose.runtime.saveable.rememberSaveable
+import androidx.compose.runtime.setValue
 import io.github.locadani.whichride.compare.canReport
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
+import androidx.compose.ui.draw.clip
+import androidx.compose.ui.graphics.Shape
+import androidx.compose.ui.semantics.CustomAccessibilityAction
+import androidx.compose.ui.semantics.customActions
 import androidx.compose.ui.res.pluralStringResource
 import androidx.compose.ui.res.stringResource
 import androidx.compose.ui.semantics.Role
@@ -57,8 +73,11 @@ private val Size = WhichrideTokens.Size
 /** Everything the result screen can ask the ViewModel to do. */
 data class ResultActions(
     val onBack: () -> Unit = {},
-    val onEdit: () -> Unit = {},
-    val onChangeStart: () -> Unit = {},
+    val onToggleTrip: () -> Unit = {},
+    val onTripKm: (String) -> Unit = {},
+    val onTripMinutes: (String) -> Unit = {},
+    val onResetKm: () -> Unit = {},
+    val onResetMinutes: () -> Unit = {},
     val onAddCars: () -> Unit = {},
     val onRemove: (Choice) -> Unit = {},
     val onSelect: (Choice) -> Unit = {},
@@ -75,27 +94,18 @@ fun ResultScreen(state: UiState, actions: ResultActions) {
     val colors = WhichrideTheme.colors
     val ranked = state.options?.ranked.orEmpty()
     val chosen = ranked.firstOrNull { it.choice == state.selected } ?: ranked.firstOrNull()
-    Column(Modifier.fillMaxSize()) {
-        TopBar(actions.onBack) {
-            Column(Modifier.weight(1f)) {
-                Text(
-                    stringResource(R.string.trip_to, state.target?.label ?: stringResource(R.string.resolving_unnamed)),
-                    style = MaterialTheme.typography.titleMedium, maxLines = 1, overflow = TextOverflow.Ellipsis,
-                    modifier = Modifier.semantics { heading() },
-                )
-                state.trip?.let { trip ->
-                    val line = stringResource(R.string.trip_line, formatKilometres(trip.metres, locale()), formatMinutes(trip.seconds))
-                    val builtIn = if (state.priceSource == PriceSource.BUILT_IN) " · " + stringResource(R.string.built_in_prices) else ""
-                    Text(line + builtIn, style = WhichrideTheme.numbers.small, color = colors.onSurfaceMuted)
-                }
-            }
+    // Closed each time the screen opens; each option on its own.
+    var open by rememberSaveable { mutableStateOf(listOf<String>()) }
+    val details = { option: RankedOption ->
+        Details(option.choice.toString() in open) {
+            val key = option.choice.toString()
+            open = if (key in open) open - key else open + key
         }
-        // Own row, wrapping: beside the title, long labels (Italian, 200 % font) crushed the trip line.
-        FlowRow(
-            Modifier.fillMaxWidth().padding(horizontal = Space.md),
-            horizontalArrangement = Arrangement.spacedBy(Space.xxs),
-            itemVerticalAlignment = Alignment.CenterVertically,
-        ) {
+    }
+    Column(Modifier.fillMaxSize()) {
+        TopBar(actions.onBack) { TripTitle(state, actions.onToggleTrip) }
+        state.tripEdit?.let { TripDetails(state, it, actions, Modifier.padding(horizontal = Space.md)) }
+        Row(Modifier.fillMaxWidth().padding(horizontal = Space.md, vertical = Space.xxs)) {
             val active = state.personal.deals.count { it.isActive(state.today) }
             Surface(
                 onClick = actions.onDeals,
@@ -110,9 +120,7 @@ fun ResultScreen(state: UiState, actions: ResultActions) {
                     modifier = Modifier.wrapContentHeight().padding(horizontal = Space.sm, vertical = Space.xs),
                 )
             }
-            TextButton(onClick = actions.onChangeStart) { Text(stringResource(R.string.change_start), color = colors.accentText) }
-            TextButton(onClick = actions.onEdit) { Text(stringResource(R.string.edit), color = colors.accentText) }
-    }
+        }
         val options = state.options
         if (options == null) {
             Column(Modifier.weight(1f).padding(Space.md), verticalArrangement = Arrangement.spacedBy(Space.sm)) {
@@ -131,9 +139,16 @@ fun ResultScreen(state: UiState, actions: ResultActions) {
                 if (ranked.isEmpty()) {
                     item { Intro(state) }
                 } else {
-                    item { Hero(ranked.first(), state, selected = chosen == ranked.first() && ranked.size > 1, actions.onSelect, actions.onRemove) }
+                    // Keyed, so a swipe's state never moves on to the option that takes this place.
+                    item(key = ranked.first().choice.toString()) {
+                        Removable(ranked.first(), state, MaterialTheme.shapes.large, actions.onRemove) { remove ->
+                            Hero(ranked.first(), state, selected = chosen == ranked.first() && ranked.size > 1, details(ranked.first()), remove, actions.onSelect)
+                        }
+                    }
                     items(ranked.drop(1), key = { it.choice.toString() }) { option ->
-                        OptionRow(option, ranked.first().quote.totalCents, state, selected = chosen == option, actions.onSelect, actions.onRemove)
+                        Removable(option, state, MaterialTheme.shapes.small, actions.onRemove) { remove ->
+                            OptionRow(option, ranked.first().quote.totalCents, state, selected = chosen == option, details(option), remove, actions.onSelect)
+                        }
                     }
                 }
                 item {
@@ -155,13 +170,16 @@ fun ResultScreen(state: UiState, actions: ResultActions) {
             horizontalArrangement = Arrangement.spacedBy(Space.sm),
             verticalAlignment = Alignment.CenterVertically,
         ) {
-            OutlinedIconButton(
-                onClick = actions.onOpenMaps,
-                modifier = Modifier.size(Size.controlLg),
-                shape = MaterialTheme.shapes.medium,
-                border = BorderStroke(Size.stroke, colors.outline),
-                colors = IconButtonDefaults.outlinedIconButtonColors(containerColor = colors.surface),
-            ) { Icon(Icons.Filled.Place, contentDescription = stringResource(R.string.open_in_maps)) }
+            // A typed trip has no destination to show.
+            if (state.target != null) {
+                OutlinedIconButton(
+                    onClick = actions.onOpenMaps,
+                    modifier = Modifier.size(Size.controlLg),
+                    shape = MaterialTheme.shapes.medium,
+                    border = BorderStroke(Size.stroke, colors.outline),
+                    colors = IconButtonDefaults.outlinedIconButtonColors(containerColor = colors.surface),
+                ) { Icon(Icons.Filled.Place, contentDescription = stringResource(R.string.open_in_maps)) }
+            }
             PrimaryButton(
                 text = chosen?.let { stringResource(R.string.open_provider, state.providers.nameOf(it.quote.providerId)) }
                     ?: stringResource(R.string.add_cars_to_compare),
@@ -191,7 +209,7 @@ private fun Intro(state: UiState) {
 }
 
 @Composable
-private fun Hero(option: RankedOption, state: UiState, selected: Boolean, onSelect: (Choice) -> Unit, onRemove: (Choice) -> Unit) {
+private fun Hero(option: RankedOption, state: UiState, selected: Boolean, details: Details, remove: Modifier, onSelect: (Choice) -> Unit) {
     val colors = WhichrideTheme.colors
     val provider = state.providers.nameOf(option.quote.providerId)
     Surface(
@@ -200,28 +218,41 @@ private fun Hero(option: RankedOption, state: UiState, selected: Boolean, onSele
         contentColor = colors.onHero,
         border = if (selected) BorderStroke(Size.strokeStrong, colors.onSurface) else null,
     ) {
-        Row {
-            Column(
-                Modifier.weight(1f).selectable(selected, onClick = { onSelect(option.choice) }, role = Role.RadioButton)
-                    .padding(start = Space.lg, top = Space.md, bottom = Space.md),
-                verticalArrangement = Arrangement.spacedBy(Space.xs),
-            ) {
-                Text(stringResource(R.string.cheapest_of_options).uppercase(locale()), style = MaterialTheme.typography.labelSmall)
-                Row(verticalAlignment = Alignment.Bottom) {
-                    Column(Modifier.weight(1f)) {
-                        Text(provider, style = MaterialTheme.typography.titleLarge)
-                        Text("${offerLabel(option)} · ${optionMeta(option, state.priceSource)}", style = MaterialTheme.typography.bodySmall)
+        Column {
+            Row(verticalAlignment = Alignment.Bottom) {
+                Column(
+                    Modifier.weight(1f).selectable(selected, onClick = { onSelect(option.choice) }, role = Role.RadioButton).then(remove)
+                        .padding(start = Space.lg, top = Space.md, bottom = Space.md),
+                    verticalArrangement = Arrangement.spacedBy(Space.xs),
+                ) {
+                    Text(stringResource(R.string.cheapest_of_options).uppercase(locale()), style = MaterialTheme.typography.labelSmall)
+                    Row(verticalAlignment = Alignment.Bottom) {
+                        Column(Modifier.weight(1f)) {
+                            Text(provider, style = MaterialTheme.typography.titleLarge)
+                            Text("${offerLabel(option)} · ${optionMeta(option, state.priceSource)}", style = MaterialTheme.typography.bodySmall)
+                        }
+                        Text(money(option.quote.totalCents), style = WhichrideTheme.numbers.large)
                     }
-                    Text(money(option.quote.totalCents), style = WhichrideTheme.numbers.large)
                 }
+                DetailsButton(option, provider, details)
             }
-            RemoveButton(option, provider, onRemove)
+            if (details.open) {
+                PriceLines(option.quote.lines, muted = colors.onHero, Modifier.padding(start = Space.lg, end = Space.md, bottom = Space.md))
+            }
         }
     }
 }
 
 @Composable
-private fun OptionRow(option: RankedOption, best: Long, state: UiState, selected: Boolean, onSelect: (Choice) -> Unit, onRemove: (Choice) -> Unit) {
+private fun OptionRow(
+    option: RankedOption,
+    best: Long,
+    state: UiState,
+    selected: Boolean,
+    details: Details,
+    remove: Modifier,
+    onSelect: (Choice) -> Unit,
+) {
     val colors = WhichrideTheme.colors
     val provider = state.providers.nameOf(option.quote.providerId)
     Surface(
@@ -229,37 +260,86 @@ private fun OptionRow(option: RankedOption, best: Long, state: UiState, selected
         color = colors.surface,
         border = if (selected) BorderStroke(Size.strokeStrong, colors.accent) else null,
     ) {
-        Row(verticalAlignment = Alignment.CenterVertically) {
-            Row(
-                Modifier.weight(1f).heightIn(min = Size.controlLg)
-                    .selectable(selected, onClick = { onSelect(option.choice) }, role = Role.RadioButton)
-                    .padding(start = Space.md, top = Space.xs, bottom = Space.xs),
-                verticalAlignment = Alignment.CenterVertically,
-                horizontalArrangement = Arrangement.spacedBy(Space.sm),
-            ) {
-                Monogram(provider)
-                Column(Modifier.weight(1f)) {
-                    Text("$provider ${offerLabel(option)}", style = MaterialTheme.typography.titleSmall)
-                    Text(optionMeta(option, state.priceSource), style = MaterialTheme.typography.bodySmall, color = colors.onSurfaceMuted)
+        Column {
+            Row(verticalAlignment = Alignment.CenterVertically) {
+                Row(
+                    Modifier.weight(1f).heightIn(min = Size.controlLg)
+                        .selectable(selected, onClick = { onSelect(option.choice) }, role = Role.RadioButton).then(remove)
+                        .padding(start = Space.md, top = Space.xs, bottom = Space.xs),
+                    verticalAlignment = Alignment.CenterVertically,
+                    horizontalArrangement = Arrangement.spacedBy(Space.sm),
+                ) {
+                    Monogram(provider)
+                    Column(Modifier.weight(1f)) {
+                        Text("$provider ${offerLabel(option)}", style = MaterialTheme.typography.titleSmall)
+                        Text(optionMeta(option, state.priceSource), style = MaterialTheme.typography.bodySmall, color = colors.onSurfaceMuted)
+                    }
+                    Column(horizontalAlignment = Alignment.End) {
+                        Text(money(option.quote.totalCents), style = WhichrideTheme.numbers.medium)
+                        Text(
+                            stringResource(R.string.price_difference, money(option.quote.totalCents - best)),
+                            style = WhichrideTheme.numbers.small,
+                            color = colors.onSurfaceMuted,
+                        )
+                    }
                 }
-                Column(horizontalAlignment = Alignment.End) {
-                    Text(money(option.quote.totalCents), style = WhichrideTheme.numbers.medium)
-                    Text(
-                        stringResource(R.string.price_difference, money(option.quote.totalCents - best)),
-                        style = WhichrideTheme.numbers.small,
-                        color = colors.onSurfaceMuted,
-                    )
-                }
+                DetailsButton(option, provider, details)
             }
-            RemoveButton(option, provider, onRemove)
+            if (details.open) {
+                PriceLines(
+                    option.quote.lines,
+                    muted = colors.onSurfaceMuted,
+                    Modifier.padding(start = Space.md + Size.monogram + Space.sm, end = Space.md, bottom = Space.sm),
+                )
+            }
         }
     }
 }
 
+/** Whether an option's price details are showing, and how to show or hide them. */
+data class Details(val open: Boolean, val toggle: () -> Unit)
+
 @Composable
-private fun RemoveButton(option: RankedOption, provider: String, onRemove: (Choice) -> Unit) {
-    IconButton(onClick = { onRemove(option.choice) }) {
-        Icon(Icons.Filled.Close, contentDescription = stringResource(R.string.remove_option, provider, offerLabel(option)))
+private fun DetailsButton(option: RankedOption, provider: String, details: Details) {
+    IconButton(onClick = details.toggle) {
+        Icon(
+            if (details.open) Icons.Filled.KeyboardArrowUp else Icons.Filled.KeyboardArrowDown,
+            contentDescription = stringResource(
+                if (details.open) R.string.price_details_hide else R.string.price_details_show, provider, offerLabel(option),
+            ),
+        )
+    }
+}
+
+/**
+ * Swiping an option left removes it. TalkBack gets the same as an action on the option's own row
+ * (`content` puts the modifier there), where its focus lands.
+ */
+@Composable
+private fun Removable(option: RankedOption, state: UiState, shape: Shape, onRemove: (Choice) -> Unit, content: @Composable (Modifier) -> Unit) {
+    val colors = WhichrideTheme.colors
+    val label = stringResource(R.string.remove_option, state.providers.nameOf(option.quote.providerId), offerLabel(option))
+    // Not saved: the list keeps saved item state by key, so a car put back by Undo would come back
+    // swiped away.
+    val threshold = SwipeToDismissBoxDefaults.positionalThreshold
+    val swipe = remember { SwipeToDismissBoxState(SwipeToDismissBoxValue.Settled, threshold) }
+    SwipeToDismissBox(
+        swipe,
+        enableDismissFromStartToEnd = false,
+        onDismiss = { onRemove(option.choice) },
+        modifier = Modifier.clip(shape),
+        backgroundContent = {
+            Row(
+                Modifier.fillMaxSize().background(colors.error).padding(horizontal = Space.lg),
+                horizontalArrangement = Arrangement.spacedBy(Space.xs, Alignment.End),
+                verticalAlignment = Alignment.CenterVertically,
+            ) {
+                Icon(Icons.Outlined.Delete, contentDescription = null, tint = colors.onError)
+                Text(stringResource(R.string.remove), color = colors.onError, style = MaterialTheme.typography.labelLarge)
+            }
+        },
+    ) {
+        content(Modifier.semantics { customActions = listOf(CustomAccessibilityAction(label) { onRemove(option.choice); true }) })
     }
 }
 

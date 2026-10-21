@@ -30,7 +30,6 @@
     <string name="manual_title_offline">Can\'t reach the route service</string>
     <string name="manual_title_no_route">No route by car</string>
     <string name="manual_title_no_location">We couldn\'t find your location</string>
-    <string name="manual_title_edit">Distance and time</string>
     <string name="manual_body">Enter the distance and time from Google Maps. The comparison still works.</string>
     <string name="trip_to">To %1$s</string>
     <string name="manual_km">Distance (km)</string>
@@ -43,8 +42,6 @@
 
     <string name="trip_line">%1$s km · %2$s min</string>
     <string name="built_in_prices">built-in prices</string>
-    <string name="edit">Edit</string>
-    <string name="change_start">Change start</string>
     <string name="loading_prices">Loading prices…</string>
     <string name="intro_title">Which cars are near you?</string>
     <string name="intro_title_accent">near you?</string>
@@ -226,4 +223,35 @@
     <string name="crowd_proposal_not_sent">We couldn\'t send the car now. Try again later.</string>
     <string name="crowd_locked">This price is locked for now; your numbers still apply to you.</string>
     <string name="crowd_already_current">That\'s already the price everyone sees.</string>
+    <string name="price_details_show">Show price details for %1$s %2$s</string>
+    <string name="price_details_hide">Hide price details for %1$s %2$s</string>
+    <string name="line_unlock_fee">Unlock fee</string>
+    <string name="line_package">Package price</string>
+    <string name="line_distance">%1$s km × %2$s</string>
+    <string name="line_time">%1$s min × %2$s</string>
+    <plurals name="line_included_km"><item quantity="one">first %d km included</item><item quantity="other">first %d km included</item></plurals>
+    <plurals name="line_included_minutes"><item quantity="one">first %d minute included</item><item quantity="other">first %d minutes included</item></plurals>
+    <string name="line_subscription">Subscription</string>
+    <string name="line_percent_discount">Discount −%1$s %%</string>
+    <string name="line_amount_discount">Discount</string>
+    <string name="line_refuel_credit">Refuel credit</string>
+    <string name="line_minimum">Minimum charge %1$s</string>
+    <string name="line_started_km">Every started km counts</string>
+    <string name="line_started_minutes">Every started minute counts</string>
+    <string name="line_started_both">Every started km and minute counts</string>
+    <string name="remove">Remove</string>
+    <string name="option_removed">%1$s %2$s removed</string>
+    <string name="trip_details_show">Show trip details</string>
+    <string name="trip_details_hide">Hide trip details</string>
+    <string name="trip_from">From</string>
+    <string name="trip_to_label">To</string>
+    <string name="trip_distance">Distance</string>
+    <string name="trip_time">Time</string>
+    <string name="unit_km">km</string>
+    <string name="unit_min">min</string>
+    <string name="reset_distance">Reset distance to %1$s km</string>
+    <string name="reset_time">Reset time to %1$s min</string>
+    <string name="your_trip">Your trip</string>
+    <string name="type_trip">Type km and minutes instead</string>
+    <string name="manual_title_typed">Type your trip</string>
 </resources>

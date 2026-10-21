@@ -8,7 +8,7 @@ use carsharing_core as cc;
 use serde::Deserialize;
 
 use crate::adjustments::Adjustments;
-use crate::cards::{RateCard, from_core};
+use crate::cards::{CardKind, RateCard, Rounding, from_core, kind_from, rounding_from};
 use crate::{DataError, Trip, invalid};
 
 /// Offer IDs of pending proposals: this prefix and the report ID (plan R14).
@@ -50,6 +50,119 @@ pub struct Quote {
     pub confirmed_days_ago: Option<u32>,
     /// A car proposed by a user and not confirmed yet (§5.1).
     pub proposed: bool,
+    /// What `total_cents` is made of, in the order applied; the amounts add up to it.
+    pub lines: Vec<PriceLine>,
+}
+
+/// One part of a price (see `carsharing_core::adjustments::PriceLine`); money in cents, negative
+/// when it lowers the price, percentages in basis points.
+#[derive(Debug, Clone, PartialEq, Eq, uniffi::Enum)]
+pub enum PriceLine {
+    BaseFee {
+        kind: CardKind,
+        amount_cents: i64,
+    },
+    Distance {
+        billed_metres: u64,
+        per_km: i64,
+        included_km: u32,
+        rounding: Rounding,
+        amount_cents: i64,
+    },
+    Time {
+        billed_seconds: u64,
+        per_minute: i64,
+        included_minutes: u32,
+        rounding: Rounding,
+        amount_cents: i64,
+    },
+    Subscription {
+        amount_cents: i64,
+    },
+    PercentDiscount {
+        off: u16,
+        amount_cents: i64,
+    },
+    AmountDiscount {
+        amount_cents: i64,
+    },
+    RefuelCredit {
+        amount_cents: i64,
+    },
+    Minimum {
+        minimum: i64,
+        amount_cents: i64,
+    },
+}
+
+impl PriceLine {
+    pub fn amount_cents(&self) -> i64 {
+        match self {
+            PriceLine::BaseFee { amount_cents, .. }
+            | PriceLine::Distance { amount_cents, .. }
+            | PriceLine::Time { amount_cents, .. }
+            | PriceLine::Subscription { amount_cents }
+            | PriceLine::PercentDiscount { amount_cents, .. }
+            | PriceLine::AmountDiscount { amount_cents }
+            | PriceLine::RefuelCredit { amount_cents }
+            | PriceLine::Minimum { amount_cents, .. } => *amount_cents,
+        }
+    }
+}
+
+impl From<&cc::PriceLine> for PriceLine {
+    fn from(line: &cc::PriceLine) -> Self {
+        use cc::PriceLine as Core;
+        match *line {
+            Core::BaseFee { kind, amount } => PriceLine::BaseFee {
+                kind: kind_from(kind),
+                amount_cents: amount.0,
+            },
+            Core::Distance {
+                billed_metres,
+                per_km,
+                included_km,
+                rounding,
+                amount,
+            } => PriceLine::Distance {
+                billed_metres,
+                per_km: per_km.0,
+                included_km,
+                rounding: rounding_from(rounding),
+                amount_cents: amount.0,
+            },
+            Core::Time {
+                billed_seconds,
+                per_minute,
+                included_minutes,
+                rounding,
+                amount,
+            } => PriceLine::Time {
+                billed_seconds,
+                per_minute: per_minute.0,
+                included_minutes,
+                rounding: rounding_from(rounding),
+                amount_cents: amount.0,
+            },
+            Core::Subscription { amount } => PriceLine::Subscription {
+                amount_cents: amount.0,
+            },
+            Core::PercentDiscount { off, amount } => PriceLine::PercentDiscount {
+                off: off.basis_points(),
+                amount_cents: amount.0,
+            },
+            Core::AmountDiscount { amount } => PriceLine::AmountDiscount {
+                amount_cents: amount.0,
+            },
+            Core::RefuelCredit { amount } => PriceLine::RefuelCredit {
+                amount_cents: amount.0,
+            },
+            Core::Minimum { minimum, amount } => PriceLine::Minimum {
+                minimum: minimum.0,
+                amount_cents: amount.0,
+            },
+        }
+    }
 }
 
 /// The §7.2 question: the values to confirm, and the pending report they belong to (if any).
@@ -408,6 +521,7 @@ impl Prices {
                 self.confirmed_on.get(&q.offer).copied(),
             ),
             proposed: is_proposal(&q.offer),
+            lines: q.lines.iter().map(Into::into).collect(),
         }
     }
 }
@@ -490,6 +604,35 @@ mod tests {
         }];
         let options = prices.options(TRIP, added, Adjustments::default(), TODAY);
         assert_eq!(options.ranked[0].quote.offer_id, proposal_id);
+    }
+
+    #[test]
+    fn quotes_carry_lines_that_add_up_to_the_total() {
+        let prices = Prices::from_seed(SEED.into()).unwrap();
+        let half = Adjustments {
+            discounts: vec![crate::adjustments::Discount::Percent {
+                provider_id: "miles".into(),
+                off: 5_000,
+            }],
+            ..Adjustments::default()
+        };
+        let quotes = prices.quotes(TRIP, half, TODAY);
+        for quote in &quotes {
+            let sum: i64 = quote.lines.iter().map(PriceLine::amount_cents).sum();
+            assert_eq!(sum, quote.total_cents, "{}", quote.offer_id);
+        }
+        let miles_s = quotes.iter().find(|q| q.offer_id == "miles.s").unwrap();
+        assert!(miles_s.lines.iter().any(|line| matches!(
+            line,
+            PriceLine::PercentDiscount { off: 5_000, amount_cents } if *amount_cents < 0
+        )));
+        assert!(miles_s.lines.iter().any(|line| matches!(
+            line,
+            PriceLine::Distance {
+                billed_metres: 8_000,
+                ..
+            }
+        )));
     }
 
     #[test]

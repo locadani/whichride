@@ -1,6 +1,7 @@
 package io.github.locadani.whichride.compare
 
 import io.github.locadani.whichride.core.Choice
+import io.github.locadani.whichride.core.Trip
 import io.github.locadani.whichride.core.Destination
 import io.github.locadani.whichride.core.Prices
 import io.github.locadani.whichride.launch.MapsTarget
@@ -19,6 +20,7 @@ import kotlinx.coroutines.test.runTest
 import kotlinx.coroutines.test.setMain
 import org.junit.After
 import org.junit.Assert.assertEquals
+import org.junit.Assert.assertNotEquals
 import org.junit.Assert.assertFalse
 import org.junit.Assert.assertNull
 import org.junit.Assert.assertTrue
@@ -164,6 +166,17 @@ class CompareViewModelTest {
         )
     }
 
+    @Test fun `from my location Maps starts where the phone is`() = runTest(dispatcher) {
+        val vm = viewModel()
+        vm.onShared(coordinateLink)
+        advanceUntilIdle()
+        vm.openMaps()
+        assertEquals(
+            "https://www.google.com/maps/dir/?api=1&destination=52.502287,13.431605&travelmode=driving",
+            launcher.urls.single(),
+        )
+    }
+
     @Test fun `choosing a start after a failed location routes the waiting trip`() = runTest(dispatcher) {
         here = null
         val vm = viewModel()
@@ -297,6 +310,34 @@ class CompareViewModelTest {
         assertEquals(1, vm.state.value.options!!.ranked.size)
     }
 
+    @Test fun `a removed car can be put back with its selection`() = runTest(dispatcher) {
+        store.choices = setOf(Choice.Offer("bolt.vw-polo"), Choice.AnyOf("miles"))
+        val vm = viewModel()
+        vm.onShared(coordinateLink)
+        advanceUntilIdle()
+        vm.select(Choice.AnyOf("miles"))
+        vm.remove(Choice.AnyOf("miles"))
+        assertEquals(Choice.AnyOf("miles"), vm.state.value.removed?.choice)
+        assertEquals(1, vm.state.value.options!!.ranked.size)
+        vm.undoRemove()
+        assertEquals(setOf(Choice.Offer("bolt.vw-polo"), Choice.AnyOf("miles")), store.choices)
+        assertEquals(Choice.AnyOf("miles"), vm.state.value.selected)
+        assertEquals(null, vm.state.value.removed)
+        assertEquals(2, vm.state.value.options!!.ranked.size)
+    }
+
+    @Test fun `once the removed message is gone the car stays removed`() = runTest(dispatcher) {
+        store.choices = setOf(Choice.Offer("bolt.vw-polo"), Choice.AnyOf("miles"))
+        val vm = viewModel()
+        vm.onShared(coordinateLink)
+        advanceUntilIdle()
+        vm.remove(Choice.AnyOf("miles"))
+        vm.removedMessageShown()
+        assertEquals(null, vm.state.value.removed)
+        vm.undoRemove()
+        assertEquals(setOf(Choice.Offer("bolt.vw-polo")), store.choices)
+    }
+
     @Test fun `check in opens the provider without leaving step 2`() = runTest(dispatcher) {
         val vm = viewModel()
         vm.onShared(coordinateLink)
@@ -328,17 +369,137 @@ class CompareViewModelTest {
         assertEquals(1, state.options!!.ranked.size)
     }
 
-    @Test fun `editing km and minutes keeps the result`() = runTest(dispatcher) {
+    @Test fun `trip details start from the trip and edits reprice at once`() = runTest(dispatcher) {
+        store.choices = setOf(Choice.AnyOf("miles"))
         val vm = viewModel()
         vm.onShared(coordinateLink)
         advanceUntilIdle()
-        vm.editTrip()
-        assertEquals("7.4", vm.state.value.manualKm)
-        assertEquals("22", vm.state.value.manualMinutes)
-        vm.onManualKm("10")
+        val before = vm.state.value.options!!.ranked.map { it.quote.totalCents }
+        vm.toggleTrip()
+        val edit = vm.state.value.tripEdit!!
+        assertEquals("7.4", edit.km)
+        assertEquals("22", edit.minutes)
+        assertFalse(edit.kmEdited || edit.minutesEdited)
+        vm.onTripKm("20")
+        assertEquals(20_000u, vm.state.value.trip!!.metres)
+        assertTrue(vm.state.value.tripEdit!!.kmEdited)
+        assertNotEquals(before, vm.state.value.options!!.ranked.map { it.quote.totalCents })
+        assertEquals(listOf(Screen.Home, Screen.Result), vm.state.value.stack)
+    }
+
+    @Test fun `reset puts the routed value back`() = runTest(dispatcher) {
+        val vm = viewModel()
+        vm.onShared(coordinateLink)
+        advanceUntilIdle()
+        val routed = vm.state.value.trip!!
+        vm.toggleTrip()
+        vm.onTripKm("20")
+        vm.onTripMinutes("40")
+        vm.resetTripKm()
+        assertEquals(routed.metres, vm.state.value.trip!!.metres)
+        assertEquals("7.4", vm.state.value.tripEdit!!.km)
+        assertFalse(vm.state.value.tripEdit!!.kmEdited)
+        assertTrue(vm.state.value.tripEdit!!.minutesEdited)
+        vm.resetTripMinutes()
+        assertEquals(routed, vm.state.value.trip)
+    }
+
+    @Test fun `closing keeps the edited numbers as the new ones`() = runTest(dispatcher) {
+        val vm = viewModel()
+        vm.onShared(coordinateLink)
+        advanceUntilIdle()
+        vm.toggleTrip()
+        vm.onTripMinutes("40")
+        vm.toggleTrip()
+        assertNull(vm.state.value.tripEdit)
+        assertEquals(2_400u, vm.state.value.trip!!.seconds)
+        vm.toggleTrip()
+        assertEquals("40", vm.state.value.tripEdit!!.minutes)
+        assertFalse(vm.state.value.tripEdit!!.minutesEdited)
+    }
+
+    @Test fun `a number that isn't valid keeps the last good trip`() = runTest(dispatcher) {
+        val vm = viewModel()
+        vm.onShared(coordinateLink)
+        advanceUntilIdle()
+        val routed = vm.state.value.trip!!
+        vm.toggleTrip()
+        vm.onTripKm("abc")
+        vm.onTripMinutes("0")
+        assertEquals(routed, vm.state.value.trip)
+        assertTrue(vm.state.value.tripEdit!!.kmInvalid)
+        assertTrue(vm.state.value.tripEdit!!.minutesInvalid)
+    }
+
+    @Test fun `a typed trip needs no destination and forgets the last one`() = runTest(dispatcher) {
+        val vm = viewModel()
+        vm.onShared(coordinateLink)
+        advanceUntilIdle()
+        assertTrue(vm.back())
+        vm.typeTrip()
+        assertEquals(Screen.ManualTrip, vm.state.value.screen)
+        assertEquals(ManualReason.TYPED, vm.state.value.manualReason)
+        assertEquals("", vm.state.value.manualKm)
+        assertEquals("", vm.state.value.manualMinutes)
+        vm.onManualKm("12")
+        vm.onManualMinutes("30")
         vm.submitManual()
         assertEquals(listOf(Screen.Home, Screen.Result), vm.state.value.stack)
-        assertEquals(10_000u, vm.state.value.trip!!.metres)
+        assertNull(vm.state.value.target)
+        assertEquals(Trip(12_000u, 1_800u), vm.state.value.trip)
+    }
+
+    @Test fun `back to Home keeps what was searched`() = runTest(dispatcher) {
+        val vm = viewModel()
+        vm.onQuery("Markthalle Neun")
+        vm.submitQuery()
+        advanceUntilIdle()
+        assertEquals(Screen.Result, vm.state.value.screen)
+        assertTrue(vm.back())
+        assertEquals(Screen.Home, vm.state.value.screen)
+        assertEquals("Markthalle Neun", vm.state.value.query)
+        assertTrue(vm.state.value.suggestions.isEmpty())
+    }
+
+    @Test fun `back to Home shows the picked place in full`() = runTest(dispatcher) {
+        val vm = viewModel()
+        vm.onQuery("Markth")
+        vm.pickSuggestion(Place("Markthalle Neun, Berlin", NEUN))
+        advanceUntilIdle()
+        assertTrue(vm.back())
+        assertEquals("Markthalle Neun, Berlin", vm.state.value.query)
+    }
+
+    @Test fun `back to Home keeps a shared link ready to compare again`() = runTest(dispatcher) {
+        val vm = viewModel()
+        vm.onShared(coordinateLink)
+        advanceUntilIdle()
+        assertTrue(vm.back())
+        assertEquals(coordinateLink, vm.state.value.query)
+        assertTrue(vm.state.value.linkInQuery)
+    }
+
+    @Test fun `a typed trip starts without the last trip's refuel or selection`() = runTest(dispatcher) {
+        store.choices = setOf(Choice.AnyOf("miles"))
+        val vm = viewModel()
+        vm.onShared(coordinateLink)
+        advanceUntilIdle()
+        vm.select(Choice.AnyOf("miles"))
+        vm.setRefuel(true)
+        vm.back()
+        vm.typeTrip()
+        assertFalse(vm.state.value.refuel)
+        assertNull(vm.state.value.selected)
+    }
+
+    @Test fun `a shared text too long to keep leaves Home empty`() = runTest(dispatcher) {
+        val vm = viewModel()
+        vm.onShared("x".repeat(250) + " " + coordinateLink)
+        advanceUntilIdle()
+        assertEquals(Screen.Result, vm.state.value.screen)
+        assertTrue(vm.back())
+        assertEquals("", vm.state.value.query)
+        assertFalse(vm.state.value.linkInQuery)
     }
 
     @Test fun `back walks the stack and cancels routing`() = runTest(dispatcher) {

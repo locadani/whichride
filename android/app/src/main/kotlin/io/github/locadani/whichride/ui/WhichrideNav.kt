@@ -39,6 +39,7 @@ fun WhichrideNav(viewModel: CompareViewModel) {
     }
     val snackbar = remember { SnackbarHostState() }
     OnceUndo(state, snackbar, viewModel::undoOnce, viewModel::onceMessageShown)
+    RemovedUndo(state, snackbar, viewModel::undoRemove, viewModel::removedMessageShown)
     val crowdText = state.crowdMessage?.let { stringResource(it.text()) }
     LaunchedEffect(state.crowdMessage) {
         if (crowdText == null) return@LaunchedEffect
@@ -50,7 +51,7 @@ fun WhichrideNav(viewModel: CompareViewModel) {
             when (val screen = state.screen) {
                 Screen.Home -> HomeScreen(
                     state, viewModel::onQuery, viewModel::submitQuery, viewModel::pickSuggestion,
-                    viewModel::changeStart, viewModel::openSettings,
+                    viewModel::changeStart, viewModel::openSettings, viewModel::typeTrip,
                 )
                 Screen.Resolving -> ResolvingScreen(state, onCancel = { viewModel.back() })
                 Screen.ManualTrip -> ManualTripScreen(
@@ -60,7 +61,8 @@ fun WhichrideNav(viewModel: CompareViewModel) {
                 Screen.Result -> ResultScreen(
                     state,
                     ResultActions(
-                        onBack = { viewModel.back() }, onEdit = viewModel::editTrip, onChangeStart = viewModel::changeStart,
+                        onBack = { viewModel.back() }, onToggleTrip = viewModel::toggleTrip, onTripKm = viewModel::onTripKm,
+                        onTripMinutes = viewModel::onTripMinutes, onResetKm = viewModel::resetTripKm, onResetMinutes = viewModel::resetTripMinutes,
                         onAddCars = viewModel::addCars, onRemove = viewModel::remove, onSelect = viewModel::select,
                         onOpen = viewModel::openChosen, onOpenMaps = viewModel::openMaps, onDeals = viewModel::openDeals,
                         onRefuel = viewModel::setRefuel, onReport = viewModel::reportPrice,

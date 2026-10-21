@@ -2,6 +2,7 @@ package io.github.locadani.whichride.ui
 
 import androidx.compose.ui.test.getBoundsInRoot
 import androidx.compose.ui.test.junit4.createComposeRule
+import androidx.compose.ui.test.onNodeWithContentDescription
 import androidx.compose.ui.test.onNodeWithText
 import androidx.compose.ui.unit.dp
 import androidx.test.ext.junit.runners.AndroidJUnit4
@@ -20,11 +21,11 @@ import org.robolectric.annotation.GraphicsMode
 class ResultTopBarTest {
     @get:Rule val compose = createComposeRule()
 
-    @Test fun theTripLineKeepsItsWidthAndTheActionsGoBelowIt() {
+    @Test fun theTripLineKeepsItsWidthAndTheChevronStaysBesideIt() {
         compose.setContent { WhichrideTheme { ResultScreen(resultState(), resultActions()) } }
-        val line = compose.onNodeWithText("7,4 km", substring = true).getBoundsInRoot()
-        val edit = compose.onNodeWithText("Modifica").getBoundsInRoot()
+        val line = compose.onNodeWithText("7,4 km", substring = true, useUnmergedTree = true).getBoundsInRoot()
+        val chevron = compose.onNodeWithContentDescription("Mostra i dettagli del viaggio", useUnmergedTree = true).getBoundsInRoot()
         assertTrue("trip line is ${line.right - line.left} wide", line.right - line.left > 80.dp)
-        assertTrue("actions overlap the trip line", edit.top >= line.bottom)
+        assertTrue("the chevron (${chevron.left}..${chevron.right}) overlaps the trip line (${line.left}..${line.right})", chevron.left >= line.right)
     }
 }
