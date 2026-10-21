@@ -1,6 +1,20 @@
 package io.github.locadani.whichride.ui
 
 import androidx.compose.foundation.BorderStroke
+import androidx.compose.ui.graphics.PathEffect
+import androidx.compose.ui.geometry.Offset
+import androidx.compose.ui.draw.clip
+import androidx.compose.foundation.shape.RoundedCornerShape
+import androidx.compose.foundation.shape.CircleShape
+import androidx.compose.foundation.layout.width
+import androidx.compose.foundation.layout.size
+import androidx.compose.foundation.layout.height
+import androidx.compose.foundation.layout.fillMaxHeight
+import androidx.compose.foundation.layout.IntrinsicSize
+import androidx.compose.foundation.layout.Box
+import androidx.compose.foundation.border
+import androidx.compose.foundation.background
+import androidx.compose.foundation.Canvas
 import androidx.compose.foundation.Image
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Column
@@ -14,8 +28,6 @@ import androidx.compose.foundation.text.KeyboardActions
 import androidx.compose.foundation.text.KeyboardOptions
 import androidx.compose.foundation.verticalScroll
 import androidx.compose.material.icons.Icons
-import androidx.compose.material.icons.filled.Place
-import androidx.compose.material.icons.outlined.LocationOn
 import androidx.compose.material.icons.outlined.Place
 import androidx.compose.material3.HorizontalDivider
 import androidx.compose.material3.Icon
@@ -78,37 +90,41 @@ fun HomeScreen(
                 modifier = Modifier.padding(horizontal = Space.xxs).semantics { heading() },
             )
             Panel {
-                Row(verticalAlignment = Alignment.CenterVertically, modifier = Modifier.padding(start = Space.sm)) {
-                    Icon(Icons.Outlined.LocationOn, contentDescription = null, tint = colors.onSurfaceMuted)
-                    Text(
-                        when (val start = state.start) {
-                            Start.MyLocation -> stringResource(R.string.start_my_location)
-                            is Start.Chosen -> start.place.label
-                        },
-                        style = MaterialTheme.typography.bodyLarge,
-                        color = colors.onSurfaceMuted,
-                        maxLines = 1,
-                        modifier = Modifier.weight(1f).padding(start = Space.sm),
-                    )
-                    TextButton(onClick = onChangeStart) { Text(stringResource(R.string.start_change), color = colors.accentText) }
+                // A route from the start (dot) to the destination (square): the start reads as set,
+                // the destination as the field still to fill. Drawing only, silent for TalkBack.
+                Row(Modifier.height(IntrinsicSize.Min)) {
+                    RouteMarks(Modifier.padding(start = Space.sm, top = Space.lg, bottom = Space.lg))
+                    Column(Modifier.weight(1f)) {
+                        Row(verticalAlignment = Alignment.CenterVertically, modifier = Modifier.padding(start = Space.sm)) {
+                            Text(
+                                when (val start = state.start) {
+                                    Start.MyLocation -> stringResource(R.string.start_my_location)
+                                    is Start.Chosen -> start.place.label
+                                },
+                                style = MaterialTheme.typography.titleMedium,
+                                maxLines = 1,
+                                modifier = Modifier.weight(1f),
+                            )
+                            TextButton(onClick = onChangeStart) { Text(stringResource(R.string.start_change), color = colors.accentText) }
+                        }
+                        HorizontalDivider(color = colors.outlineVariant)
+                        val label = stringResource(R.string.destination_label)
+                        TextField(
+                            value = state.query,
+                            onValueChange = onQuery,
+                            modifier = Modifier.fillMaxWidth().semantics { contentDescription = label },
+                            placeholder = { Text(stringResource(R.string.destination_hint)) },
+                            singleLine = true,
+                            keyboardOptions = KeyboardOptions(keyboardType = KeyboardType.Uri, imeAction = ImeAction.Search),
+                            keyboardActions = KeyboardActions(onSearch = { onSubmit() }),
+                            colors = TextFieldDefaults.colors(
+                                focusedContainerColor = colors.surface,
+                                unfocusedContainerColor = colors.surface,
+                                unfocusedIndicatorColor = colors.surface,
+                            ),
+                        )
+                    }
                 }
-                HorizontalDivider(color = colors.outlineVariant)
-                val label = stringResource(R.string.destination_label)
-                TextField(
-                    value = state.query,
-                    onValueChange = onQuery,
-                    modifier = Modifier.fillMaxWidth().semantics { contentDescription = label },
-                    placeholder = { Text(stringResource(R.string.destination_hint)) },
-                    leadingIcon = { Icon(Icons.Filled.Place, contentDescription = null, tint = colors.accent) },
-                    singleLine = true,
-                    keyboardOptions = KeyboardOptions(keyboardType = KeyboardType.Uri, imeAction = ImeAction.Search),
-                    keyboardActions = KeyboardActions(onSearch = { onSubmit() }),
-                    colors = TextFieldDefaults.colors(
-                        focusedContainerColor = colors.surface,
-                        unfocusedContainerColor = colors.surface,
-                        unfocusedIndicatorColor = colors.surface,
-                    ),
-                )
             }
             state.inputError?.let {
                 Text(stringResource(it.message()), color = colors.error, style = MaterialTheme.typography.bodyMedium)
@@ -142,3 +158,25 @@ fun HomeScreen(
         }
     }
 }
+
+/** Filled dot, dotted line, hollow square: start, route, destination. */
+@Composable
+private fun RouteMarks(modifier: Modifier) {
+    val colors = WhichrideTheme.colors
+    val stroke = WhichrideTokens.Size.strokeStrong
+    Column(modifier.fillMaxHeight(), horizontalAlignment = Alignment.CenterHorizontally) {
+        Box(Modifier.size(Space.sm).clip(CircleShape).background(colors.accent))
+        Canvas(Modifier.weight(1f).width(stroke).padding(vertical = Space.xxs)) {
+            val dash = Space.xxs.toPx()
+            drawLine(
+                colors.outline,
+                Offset(size.width / 2, 0f),
+                Offset(size.width / 2, size.height),
+                strokeWidth = stroke.toPx(),
+                pathEffect = PathEffect.dashPathEffect(floatArrayOf(dash, dash)),
+            )
+        }
+        Box(Modifier.size(Space.sm).border(stroke, colors.onSurfaceMuted, RoundedCornerShape(Space.xxs)))
+    }
+}
+
