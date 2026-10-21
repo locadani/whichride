@@ -23,13 +23,18 @@ class LocalSettings(private val providers: ProviderFactory, localFile: File) {
     fun get(name: String): String? {
         require(name.startsWith("whichride.")) { "whichride settings start with whichride.: $name" }
         asked += name
-        val value = local.getProperty(name)
-            ?: providers.gradleProperty(name).orNull
-            ?: providers.environmentVariable(envName(name)).orNull
-        return value?.trim()?.takeIf { it.isNotEmpty() }
+        return firstSet(
+            { local.getProperty(name) },
+            { providers.gradleProperty(name).orNull },
+            { providers.environmentVariable(envName(name)).orNull },
+        )
     }
 
     companion object {
+        /** The first non-blank value, trimmed: a blank line copied from the template doesn't hide the others. */
+        fun firstSet(vararg sources: () -> String?): String? =
+            sources.asSequence().map { it()?.trim() }.firstOrNull { !it.isNullOrEmpty() }
+
         /** whichride.upload.storeFile → WHICHRIDE_UPLOAD_STOREFILE (the release workflow's names). */
         fun envName(name: String) = "WHICHRIDE_" + name.removePrefix("whichride.").replace('.', '_').uppercase()
     }
