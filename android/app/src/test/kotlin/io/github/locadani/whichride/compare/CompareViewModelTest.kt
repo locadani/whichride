@@ -479,6 +479,29 @@ class CompareViewModelTest {
         assertTrue(vm.state.value.linkInQuery)
     }
 
+    @Test fun `a typed trip starts without the last trip's refuel or selection`() = runTest(dispatcher) {
+        store.choices = setOf(Choice.AnyOf("miles"))
+        val vm = viewModel()
+        vm.onShared(coordinateLink)
+        advanceUntilIdle()
+        vm.select(Choice.AnyOf("miles"))
+        vm.setRefuel(true)
+        vm.back()
+        vm.typeTrip()
+        assertFalse(vm.state.value.refuel)
+        assertNull(vm.state.value.selected)
+    }
+
+    @Test fun `a shared text too long to keep leaves Home empty`() = runTest(dispatcher) {
+        val vm = viewModel()
+        vm.onShared("x".repeat(250) + " " + coordinateLink)
+        advanceUntilIdle()
+        assertEquals(Screen.Result, vm.state.value.screen)
+        assertTrue(vm.back())
+        assertEquals("", vm.state.value.query)
+        assertFalse(vm.state.value.linkInQuery)
+    }
+
     @Test fun `back walks the stack and cancels routing`() = runTest(dispatcher) {
         routes.routeGate = CompletableDeferred()
         val vm = viewModel()

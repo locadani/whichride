@@ -228,8 +228,8 @@
     <string name="line_package">Paketpreis</string>
     <string name="line_distance">%1$s km × %2$s</string>
     <string name="line_time">%1$s Min. × %2$s</string>
-    <plurals name="line_included_km"><item quantity="one">erster %d km inklusive</item><item quantity="other">erste %d km inklusive</item></plurals>
-    <plurals name="line_included_minutes"><item quantity="one">erste %d Minute inklusive</item><item quantity="other">erste %d Minuten inklusive</item></plurals>
+    <plurals name="line_included_km"><item quantity="one">%d km inklusive</item><item quantity="other">erste %d km inklusive</item></plurals>
+    <plurals name="line_included_minutes"><item quantity="one">%d Minute inklusive</item><item quantity="other">erste %d Minuten inklusive</item></plurals>
     <string name="line_subscription">Abo</string>
     <string name="line_percent_discount">Rabatt −%1$s %%</string>
     <string name="line_amount_discount">Rabatt</string>
@@ -237,7 +237,7 @@
     <string name="line_minimum">Mindestpreis %1$s</string>
     <string name="line_started_km">Jeder angefangene km zählt</string>
     <string name="line_started_minutes">Jede angefangene Minute zählt</string>
-    <string name="line_started_both">Jeder angefangene km und jede angefangene Minute zählt</string>
+    <string name="line_started_both">Angefangene km und Minuten zählen voll</string>
     <string name="remove">Entfernen</string>
     <string name="option_removed">%1$s %2$s entfernt</string>
     <string name="trip_details_show">Fahrtdetails anzeigen</string>

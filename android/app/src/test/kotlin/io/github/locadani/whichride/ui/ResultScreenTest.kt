@@ -5,6 +5,7 @@ import androidx.compose.ui.semantics.SemanticsActions
 import androidx.compose.ui.semantics.SemanticsProperties
 import androidx.compose.ui.semantics.getOrNull
 import androidx.compose.ui.test.SemanticsMatcher
+import androidx.compose.ui.test.hasContentDescription
 import androidx.compose.runtime.getValue
 import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.setValue
@@ -239,6 +240,23 @@ class ResultScreenTest {
         compose.onNodeWithText("Alexanderplatz").assertExists()
         compose.onNodeWithText("Berlin").assertExists()
         compose.onNodeWithText("Your location").assertDoesNotExist()
+    }
+
+    @Test fun invalidTripNumbersSayWhatIsAllowed() {
+        show(resultState().copy(tripEdit = TripEdit(Trip(7_400u, 1_320u), km = "abc", kmInvalid = true, minutes = "0", minutesInvalid = true)))
+        compose.onNodeWithText("Between 0.1 and 2000 km").assertExists()
+        compose.onNodeWithText("Between 1 and 1440 minutes").assertExists()
+    }
+
+    @Test fun builtInPricesStayMarkedWhileTheDetailsAreOpen() {
+        show(resultState().copy(priceSource = PriceSource.BUILT_IN, tripEdit = TripEdit(Trip(7_400u, 1_320u))))
+        compose.onNodeWithText("built-in prices").assertExists()
+    }
+
+    @Test fun theTripTitleIsAButton() {
+        show(resultState())
+        compose.onNode(hasContentDescription("Show trip details") and SemanticsMatcher.expectValue(SemanticsProperties.Role, Role.Button))
+            .assertExists()
     }
 
     @Test fun aTypedTripHasNoMapsButton() {

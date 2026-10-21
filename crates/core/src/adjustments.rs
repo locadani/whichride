@@ -102,7 +102,7 @@ pub enum PriceLine {
         rounding: Rounding,
         amount: Cents,
     },
-    /// What the provider's subscription saves.
+    /// What the provider's subscription saves; left out when it saves nothing.
     Subscription {
         amount: Cents,
     },
@@ -194,9 +194,12 @@ impl Adjustments {
             .find(|s| s.provider == provider.id)
         {
             let after = after_subscription(subscription, card.kind, charges);
-            lines.push(PriceLine::Subscription {
-                amount: after - total,
-            });
+            // A pass that changes nothing for this card (e.g. a package) gets no line.
+            if after != total {
+                lines.push(PriceLine::Subscription {
+                    amount: after - total,
+                });
+            }
             total = after;
         }
         for discount in &self.discounts {
@@ -204,10 +207,12 @@ impl Adjustments {
                 && *id == provider.id
             {
                 let after = off.off(total);
-                lines.push(PriceLine::PercentDiscount {
-                    off: *off,
-                    amount: after - total,
-                });
+                if after != total {
+                    lines.push(PriceLine::PercentDiscount {
+                        off: *off,
+                        amount: after - total,
+                    });
+                }
                 total = after;
             }
         }
@@ -650,6 +655,29 @@ mod tests {
             }
         );
         assert_eq!(lines.len(), 3);
+    }
+
+    #[test]
+    fn a_subscription_or_discount_that_changes_nothing_gets_no_line() {
+        let adjustments = Adjustments {
+            subscriptions: vec![Subscription {
+                provider: miles().id,
+                distance_off: pct(1_000),
+                time_off: Percent::ZERO,
+                waive_base_fee: false,
+                package_off: Percent::ZERO,
+            }],
+            discounts: vec![Discount::Percent {
+                provider: miles().id,
+                off: Percent::ZERO,
+            }],
+            ..Adjustments::default()
+        };
+        // A package under a pass that only discounts standard tariffs, and a 0 % discount.
+        assert_eq!(
+            lines(&adjustments, &miles(), &package_card(), &TRIP).len(),
+            3
+        );
     }
 
     #[test]

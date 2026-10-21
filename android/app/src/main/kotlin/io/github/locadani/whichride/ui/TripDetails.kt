@@ -23,6 +23,7 @@ import androidx.compose.runtime.Composable
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.res.stringResource
+import androidx.compose.ui.semantics.Role
 import androidx.compose.ui.semantics.contentDescription
 import androidx.compose.ui.semantics.heading
 import androidx.compose.ui.semantics.semantics
@@ -49,7 +50,7 @@ private val Space = WhichrideTokens.Space
 fun RowScope.TripTitle(state: UiState, onToggle: () -> Unit) {
     val colors = WhichrideTheme.colors
     val open = state.tripEdit != null
-    Row(Modifier.weight(1f).clickable(onClick = onToggle), verticalAlignment = Alignment.CenterVertically) {
+    Row(Modifier.weight(1f).clickable(role = Role.Button, onClick = onToggle), verticalAlignment = Alignment.CenterVertically) {
         Column(Modifier.weight(1f)) {
             Text(
                 state.target?.let { stringResource(R.string.trip_to, it.label ?: stringResource(R.string.resolving_unnamed)) }
@@ -57,11 +58,14 @@ fun RowScope.TripTitle(state: UiState, onToggle: () -> Unit) {
                 style = MaterialTheme.typography.titleMedium, maxLines = 1, overflow = TextOverflow.Ellipsis,
                 modifier = Modifier.semantics { heading() },
             )
-            val trip = state.trip
-            if (trip != null && !open) {
-                val line = stringResource(R.string.trip_line, formatKilometres(trip.metres, locale()), formatMinutes(trip.seconds))
-                val builtIn = if (state.priceSource == PriceSource.BUILT_IN) " · " + stringResource(R.string.built_in_prices) else ""
-                Text(line + builtIn, style = WhichrideTheme.numbers.small, color = colors.onSurfaceMuted)
+            // While open, the numbers are in the details; "built-in prices" stays here either way.
+            val trip = state.trip?.takeIf { !open }
+            val parts = listOfNotNull(
+                trip?.let { stringResource(R.string.trip_line, formatKilometres(it.metres, locale()), formatMinutes(it.seconds)) },
+                stringResource(R.string.built_in_prices).takeIf { state.priceSource == PriceSource.BUILT_IN },
+            )
+            if (parts.isNotEmpty()) {
+                Text(parts.joinToString(" · "), style = WhichrideTheme.numbers.small, color = colors.onSurfaceMuted)
             }
         }
         Icon(
@@ -91,13 +95,15 @@ fun TripDetails(state: UiState, edit: TripEdit, actions: ResultActions, modifier
                 HorizontalDivider(color = colors.outlineVariant)
             }
             NumberLine(
-                stringResource(R.string.trip_distance), edit.km, stringResource(R.string.unit_km), edit.kmInvalid,
+                stringResource(R.string.trip_distance), edit.km, stringResource(R.string.unit_km),
+                error = stringResource(R.string.manual_km_invalid).takeIf { edit.kmInvalid },
                 reset = if (edit.kmEdited) edit.originalKm else null,
                 resetLabel = { stringResource(R.string.reset_distance, it) },
                 keyboard = KeyboardType.Decimal, onChange = actions.onTripKm, onReset = actions.onResetKm,
             )
             NumberLine(
-                stringResource(R.string.trip_time), edit.minutes, stringResource(R.string.unit_min), edit.minutesInvalid,
+                stringResource(R.string.trip_time), edit.minutes, stringResource(R.string.unit_min),
+                error = stringResource(R.string.manual_minutes_invalid).takeIf { edit.minutesInvalid },
                 reset = if (edit.minutesEdited) edit.originalMinutes else null,
                 resetLabel = { stringResource(R.string.reset_time, it) },
                 keyboard = KeyboardType.Number, onChange = actions.onTripMinutes, onReset = actions.onResetMinutes,
@@ -126,7 +132,7 @@ private fun NumberLine(
     label: String,
     value: String,
     unit: String,
-    invalid: Boolean,
+    error: String?,
     reset: String?,
     resetLabel: @Composable (String) -> String,
     keyboard: KeyboardType,
@@ -149,7 +155,8 @@ private fun NumberLine(
             modifier = Modifier.weight(1f).semantics { contentDescription = label },
             textStyle = WhichrideTheme.numbers.medium,
             suffix = { Text(unit, style = MaterialTheme.typography.bodySmall) },
-            isError = invalid,
+            isError = error != null,
+            supportingText = error?.let { { Text(it) } },
             singleLine = true,
             keyboardOptions = KeyboardOptions(keyboardType = keyboard, imeAction = ImeAction.Done),
             colors = if (reset != null) {

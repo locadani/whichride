@@ -124,7 +124,9 @@ class CompareViewModel(
             mutableState.update { it.copy(stack = listOf(Screen.Home), step = null, inputError = e.toInputError()) }
             return
         }
-        startTrip(destination, sharedLabel(text), HomeInput(text.trim().take(MAX_QUERY_CHARS), link = true))
+        // Cut short, a long share could lose its link; then Home is left empty as before.
+        val home = text.trim().takeIf { it.length <= MAX_QUERY_CHARS }?.let { HomeInput(it, link = true) } ?: HomeInput("", link = false)
+        startTrip(destination, sharedLabel(text), home)
     }
 
     fun onQuery(text: String) {
@@ -343,6 +345,7 @@ class CompareViewModel(
         mutableState.update {
             it.copy(
                 stack = listOf(Screen.Home, Screen.ManualTrip), target = null, trip = null, tripEdit = null, step = null,
+                selected = null, refuel = false,
                 manualReason = ManualReason.TYPED, manualKm = "", manualMinutes = "", manualKmInvalid = false, manualMinutesInvalid = false,
             )
         }
