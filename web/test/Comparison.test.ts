@@ -3,13 +3,13 @@ import userEvent from '@testing-library/user-event';
 import { readFileSync } from 'node:fs';
 import Comparison from '../src/components/Comparison.svelte';
 import { loadShared } from '../src/i18n/android';
-import { format, orList } from '../src/i18n/format';
+import { format, orList, type Messages } from '../src/i18n/format';
 import { seedEngine } from '../src/lib/engine';
 import { formatMoney } from '../src/lib/money';
 import { KEY, TTL_MS } from '../src/lib/memory';
 
 const SEED = readFileSync('src/generated/catalogue.json', 'utf8');
-const messages = { ...loadShared('en'), close: 'Close' };
+const messages: Messages = { ...loadShared('en'), close: 'Close' };
 const providerNames = (JSON.parse(SEED) as { providers: { name: string }[] }).providers.map((p) => p.name);
 const TRIP = [7_400, 1_320] as const;
 

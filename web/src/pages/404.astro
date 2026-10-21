@@ -1,0 +1,13 @@
+---
+import Page from '../layouts/Page.astro';
+import { LANGS, LANGUAGE_NAMES } from '../i18n/format';
+import { WEB } from '../i18n/web';
+// One page for every unknown path: the server can't know the language, so it says it in all four.
+---
+<Page lang="en" web={WEB.en} indexable={false}>
+  <h1>{WEB.en.not_found}</h1>
+  {LANGS.filter((l) => l !== 'en').map((l) => <p lang={l}>{WEB[l].not_found}</p>)}
+  <ul>
+    {LANGS.map((l) => <li><a href={`/${l}/`} hreflang={l} lang={l}>{LANGUAGE_NAMES[l]}</a></li>)}
+  </ul>
+</Page>

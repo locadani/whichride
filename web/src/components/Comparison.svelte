@@ -171,8 +171,10 @@
 
 <style>
   .trip { display: grid; grid-template-columns: 1fr 1fr; gap: var(--wr-space-sm); margin-block-end: var(--wr-space-lg); }
-  .field { display: flex; flex-direction: column; gap: var(--wr-space-xxs); font: var(--wr-type-label-medium); color: var(--wr-color-on-surface-muted); }
+  /* min-inline-size: 0 lets the grid shrink below the inputs' default width on narrow phones. */
+  .field { min-inline-size: 0; display: flex; flex-direction: column; gap: var(--wr-space-xxs); font: var(--wr-type-label-medium); color: var(--wr-color-on-surface-muted); }
   .field input {
+    inline-size: 100%;
     min-inline-size: 0;
     min-block-size: var(--wr-size-control-md);
     padding-inline: var(--wr-space-sm);

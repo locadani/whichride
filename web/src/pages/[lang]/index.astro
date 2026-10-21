@@ -1,0 +1,25 @@
+---
+import Page from '../../layouts/Page.astro';
+import Comparison from '../../components/Comparison.svelte';
+import { LANGS, accented, type Lang } from '../../i18n/format';
+import { loadShared } from '../../i18n/android';
+import { WEB } from '../../i18n/web';
+import seed from '../../generated/catalogue.json';
+
+export function getStaticPaths() {
+  return LANGS.map((lang) => ({ params: { lang } }));
+}
+
+const lang = Astro.params.lang as Lang;
+const web = WEB[lang];
+const messages = { ...loadShared(lang), close: web.close };
+// Server and seed share the providers (the server takes them from the seed), so the intro can be
+// rendered before any price loads.
+const providerNames = seed.providers.map((p) => p.name);
+const [before, accent, after] = accented(web.heading, web.heading_accent);
+---
+<Page lang={lang} web={web} indexable={true}>
+  <h1>{before}<span class="accent">{accent}</span>{after}</h1>
+  <noscript><p>{web.noscript}</p></noscript>
+  <Comparison client:load lang={lang} messages={messages} providerNames={providerNames} />
+</Page>

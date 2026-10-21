@@ -10,4 +10,21 @@ export default defineConfig({
   trailingSlash: 'always',
   build: { format: 'directory' },
   integrations: [svelte()],
+  // No Markdown here; Shiki's inline styles would clash with the CSP.
+  markdown: { syntaxHighlight: false },
+  security: {
+    csp: {
+      directives: [
+        "default-src 'self'",
+        "img-src 'self'",
+        "font-src 'self'",
+        "connect-src 'self'",
+        "object-src 'none'",
+        "base-uri 'none'",
+        "form-action 'none'",
+      ],
+      // The core runs as WebAssembly; hashes for Astro's own inline scripts are added by Astro.
+      scriptDirective: { resources: ["'self'", "'wasm-unsafe-eval'"] },
+    },
+  },
 });
