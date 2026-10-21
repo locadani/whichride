@@ -13,11 +13,12 @@ pub mod link;
 pub mod money;
 pub mod options;
 pub mod rate_card;
+pub mod report;
 pub mod usage;
 pub mod voting;
 
 pub use adjustments::{Adjustments, Discount, PriceOverride, Subscription};
-pub use catalogue::{Catalogue, CatalogueError, Offer, OfferId, Provider, ProviderId};
+pub use catalogue::{Catalogue, CatalogueError, Offer, OfferId, Provider, ProviderApp, ProviderId};
 pub use compare::{Quote, compare};
 pub use confirmation::{confirmed_days_ago, should_ask};
 pub use day::Day;
@@ -26,6 +27,7 @@ pub use link::{Destination, LinkError, parse_destination, shared_label};
 pub use money::{Cents, Percent, PercentError};
 pub use options::{Choice, Options, RankedOption, options};
 pub use rate_card::{CardKind, Charges, RateCard};
+pub use report::ReportError;
 pub use usage::{Rounding, Trip};
 pub use voting::{
     Answer, InstallId, InstallRecord, Vote, Weight, WeightError, is_accepted, settle, weight,

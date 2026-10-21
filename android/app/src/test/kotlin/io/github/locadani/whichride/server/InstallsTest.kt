@@ -6,6 +6,7 @@ import mockwebserver3.MockWebServer
 import okhttp3.OkHttpClient
 import org.junit.After
 import org.junit.Assert.assertEquals
+import org.junit.Assert.assertFalse
 import org.junit.Assert.assertNull
 import org.junit.Before
 import org.junit.Test
@@ -14,10 +15,10 @@ class InstallsTest {
     private val server = MockWebServer()
     private lateinit var api: ServerApi
     private val store = object : TokenStore {
-        var token: String? = null
-        override fun load() = token
-        override fun save(token: String) { this.token = token }
-        override fun clear() { token = null }
+        var install: Install? = null
+        override fun load() = install
+        override fun save(install: Install) { this.install = install }
+        override fun clear() { install = null }
     }
     private val hashes = mutableListOf<String>()
     private val integrity = IntegrityTokens { hash -> hashes += hash; "a.b.c.d.e" }
@@ -42,11 +43,11 @@ class InstallsTest {
         assertEquals(ApiResult.Ok("bearer-1"), installs.authorized { ApiResult.Ok(it) })
         assertEquals(1, server.requestCount)
         assertEquals(listOf(registrationHash("""{"nonce":"abcdefghijklmnop"}""")), hashes)
-        assertEquals("bearer-1", store.token)
+        assertEquals("bearer-1", store.install?.token)
     }
 
     @Test fun anUnknownTokenRegistersAgainOnce() = runTest {
-        store.token = "stale"
+        store.install = Install("00000000-0000-4000-8000-000000000000", "stale")
         reply(201, """{"install_id":"x","token":"bearer-2"}""")
         val seen = mutableListOf<String>()
         val result = installs().authorized { bearer ->
@@ -66,7 +67,7 @@ class InstallsTest {
     @Test fun aRefusedRegistrationIsNotRegistered() = runTest {
         reply(403, """{"error":"integrity_failed"}""")
         assertEquals(ApiResult.Unavailable(Why.NOT_REGISTERED), installs().authorized { ApiResult.Ok(it) })
-        assertNull(store.token)
+        assertNull(store.install)
     }
 
     @Test fun aBusyRegistrationIsBusy() = runTest {
@@ -91,5 +92,49 @@ class InstallsTest {
         now += 24 * 3_600_000L
         assertEquals(ApiResult.Unavailable(Why.NOT_REGISTERED), installs.authorized { ApiResult.Ok(it) })
         assertEquals(1, server.requestCount)
+    }
+
+    @Test fun aKeystoreFailureKeepsTheInstallForThisSession() = runTest {
+        val broken = object : TokenStore {
+            override fun load(): Install? = null
+            override fun save(install: Install) = throw java.security.KeyStoreException("no key")
+            override fun clear() {}
+        }
+        reply(201, """{"install_id":"123e4567-e89b-42d3-a456-426614174000","token":"bearer-1"}""")
+        val installs = Installs(api, integrity, broken, { "abcdefghijklmnop" }, { now })
+        assertEquals(ApiResult.Ok("bearer-1"), installs.authorized { ApiResult.Ok(it) })
+        assertEquals(ApiResult.Ok("bearer-1"), installs.authorized { ApiResult.Ok(it) })
+        assertEquals(1, server.requestCount)
+    }
+
+    @Test fun signedWritesBindTheInstallPathAndBody() = runTest {
+        store.install = Install("123e4567-e89b-42d3-a456-426614174000", "bearer-1")
+        val result = installs().signed("/v1/offers/miles.s/confirmations", """{"answer":"yes"}""") { bearer, token ->
+            ApiResult.Ok("$bearer $token")
+        }
+        assertEquals(ApiResult.Ok("bearer-1 a.b.c.d.e"), result)
+        // The README's known value (crates/server/README.md, decision 44).
+        assertEquals(listOf("78a4418304e69be8eebd247ac4e93fc97b3fca818a814017cfef1d82be803413"), hashes)
+    }
+
+    @Test fun aSignedWriteWithoutPlayIntegrityIsNotSent() = runTest {
+        store.install = Install("123e4567-e89b-42d3-a456-426614174000", "bearer-1")
+        var called = false
+        val result = installs(tokens = { null }).signed("/v1/reports", "{}") { _, _ -> called = true; ApiResult.Ok(Unit) }
+        assertEquals(ApiResult.Unavailable(Why.NOT_REGISTERED), result)
+        assertFalse(called)
+    }
+
+    @Test fun aSignedWriteRegistersAgainOnAnUnknownToken() = runTest {
+        store.install = Install("00000000-0000-4000-8000-000000000000", "stale")
+        reply(201, """{"install_id":"123e4567-e89b-42d3-a456-426614174000","token":"bearer-2"}""")
+        val seen = mutableListOf<String>()
+        val result = installs().signed("/v1/offers/miles.s/confirmations", """{"answer":"yes"}""") { bearer, _ ->
+            seen += bearer
+            if (bearer == "stale") ApiResult.Refused(401, "unauthorized") else ApiResult.Ok(Unit)
+        }
+        assertEquals(ApiResult.Ok(Unit), result)
+        assertEquals(listOf("stale", "bearer-2"), seen)
+        assertEquals("78a4418304e69be8eebd247ac4e93fc97b3fca818a814017cfef1d82be803413", hashes.last())
     }
 }

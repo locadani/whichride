@@ -34,6 +34,7 @@ import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.clip
 import androidx.compose.ui.graphics.vector.ImageVector
 import androidx.compose.ui.res.stringResource
+import androidx.compose.ui.semantics.clearAndSetSemantics
 import io.github.locadani.whichride.R
 import io.github.locadani.whichride.designsystem.WhichrideTheme
 import io.github.locadani.whichride.designsystem.WhichrideTokens
@@ -89,11 +90,11 @@ fun Panel(modifier: Modifier = Modifier, content: @Composable ColumnScope.() -> 
     }
 }
 
-/** The provider's initial in a circle. */
+/** The provider's initial in a circle; silent for TalkBack, as the name is always next to it. */
 @Composable
 fun Monogram(name: String, large: Boolean = false) {
     Box(
-        Modifier.size(if (large) Size.controlMd else Size.monogram).clip(CircleShape)
+        Modifier.clearAndSetSemantics {}.size(if (large) Size.controlMd else Size.monogram).clip(CircleShape)
             .background(WhichrideTheme.colors.surfaceHighest),
         contentAlignment = Alignment.Center,
     ) {

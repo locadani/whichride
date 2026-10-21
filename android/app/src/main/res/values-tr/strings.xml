@@ -1,0 +1,228 @@
+<?xml version="1.0" encoding="utf-8"?>
+<resources>
+    <string name="back">Geri</string>
+    <string name="close">Kapat</string>
+    <string name="licences">Lisanslar</string>
+
+    <string name="home_title">Nereye gidiyorsun?</string>
+    <string name="home_title_accent">gidiyorsun?</string>
+    <string name="start_my_location">Konumun</string>
+    <string name="start_change">Değiştir</string>
+    <string name="destination_label">Varış noktası</string>
+    <string name="destination_hint">Adres, yer veya Maps bağlantısı</string>
+    <string name="maps_link_found">Google Maps bağlantısı</string>
+    <string name="compare_this_trip">Bu yolculuğu karşılaştır</string>
+    <string name="suggestions_unavailable">Öneriler için rota hizmetimiz gerekiyor, ama şu an ulaşılamıyor. Yine de adresi ara veya bir Google Maps bağlantısı yapıştır.</string>
+    <string name="home_tip">İpucu: Google Maps uygulamasında bir yerin Paylaş düğmesine dokun ve whichride uygulamasını seç.</string>
+    <string name="error_not_a_maps_link">Bu bağlantı Google Maps bağlantısı değil.</string>
+    <string name="error_no_destination">Bu bağlantı bir yeri göstermiyor.</string>
+    <string name="error_not_found">Bu yeri bulamadık.</string>
+    <string name="error_too_long">Bu metin bağlantı olamayacak kadar uzun.</string>
+
+    <string name="resolving_from_maps">Google Maps üzerinden</string>
+    <string name="resolving_unnamed">Varış noktan</string>
+    <string name="resolving_place">Yer bulunuyor…</string>
+    <string name="resolving_location">Konumun bulunuyor…</string>
+    <string name="resolving_route">Rota hesaplanıyor…</string>
+
+    <string name="manual_title_busy">Rota hizmeti meşgul</string>
+    <string name="manual_title_offline">Rota hizmetine ulaşılamıyor</string>
+    <string name="manual_title_no_route">Araçla gidilecek rota yok</string>
+    <string name="manual_title_no_location">Konumunu bulamadık</string>
+    <string name="manual_title_edit">Mesafe ve süre</string>
+    <string name="manual_body">Mesafeyi ve süreyi Google Maps uygulamasından gir. Karşılaştırma yine çalışır.</string>
+    <string name="trip_to">Varış: %1$s</string>
+    <string name="manual_km">Mesafe (km)</string>
+    <string name="manual_minutes">Süre (min)</string>
+    <string name="manual_km_invalid">0,1 ile 2000 km arası</string>
+    <string name="manual_minutes_invalid">1 ile 1440 dakika arası</string>
+    <string name="manual_choose_start">Bir başlangıç noktası seç</string>
+    <string name="compare">Karşılaştır</string>
+    <string name="open_in_maps">Google Maps uygulamasında aç</string>
+
+    <string name="trip_line">%1$s km · %2$s min</string>
+    <string name="built_in_prices">yerleşik fiyatlar</string>
+    <string name="edit">Düzenle</string>
+    <string name="change_start">Başlangıcı değiştir</string>
+    <string name="loading_prices">Fiyatlar yükleniyor…</string>
+    <string name="intro_title">Hangi araçlar yakınında?</string>
+    <string name="intro_title_accent">yakınında?</string>
+    <string name="intro_body">%1$s uygulamasına bak, sonra gördüğün araçları ekle. Bu yolculuk için hangisinin en ucuz olduğunu gösteririz.</string>
+    <string name="list_or">%1$s veya %2$s</string>
+    <string name="cheapest_of_options">Seçeneklerin arasında en ucuzu</string>
+    <string name="any_car">Herhangi bir araç</string>
+    <string name="any_car_meta">en ucuzu %1$s</string>
+    <string name="package_meta">%1$s paket</string>
+    <string name="confirmed_today">bugün onaylandı</string>
+    <plurals name="confirmed_days_ago">
+        <item quantity="one">%d gün önce onaylandı</item>
+        <item quantity="other">%d gün önce onaylandı</item>
+    </plurals>
+    <string name="not_confirmed">henüz onaylanmadı</string>
+    <string name="built_in_price">yerleşik fiyat</string>
+    <string name="price_difference">+%1$s</string>
+    <string name="remove_option">%1$s %2$s aracını kaldır</string>
+    <string name="add_cars">Yakınındaki araçları ekle</string>
+    <string name="add_more_cars">Daha fazla araç ekle</string>
+    <plurals name="cheaper_not_added">
+        <item quantity="one">Eklemediğin %1$d araç daha ucuz: %2$s (%3$s).</item>
+        <item quantity="other">Eklemediğin %1$d araç daha ucuz, en ucuzu %2$s (%3$s).</item>
+    </plurals>
+    <string name="nothing_cheaper">Eklemediğin araçların hiçbiri daha ucuz değil.</string>
+    <string name="open_provider">%1$s uygulamasını aç</string>
+    <string name="add_cars_to_compare">Karşılaştırmak için araç ekle</string>
+
+    <string name="step_1">Adım 1/2</string>
+    <string name="step_2">Adım 2/2</string>
+    <string name="which_provider">Hangi şirket?</string>
+    <plurals name="provider_offers">
+        <item quantity="one">%1$d araç · başlangıç %2$s</item>
+        <item quantity="other">%1$d araç · başlangıç %2$s</item>
+    </plurals>
+    <plurals name="added_count">
+        <item quantity="one">%1$d eklendi</item>
+        <item quantity="other">%1$d eklendi</item>
+    </plurals>
+    <string name="which_cars">%1$s: hangi araçlar?</string>
+    <string name="which_cars_body">Yakında gördüğün her aracı işaretle. Fiyatlar bu yolculuk için.</string>
+    <string name="check_in">%1$s uygulamasına bak</string>
+    <plurals name="filter_cars">
+        <item quantity="one">%1$d aracı filtrele, ör. polo</item>
+        <item quantity="other">%1$d aracı filtrele, ör. polo</item>
+    </plurals>
+    <string name="any_provider_car">Herhangi bir %1$s aracı</string>
+    <string name="any_car_sub">Hangi model olduğunu bilmiyorum</string>
+    <string name="from_price">başlangıç %1$s</string>
+    <string name="no_car_matches">“%2$s” ile eşleşen %1$s aracı yok.</string>
+    <string name="done">Tamam</string>
+    <string name="add_any_car">Herhangi bir %1$s aracı ekle</string>
+    <plurals name="add_n_cars">
+        <item quantity="one">%d araç ekle</item>
+        <item quantity="other">%d araç ekle</item>
+    </plurals>
+
+    <string name="start_title">Başlangıç noktası</string>
+    <string name="start_hint">Adres veya yer</string>
+    <string name="use_my_location">Konumumu kullan</string>
+
+    <string name="licences_body">whichride, MIT lisansı ile açık kaynaklıdır. SIL Open Font License 1.1 lisanslı Sora ve JetBrains Mono yazı tiplerini içerir.</string>
+    <string name="settings">Ayarlar</string>
+    <string name="settings_deals">İndirimler ve abonelikler</string>
+    <plurals name="settings_deals_count">
+        <item quantity="one">%d etkin</item>
+        <item quantity="other">%d etkin</item>
+    </plurals>
+    <string name="settings_open_with">%1$s şununla açılsın</string>
+    <string name="settings_language">Uygulama dili</string>
+    <string name="settings_language_body">whichride telefonunun dilini kullanır: English, Italiano, Deutsch veya Türkçe.</string>
+    <string name="settings_language_change">Android ayarlarından değiştir</string>
+
+    <string name="deals_title">İndirimler ve abonelikler</string>
+    <string name="deals_body">Gördüğün her fiyata uygulanır. Yalnızca bu telefonda saklanır.</string>
+    <string name="deals_empty">Henüz indirim yok. Bir promosyon kodunun indirimini, ödediğin bir aboneliği veya bir şirketin yakıt aldığında verdiği krediyi ekle.</string>
+    <string name="deals_add">İndirim veya abonelik ekle</string>
+    <string name="deals_refuel_title">Yakıt mı alıyorsun, şarj mı ediyorsun?</string>
+    <string name="deals_refuel_body">Bazı şirketler yakıt aldığında kredi verir. Bunu yakıt kredisi olarak ekle, sonra sonuç ekranında her yolculuk için ayrı aç.</string>
+    <string name="deal_on">%1$s açık</string>
+    <string name="deal_percent">%1$s −%2$s%%</string>
+    <string name="deal_amount">%1$s −%2$s</string>
+    <string name="deal_pass">%1$s aboneliği</string>
+    <string name="deal_refuel">%1$s yakıt kredisi</string>
+    <string name="deal_until">%1$s tarihine kadar</string>
+    <string name="deal_no_end">bitiş tarihi yok</string>
+    <string name="deal_once">bir kez · yalnızca sonraki yolculuk</string>
+    <string name="deal_used">kullanıldı</string>
+    <string name="deal_expired">süresi doldu</string>
+    <string name="deal_pass_km">km başı %%%1$s indirim</string>
+    <string name="deal_pass_minute">dakika başı %%%1$s indirim</string>
+    <string name="deal_pass_package">paketlerde %%%1$s indirim</string>
+    <string name="deal_pass_unlock">kilit açma ücreti yok</string>
+    <string name="deal_refuel_sub">yakıt aldığında veya şarj ettiğinde</string>
+
+    <string name="deal_new">Yeni indirim</string>
+    <string name="deal_edit">İndirimi düzenle</string>
+    <string name="deal_provider">Şirket</string>
+    <string name="deal_provider_missing">Bir şirket seç</string>
+    <string name="deal_kind">Tür</string>
+    <string name="deal_kind_percent">% indirim</string>
+    <string name="deal_kind_amount">€ indirim</string>
+    <string name="deal_kind_pass">Abonelik</string>
+    <string name="deal_kind_refuel">Yakıt kredisi</string>
+    <string name="deal_field_percent">İndirim (%)</string>
+    <string name="deal_field_amount">Tutar (€)</string>
+    <string name="deal_field_pass_km">km başı indirim (%)</string>
+    <string name="deal_field_pass_minute">Dakika başı indirim (%)</string>
+    <string name="deal_field_pass_package">Paket indirimi (%)</string>
+    <string name="deal_field_refuel">Kredi (€)</string>
+    <string name="deal_field_unlock">Kilit açma ücreti yok</string>
+    <string name="deal_field_once">Bir kez (yalnızca sonraki yolculuk)</string>
+    <string name="deal_field_until">Son geçerlilik tarihi</string>
+    <string name="deal_field_until_none">Bitiş tarihi yok</string>
+    <string name="deal_field_until_clear">Bitiş tarihini kaldır</string>
+    <string name="deal_invalid_percent">0,01 ile 100 arası</string>
+    <string name="deal_invalid_amount">0 € üzeri, ör. 5 veya 2,50</string>
+    <string name="deal_invalid_pass">En az bir indirim gir</string>
+    <string name="deal_hint_percent">Süresi dolana kadar her yolculukta şirketin toplam tutarından düşülür.</string>
+    <string name="deal_hint_amount">Yolculuk toplamından düşülür, toplam asla 0 € altına inmez.</string>
+    <string name="deal_hint_pass">Abonelik, şirketin ücretlerini kalıcı olarak değiştirir; ör. daha ucuz km veya kilit açma ücreti yok. Aylık ücreti yolculuk başına hesaba katılmaz.</string>
+    <string name="deal_hint_refuel">Bir yolculuk için \"Yakıt alacağım veya şarj edeceğim\" seçeneğini açtığında yolculuk toplamından düşülür.</string>
+    <string name="deal_save">İndirimi kaydet</string>
+    <string name="deal_delete">Sil</string>
+    <string name="ok">Tamam</string>
+    <string name="cancel">İptal</string>
+
+    <plurals name="discounts_pill">
+        <item quantity="one">İndirimler · %d</item>
+        <item quantity="other">İndirimler · %d</item>
+    </plurals>
+    <string name="discounts_pill_none">İndirimler</string>
+    <string name="refuel_switch">Yakıt alacağım veya şarj edeceğim</string>
+    <string name="once_used">%1$s kullanıldı</string>
+    <string name="undo">Geri al</string>
+    <string name="report_price">Fiyat yanlış mı? Bize bildir</string>
+    <string name="your_price">senin fiyatın</string>
+    <string name="proposed_meta">bir kullanıcı ekledi, onaylanmadı</string>
+    <string name="price_title">%1$s uygulamasında ne görünüyor?</string>
+    <string name="price_body">Yalnızca farklı olanı değiştir. %1$s, %2$s.</string>
+    <string name="propose_title">%1$s aracı ekle</string>
+    <string name="propose_body">Aracın %1$s uygulamasında görünen adı ve kullandıkça öde yolculuk fiyatları.</string>
+    <string name="field_name">Araç adı</string>
+    <string name="field_unlock">Kilit açma (€)</string>
+    <string name="field_per_km">km başı (€)</string>
+    <string name="field_per_minute">Dakika başı (€)</string>
+    <string name="field_minimum">En az ücret (€)</string>
+    <string name="field_invalid_euros">En fazla %1$s, ör. 0,29</string>
+    <string name="field_invalid_name">1 ile %1$d karakter arası</string>
+    <string name="price_note">Rakamların sana hemen uygulanır. Başka bir kullanıcı onaylayınca diğerleri de görür.</string>
+    <string name="propose_note">Başka bir kullanıcı onaylayınca diğerleri de bu aracı görür.</string>
+    <string name="price_save">Düzeltmeyi kaydet</string>
+    <string name="propose_save">Aracı gönder</string>
+    <string name="price_reset">Ortak fiyatı kullan</string>
+
+    <string name="question_back_from">%1$s uygulamasından döndün</string>
+    <string name="question_title">%1$s, %2$s için bu fiyatı mı gösterdi?</string>
+    <string name="question_title_proposal">%1$s, %2$s aracını bu fiyatlarla mı gösterdi?</string>
+    <string name="question_per_km">km başı</string>
+    <string name="question_per_minute">dakika başı</string>
+    <string name="question_unlock">kilit açma</string>
+    <string name="question_yes">Evet, doğru</string>
+    <string name="question_no_fix">Hayır, düzelt</string>
+    <string name="question_no">Hayır</string>
+    <string name="question_skip">Atla</string>
+    <string name="question_note">En fazla haftada bir soruyoruz. Cevabın fiyatları herkes için doğru tutar.</string>
+    <string name="question_dont_know">Rakamları bilmiyorum</string>
+    <string name="question_thanks">Teşekkürler!</string>
+    <string name="question_confirmed">Fiyat onaylandı. Doğru kalmasına yardım ettiğin için teşekkürler.</string>
+    <string name="question_corrected">Fiyatların artık sana uygulanıyor. Biri onaylayınca diğerleri de görür.</string>
+    <string name="question_not_sent">Cevabını şu an gönderemedik. Hiçbir şey değişmedi.</string>
+
+    <string name="proposals_title">Kullanıcıların ekledikleri, henüz onaylanmadı</string>
+    <string name="car_not_listed">Araç listede yok mu? Ekle</string>
+
+    <string name="crowd_sent">Teşekkürler! Biri onaylayınca diğerleri de görür.</string>
+    <string name="crowd_proposed">Teşekkürler! Biri onaylayınca araç diğerlerine de görünür.</string>
+    <string name="crowd_not_sent">Senin için kaydedildi; şu an gönderemedik.</string>
+    <string name="crowd_proposal_not_sent">Aracı şu anda gönderemedik. Daha sonra tekrar dene.</string>
+    <string name="crowd_locked">Bu fiyat şimdilik kilitli; rakamların yine sana uygulanır.</string>
+    <string name="crowd_already_current">Bu zaten herkesin gördüğü fiyat.</string>
+</resources>

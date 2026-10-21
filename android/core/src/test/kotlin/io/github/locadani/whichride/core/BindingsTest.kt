@@ -10,6 +10,7 @@ import org.junit.Test
 class BindingsTest {
     private val seed = File("../../crates/server/catalogue.json").readText()
     private val trip = Trip(metres = 7_400u, seconds = 1_320u)
+    private val noAdjustments = Adjustments(emptyList(), emptyList(), emptyList(), emptyList(), refuel = false)
 
     @Test
     fun parsesAShortLinkAndItsLabel() {
@@ -27,7 +28,7 @@ class BindingsTest {
     fun pricesTheSeedCatalogue() {
         val prices = Prices.fromSeed(seed)
         assertEquals(listOf("miles", "bolt", "sixt"), prices.providers().map { it.id })
-        val quotes = prices.quotes(trip, 1_792_497_600L)
+        val quotes = prices.quotes(trip, noAdjustments, 1_792_497_600L)
         assertEquals(9, quotes.size)
         assertTrue(quotes.zipWithNext().all { (a, b) -> a.totalCents <= b.totalCents })
         assertNull(quotes.first().confirmedDaysAgo)
@@ -36,7 +37,7 @@ class BindingsTest {
     @Test
     fun ranksOptions() {
         val prices = Prices.fromSeed(seed)
-        val options = prices.options(trip, listOf(Choice.AnyOf("bolt")), 1_792_497_600L)
+        val options = prices.options(trip, listOf(Choice.AnyOf("bolt")), noAdjustments, 1_792_497_600L)
         assertEquals("bolt", options.ranked.single().quote.providerId)
     }
 

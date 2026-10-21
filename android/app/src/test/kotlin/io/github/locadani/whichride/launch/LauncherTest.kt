@@ -4,6 +4,7 @@ import android.app.Application
 import android.content.ComponentName
 import android.content.Intent
 import android.content.IntentFilter
+import android.provider.Settings
 import androidx.test.core.app.ApplicationProvider
 import androidx.test.ext.junit.runners.AndroidJUnit4
 import org.junit.Assert.assertEquals
@@ -11,6 +12,7 @@ import org.junit.Before
 import org.junit.Test
 import org.junit.runner.RunWith
 import org.robolectric.Shadows.shadowOf
+import org.robolectric.annotation.Config
 
 @RunWith(AndroidJUnit4::class)
 class LauncherTest {
@@ -48,5 +50,13 @@ class LauncherTest {
         install("com.google.android.apps.maps", IntentFilter(Intent.ACTION_VIEW).apply { addDataScheme("https"); addCategory(Intent.CATEGORY_DEFAULT) })
         launcher.openUrl("https://www.google.com/maps/dir/?api=1&destination=52.5,13.4&travelmode=driving")
         assertEquals("com.google.android.apps.maps", shadowOf(app).nextStartedActivity.`package`)
+    }
+
+    @Test @Config(sdk = [33]) fun `app language settings open on Android 13`() {
+        install("com.android.settings", IntentFilter(Settings.ACTION_APP_LOCALE_SETTINGS).apply { addDataScheme("package"); addCategory(Intent.CATEGORY_DEFAULT) })
+        launcher.openAppLanguageSettings()
+        val started = shadowOf(app).nextStartedActivity
+        assertEquals(Settings.ACTION_APP_LOCALE_SETTINGS, started.action)
+        assertEquals("package:${app.packageName}", started.dataString)
     }
 }

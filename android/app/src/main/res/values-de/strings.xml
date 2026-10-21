@@ -1,0 +1,228 @@
+<?xml version="1.0" encoding="utf-8"?>
+<resources>
+    <string name="back">Zurück</string>
+    <string name="close">Schließen</string>
+    <string name="licences">Lizenzen</string>
+
+    <string name="home_title">Wohin geht\'s?</string>
+    <string name="home_title_accent">geht\'s?</string>
+    <string name="start_my_location">Dein Standort</string>
+    <string name="start_change">Ändern</string>
+    <string name="destination_label">Ziel</string>
+    <string name="destination_hint">Adresse, Ort oder Maps-Link</string>
+    <string name="maps_link_found">Google Maps-Link</string>
+    <string name="compare_this_trip">Fahrt vergleichen</string>
+    <string name="suggestions_unavailable">Vorschläge brauchen unseren Routendienst, der gerade nicht erreichbar ist. Such trotzdem die Adresse oder füg einen Google Maps-Link ein.</string>
+    <string name="home_tip">Tipp: Tippe in Google Maps bei einem Ort auf Teilen und wähle whichride.</string>
+    <string name="error_not_a_maps_link">Der Link ist nicht von Google Maps.</string>
+    <string name="error_no_destination">Der Link zeigt auf keinen Ort.</string>
+    <string name="error_not_found">Wir haben den Ort nicht gefunden.</string>
+    <string name="error_too_long">Der Text ist zu lang für einen Link.</string>
+
+    <string name="resolving_from_maps">aus Google Maps</string>
+    <string name="resolving_unnamed">Dein Ziel</string>
+    <string name="resolving_place">Ort wird gesucht…</string>
+    <string name="resolving_location">Standort wird gesucht…</string>
+    <string name="resolving_route">Route wird berechnet…</string>
+
+    <string name="manual_title_busy">Routendienst ist ausgelastet</string>
+    <string name="manual_title_offline">Routendienst nicht erreichbar</string>
+    <string name="manual_title_no_route">Keine Route mit dem Auto</string>
+    <string name="manual_title_no_location">Wir haben deinen Standort nicht gefunden</string>
+    <string name="manual_title_edit">Strecke und Zeit</string>
+    <string name="manual_body">Gib Strecke und Zeit aus Google Maps ein. Der Vergleich klappt trotzdem.</string>
+    <string name="trip_to">Nach %1$s</string>
+    <string name="manual_km">Strecke (km)</string>
+    <string name="manual_minutes">Zeit (min)</string>
+    <string name="manual_km_invalid">Zwischen 0,1 und 2000 km</string>
+    <string name="manual_minutes_invalid">Zwischen 1 und 1440 Minuten</string>
+    <string name="manual_choose_start">Start wählen</string>
+    <string name="compare">Vergleichen</string>
+    <string name="open_in_maps">In Google Maps öffnen</string>
+
+    <string name="trip_line">%1$s km · %2$s min</string>
+    <string name="built_in_prices">Standardpreise</string>
+    <string name="edit">Bearbeiten</string>
+    <string name="change_start">Start ändern</string>
+    <string name="loading_prices">Preise werden geladen…</string>
+    <string name="intro_title">Welche Autos sind in deiner Nähe?</string>
+    <string name="intro_title_accent">in deiner Nähe?</string>
+    <string name="intro_body">Schau in %1$s und füg die Autos hinzu, die du siehst. Wir zeigen dir, welches für diese Fahrt am günstigsten ist.</string>
+    <string name="list_or">%1$s oder %2$s</string>
+    <string name="cheapest_of_options">Günstigste deiner Optionen</string>
+    <string name="any_car">Beliebiges Auto</string>
+    <string name="any_car_meta">am günstigsten: %1$s</string>
+    <string name="package_meta">Paket %1$s</string>
+    <string name="confirmed_today">heute bestätigt</string>
+    <plurals name="confirmed_days_ago">
+        <item quantity="one">vor %d Tag bestätigt</item>
+        <item quantity="other">vor %d Tagen bestätigt</item>
+    </plurals>
+    <string name="not_confirmed">noch nicht bestätigt</string>
+    <string name="built_in_price">Standardpreis</string>
+    <string name="price_difference">+%1$s</string>
+    <string name="remove_option">%1$s %2$s entfernen</string>
+    <string name="add_cars">Autos in deiner Nähe hinzufügen</string>
+    <string name="add_more_cars">Weitere Autos hinzufügen</string>
+    <plurals name="cheaper_not_added">
+        <item quantity="one">Ein Auto, das du nicht hinzugefügt hast, ist günstiger: %2$s (%3$s).</item>
+        <item quantity="other">%1$d Autos, die du nicht hinzugefügt hast, sind günstiger, ab %2$s (%3$s).</item>
+    </plurals>
+    <string name="nothing_cheaper">Kein Auto, das du nicht hinzugefügt hast, ist günstiger.</string>
+    <string name="open_provider">%1$s öffnen</string>
+    <string name="add_cars_to_compare">Autos zum Vergleichen hinzufügen</string>
+
+    <string name="step_1">Schritt 1 von 2</string>
+    <string name="step_2">Schritt 2 von 2</string>
+    <string name="which_provider">Welcher Anbieter?</string>
+    <plurals name="provider_offers">
+        <item quantity="one">%1$d Auto · ab %2$s</item>
+        <item quantity="other">%1$d Autos · ab %2$s</item>
+    </plurals>
+    <plurals name="added_count">
+        <item quantity="one">%1$d hinzugefügt</item>
+        <item quantity="other">%1$d hinzugefügt</item>
+    </plurals>
+    <string name="which_cars">%1$s: welche Autos?</string>
+    <string name="which_cars_body">Hak jedes Auto ab, das du in der Nähe siehst. Die Preise gelten für diese Fahrt.</string>
+    <string name="check_in">In %1$s nachsehen</string>
+    <plurals name="filter_cars">
+        <item quantity="one">%1$d Auto filtern, z. B. Polo</item>
+        <item quantity="other">%1$d Autos filtern, z. B. Polo</item>
+    </plurals>
+    <string name="any_provider_car">Beliebiges %1$s-Auto</string>
+    <string name="any_car_sub">Ich weiß das Modell nicht</string>
+    <string name="from_price">ab %1$s</string>
+    <string name="no_car_matches">Kein %1$s-Auto passt zu „%2$s“.</string>
+    <string name="done">Fertig</string>
+    <string name="add_any_car">Beliebiges %1$s-Auto hinzufügen</string>
+    <plurals name="add_n_cars">
+        <item quantity="one">%d Auto hinzufügen</item>
+        <item quantity="other">%d Autos hinzufügen</item>
+    </plurals>
+
+    <string name="start_title">Start</string>
+    <string name="start_hint">Adresse oder Ort</string>
+    <string name="use_my_location">Meinen Standort nutzen</string>
+
+    <string name="licences_body">whichride ist Open Source unter der MIT-Lizenz. Es enthält die Schriften Sora und JetBrains Mono unter der SIL Open Font License 1.1.</string>
+    <string name="settings">Einstellungen</string>
+    <string name="settings_deals">Rabatte und Abos</string>
+    <plurals name="settings_deals_count">
+        <item quantity="one">%d aktiv</item>
+        <item quantity="other">%d aktiv</item>
+    </plurals>
+    <string name="settings_open_with">%1$s öffnen mit</string>
+    <string name="settings_language">App-Sprache</string>
+    <string name="settings_language_body">whichride nutzt die Sprache deines Handys: English, Italiano, Deutsch oder Türkçe.</string>
+    <string name="settings_language_change">In den Android-Einstellungen ändern</string>
+
+    <string name="deals_title">Rabatte und Abos</string>
+    <string name="deals_body">Gilt für jeden Preis, den du siehst. Nur auf diesem Handy gespeichert.</string>
+    <string name="deals_empty">Noch keine Rabatte. Füg den Rabatt eines Promo-Codes hinzu, ein Abo, das du bezahlst, oder was dir ein Anbieter fürs Tanken gutschreibt.</string>
+    <string name="deals_add">Rabatt oder Abo hinzufügen</string>
+    <string name="deals_refuel_title">Tanken oder laden?</string>
+    <string name="deals_refuel_body">Manche Anbieter geben dir eine Gutschrift, wenn du tankst. Füg sie als Tankgutschrift hinzu und schalte sie dann pro Fahrt im Ergebnis ein.</string>
+    <string name="deal_on">%1$s an</string>
+    <string name="deal_percent">%1$s −%2$s%%</string>
+    <string name="deal_amount">%1$s −%2$s</string>
+    <string name="deal_pass">%1$s-Abo</string>
+    <string name="deal_refuel">%1$s-Tankgutschrift</string>
+    <string name="deal_until">bis %1$s</string>
+    <string name="deal_no_end">kein Enddatum</string>
+    <string name="deal_once">einmalig · nur nächste Fahrt</string>
+    <string name="deal_used">genutzt</string>
+    <string name="deal_expired">abgelaufen</string>
+    <string name="deal_pass_km">%1$s%% weniger pro km</string>
+    <string name="deal_pass_minute">%1$s%% weniger pro Minute</string>
+    <string name="deal_pass_package">%1$s%% weniger auf Pakete</string>
+    <string name="deal_pass_unlock">keine Freischaltgebühr</string>
+    <string name="deal_refuel_sub">wenn du tankst oder lädst</string>
+
+    <string name="deal_new">Neuer Rabatt</string>
+    <string name="deal_edit">Rabatt bearbeiten</string>
+    <string name="deal_provider">Anbieter</string>
+    <string name="deal_provider_missing">Wähle einen Anbieter</string>
+    <string name="deal_kind">Art</string>
+    <string name="deal_kind_percent">% weniger</string>
+    <string name="deal_kind_amount">€ weniger</string>
+    <string name="deal_kind_pass">Abo</string>
+    <string name="deal_kind_refuel">Tankgutschrift</string>
+    <string name="deal_field_percent">Rabatt (%)</string>
+    <string name="deal_field_amount">Betrag (€)</string>
+    <string name="deal_field_pass_km">Weniger pro km (%)</string>
+    <string name="deal_field_pass_minute">Weniger pro Minute (%)</string>
+    <string name="deal_field_pass_package">Weniger auf Pakete (%)</string>
+    <string name="deal_field_refuel">Gutschrift (€)</string>
+    <string name="deal_field_unlock">Keine Freischaltgebühr</string>
+    <string name="deal_field_once">Einmalig (nur nächste Fahrt)</string>
+    <string name="deal_field_until">Gültig bis</string>
+    <string name="deal_field_until_none">Kein Enddatum</string>
+    <string name="deal_field_until_clear">Enddatum entfernen</string>
+    <string name="deal_invalid_percent">Zwischen 0,01 und 100</string>
+    <string name="deal_invalid_amount">Mehr als 0 €, z. B. 5 oder 2,50</string>
+    <string name="deal_invalid_pass">Gib mindestens eine Ersparnis ein</string>
+    <string name="deal_hint_percent">Wird bei jeder Fahrt vom Gesamtpreis des Anbieters abgezogen, bis er abläuft.</string>
+    <string name="deal_hint_amount">Wird vom Fahrtpreis abgezogen, nie unter 0 €.</string>
+    <string name="deal_hint_pass">Ein Abo ändert die Preise des Anbieters dauerhaft, z. B. günstigere km oder keine Freischaltung. Die Monatsgebühr wird nicht pro Fahrt gerechnet.</string>
+    <string name="deal_hint_refuel">Wird vom Fahrtpreis abgezogen, wenn du für eine Fahrt \"Ich tanke oder lade\" einschaltest.</string>
+    <string name="deal_save">Rabatt speichern</string>
+    <string name="deal_delete">Löschen</string>
+    <string name="ok">OK</string>
+    <string name="cancel">Abbrechen</string>
+
+    <plurals name="discounts_pill">
+        <item quantity="one">Rabatte · %d</item>
+        <item quantity="other">Rabatte · %d</item>
+    </plurals>
+    <string name="discounts_pill_none">Rabatte</string>
+    <string name="refuel_switch">Ich tanke oder lade</string>
+    <string name="once_used">%1$s genutzt</string>
+    <string name="undo">Rückgängig</string>
+    <string name="report_price">Preis falsch? Sag es uns</string>
+    <string name="your_price">dein Preis</string>
+    <string name="proposed_meta">von Nutzern hinzugefügt, nicht bestätigt</string>
+    <string name="price_title">Was zeigt %1$s an?</string>
+    <string name="price_body">Ändere nur, was anders ist. %1$s, %2$s.</string>
+    <string name="propose_title">%1$s-Auto hinzufügen</string>
+    <string name="propose_body">Der Name, wie %1$s ihn zeigt, und die Preise für Fahrten ohne Paket.</string>
+    <string name="field_name">Name des Autos</string>
+    <string name="field_unlock">Freischaltung (€)</string>
+    <string name="field_per_km">Pro km (€)</string>
+    <string name="field_per_minute">Pro Minute (€)</string>
+    <string name="field_minimum">Mindestpreis (€)</string>
+    <string name="field_invalid_euros">Bis %1$s, z. B. 0,29</string>
+    <string name="field_invalid_name">1 bis %1$d Zeichen</string>
+    <string name="price_note">Deine Zahlen gelten sofort für dich. Andere sehen sie, sobald jemand sie bestätigt.</string>
+    <string name="propose_note">Andere sehen das Auto, sobald jemand es bestätigt.</string>
+    <string name="price_save">Korrektur speichern</string>
+    <string name="propose_save">Auto senden</string>
+    <string name="price_reset">Gemeinsamen Preis nutzen</string>
+
+    <string name="question_back_from">Zurück von %1$s</string>
+    <string name="question_title">Hat %1$s diesen Preis für den %2$s angezeigt?</string>
+    <string name="question_title_proposal">Hat %1$s den %2$s zu diesen Preisen angezeigt?</string>
+    <string name="question_per_km">pro km</string>
+    <string name="question_per_minute">pro min</string>
+    <string name="question_unlock">Freischaltung</string>
+    <string name="question_yes">Ja, stimmt</string>
+    <string name="question_no_fix">Nein, korrigieren</string>
+    <string name="question_no">Nein</string>
+    <string name="question_skip">Überspringen</string>
+    <string name="question_note">Wir fragen höchstens einmal pro Woche. Deine Antwort hält die Preise für alle aktuell.</string>
+    <string name="question_dont_know">Ich kenne die Zahlen nicht</string>
+    <string name="question_thanks">Danke!</string>
+    <string name="question_confirmed">Preis bestätigt. Danke, dass du hilfst.</string>
+    <string name="question_corrected">Deine Preise gelten jetzt für dich. Andere sehen sie, sobald jemand sie bestätigt.</string>
+    <string name="question_not_sent">Wir konnten deine Antwort gerade nicht senden. Nichts wurde geändert.</string>
+
+    <string name="proposals_title">Von Nutzern hinzugefügt, noch nicht bestätigt</string>
+    <string name="car_not_listed">Auto fehlt? Füg es hinzu</string>
+
+    <string name="crowd_sent">Danke! Andere sehen es, sobald jemand es bestätigt.</string>
+    <string name="crowd_proposed">Danke! Das Auto erscheint für andere, sobald jemand es bestätigt.</string>
+    <string name="crowd_not_sent">Für dich gespeichert, aber gerade nicht gesendet.</string>
+    <string name="crowd_proposal_not_sent">Wir konnten das Auto gerade nicht senden. Versuch es später noch einmal.</string>
+    <string name="crowd_locked">Dieser Preis ist vorerst gesperrt. Deine Zahlen gelten trotzdem für dich.</string>
+    <string name="crowd_already_current">Das ist schon der Preis, den alle sehen.</string>
+</resources>

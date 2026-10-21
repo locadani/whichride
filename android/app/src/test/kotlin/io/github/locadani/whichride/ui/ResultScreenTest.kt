@@ -6,6 +6,7 @@ import androidx.compose.ui.test.hasText
 import androidx.compose.ui.test.performScrollToNode
 import androidx.compose.ui.test.assertIsNotEnabled
 import androidx.compose.ui.test.junit4.createComposeRule
+import androidx.compose.ui.test.performScrollTo
 import androidx.compose.ui.test.onNodeWithContentDescription
 import androidx.compose.ui.test.onNodeWithText
 import androidx.compose.ui.test.performClick
@@ -13,6 +14,7 @@ import androidx.test.ext.junit.runners.AndroidJUnit4
 import io.github.locadani.whichride.compare.Screen
 import io.github.locadani.whichride.compare.Target
 import io.github.locadani.whichride.compare.UiState
+import io.github.locadani.whichride.core.AppInfo
 import io.github.locadani.whichride.core.Choice
 import io.github.locadani.whichride.core.OfferInfo
 import io.github.locadani.whichride.core.Options
@@ -22,6 +24,8 @@ import io.github.locadani.whichride.core.RankedOption
 import io.github.locadani.whichride.core.Trip
 import io.github.locadani.whichride.designsystem.WhichrideTheme
 import io.github.locadani.whichride.launch.MapsTarget
+import io.github.locadani.whichride.personal.Personal
+import io.github.locadani.whichride.personal.RefuelCreditDeal
 import io.github.locadani.whichride.prices.PriceSource
 import org.junit.Assert.assertEquals
 import org.junit.Rule
@@ -29,11 +33,11 @@ import org.junit.Test
 import org.junit.runner.RunWith
 
 fun quote(provider: String, offer: String, name: String, cents: Long, days: UInt? = 2u) =
-    Quote(provider, offer, name, "Standard", cents, false, days)
+    Quote(provider, offer, name, "Standard", cents, false, days, false)
 
 val PROVIDERS = listOf(
-    ProviderInfo("miles", "MILES", "com.driveby.app", listOf(OfferInfo("miles.s", "S"))),
-    ProviderInfo("bolt", "Bolt Drive", "ee.mtakso.client", listOf(OfferInfo("bolt.picanto", "Kia Picanto"), OfferInfo("bolt.polo", "VW Polo"))),
+    ProviderInfo("miles", "MILES", "com.driveby.app", listOf(OfferInfo("miles.s", "S")), listOf(AppInfo("MILES", "com.driveby.app"))),
+    ProviderInfo("bolt", "Bolt Drive", "ee.mtakso.client", listOf(OfferInfo("bolt.picanto", "Kia Picanto"), OfferInfo("bolt.polo", "VW Polo")), listOf(AppInfo("Bolt Drive", "ee.mtakso.client"))),
 )
 val QUOTES = listOf(quote("bolt", "bolt.picanto", "Kia Picanto", 790), quote("miles", "miles.s", "S", 849), quote("bolt", "bolt.polo", "VW Polo", 912))
 
@@ -47,6 +51,8 @@ fun resultState(ranked: List<RankedOption> = emptyList(), cheaper: List<Quote> =
     options = Options(ranked, cheaper),
 )
 
+fun resultActions(onRefuel: (Boolean) -> Unit = {}) = ResultActions(onRefuel = onRefuel)
+
 @RunWith(AndroidJUnit4::class)
 class ResultScreenTest {
     @get:Rule val compose = createComposeRule()
@@ -56,7 +62,7 @@ class ResultScreenTest {
 
     private fun show(state: UiState) = compose.setContent {
         WhichrideTheme {
-            ResultScreen(state, onBack = {}, onEdit = {}, onChangeStart = { startChanged++ }, onAddCars = { added++ }, onRemove = {}, onSelect = {}, onOpen = { opened++ }, onOpenMaps = {})
+            ResultScreen(state, ResultActions(onChangeStart = { startChanged++ }, onAddCars = { added++ }, onOpen = { opened++ }))
         }
     }
 
@@ -92,5 +98,29 @@ class ResultScreenTest {
         show(resultState())
         compose.onNodeWithText("Change start").performClick()
         assertEquals(1, startChanged)
+    }
+
+    @Test fun `the refuel switch shows only with an active credit`() {
+        var refuel: Boolean? = null
+        val withCredit = resultState().copy(personal = Personal(deals = listOf(RefuelCreditDeal("f", "miles", 300))))
+        compose.setContent { WhichrideTheme { ResultScreen(withCredit, resultActions(onRefuel = { refuel = it })) } }
+        compose.onNodeWithText("I'll refuel or charge").performClick()
+        assertEquals(true, refuel)
+        compose.onNodeWithText("Discounts · 1").assertExists()
+    }
+
+    @Test fun `price wrong is offered for accepted offers only`() {
+        var reported = false
+        val polo = RankedOption(Choice.Offer("bolt.polo"), QUOTES[2])
+        compose.setContent { WhichrideTheme { ResultScreen(resultState(listOf(polo)), ResultActions(onReport = { reported = true })) } }
+        compose.onNodeWithText("Price wrong? Tell us").performScrollTo().performClick()
+        assertEquals(true, reported)
+    }
+
+    @Test fun `no price wrong for a proposal`() {
+        val proposal = RankedOption(Choice.Offer("proposal.x"), quote("bolt", "proposal.x", "Fiat 500e", 700).copy(proposed = true))
+        compose.setContent { WhichrideTheme { ResultScreen(resultState(listOf(proposal)), ResultActions()) } }
+        compose.onNodeWithText("Price wrong? Tell us").assertDoesNotExist()
+        compose.onNodeWithText("added by a user, not confirmed", substring = true).assertExists()
     }
 }

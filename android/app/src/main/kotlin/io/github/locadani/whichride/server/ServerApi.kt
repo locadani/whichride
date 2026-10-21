@@ -22,31 +22,52 @@ data class Place(val label: String, val at: Coordinate)
 @Serializable private data class TripDto(val metres: Long, val seconds: Long)
 @Serializable private data class PlaceDto(val label: String, val at: CoordinateDto)
 @Serializable private data class PlacesDto(val places: List<PlaceDto>)
-@Serializable private data class RegistrationDto(val token: String)
 @Serializable private data class ErrorDto(val error: String)
 @Serializable data class NonceBody(val nonce: String)
 
 private fun Coordinate.dto() = CoordinateDto(latE7, lonE7)
 private fun CoordinateDto.core() = Coordinate(latE7, lonE7)
 
-/** Lowercase hex SHA-256 of the registration's integrity binding (decision 44). */
-fun registrationHash(body: String): String =
-    MessageDigest.getInstance("SHA-256").digest("POST /v1/installs\n$body".toByteArray())
-        .joinToString("") { "%02x".format(it) }
+@Serializable private data class RegistrationDto(@SerialName("install_id") val installId: String, val token: String)
+@Serializable private data class ReportOutcomeDto(val report: String? = null, val status: String)
+@Serializable private data class StatusDto(val status: String)
+
+/** The server's answer to a report: the report it created or joined, and its status (`pending`, `accepted`, `current`). */
+data class ReportOutcome(val reportId: String?, val status: String)
+
+private val lenient = Json { ignoreUnknownKeys = true }
+
+fun readReportOutcome(text: String): ReportOutcome =
+    lenient.decodeFromString<ReportOutcomeDto>(text).let { ReportOutcome(it.report, it.status) }
+
+fun readStatus(text: String): String = lenient.decodeFromString<StatusDto>(text).status
+
+/** Lowercase hex SHA-256 of a signed write's integrity binding (decision 44). */
+fun writeHash(method: String, path: String, installId: String, body: String): String = sha256Hex("$method $path\n$installId\n$body")
+
+fun registrationHash(body: String): String = sha256Hex("POST /v1/installs\n$body")
+
+private fun sha256Hex(text: String) =
+    MessageDigest.getInstance("SHA-256").digest(text.toByteArray()).joinToString("") { "%02x".format(it) }
 
 /**
  * The whichride server's HTTP API (crates/server/README.md). Coordinates always travel in
  * request bodies, never in URLs (§9). `baseUrl` empty = this build has no server (R9).
  */
-class ServerApi(private val baseUrl: String, private val http: OkHttpClient) {
+class ServerApi(baseUrl: String, private val http: OkHttpClient) {
+    private val baseUrl = baseUrl.trimEnd('/')
     private val json = Json { ignoreUnknownKeys = true; explicitNulls = false }
 
     suspend fun catalogue(): ApiResult<String> = call({ Request.Builder().url(url("/v1/catalogue")).get() }) { it }
 
-    suspend fun register(body: String, integrityToken: String): ApiResult<String> =
+    suspend fun register(body: String, integrityToken: String): ApiResult<Install> =
         call({ post("/v1/installs", body).header("X-Integrity-Token", integrityToken) }) {
-            json.decodeFromString<RegistrationDto>(it).token
+            json.decodeFromString<RegistrationDto>(it).let { dto -> Install(dto.installId, dto.token) }
         }
+
+    /** A report, vote or confirmation: bearer + a Play Integrity token for these exact bytes (decision 44). */
+    suspend fun <T> write(path: String, body: String, bearer: String, integrityToken: String, read: (String) -> T): ApiResult<T> =
+        call({ authed(path, body, bearer).header("X-Integrity-Token", integrityToken) }, read)
 
     suspend fun route(bearer: String, from: Coordinate, to: Coordinate): ApiResult<Trip> =
         call({ authed("/v1/route", json.encodeToString(RouteBody(from.dto(), to.dto())), bearer) }) {

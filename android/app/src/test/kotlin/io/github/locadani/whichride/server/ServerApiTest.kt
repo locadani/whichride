@@ -34,7 +34,8 @@ class ServerApiTest {
         val request = server.takeRequest()
         assertEquals("POST", request.method)
         assertEquals("/v1/route", request.url.encodedPath)
-        assertFalse("no coordinates in the URL (§9)", request.url.toString().contains("52"))
+        // Path and query only: the test server's random port may itself contain "52".
+        assertFalse("no coordinates in the URL (§9)", "${request.url.encodedPath}?${request.url.encodedQuery}".contains("52"))
         assertEquals("Bearer tok", request.headers["Authorization"])
         assertEquals(
             """{"from":{"lat_e7":525219000,"lon_e7":134132000},"to":{"lat_e7":525022870,"lon_e7":134316050}}""",
@@ -90,7 +91,7 @@ class ServerApiTest {
 
     @Test fun registrationSendsTheIntegrityTokenAndReturnsTheBearer() = runTest {
         reply(201, """{"install_id":"123e4567-e89b-42d3-a456-426614174000","token":"bearer-1"}""")
-        assertEquals(ApiResult.Ok("bearer-1"), api.register("""{"nonce":"abcdefghijklmnop"}""", "int.tok.en.x.y"))
+        assertEquals(ApiResult.Ok(Install("123e4567-e89b-42d3-a456-426614174000", "bearer-1")), api.register("""{"nonce":"abcdefghijklmnop"}""", "int.tok.en.x.y"))
         val request = server.takeRequest()
         assertEquals("int.tok.en.x.y", request.headers["X-Integrity-Token"])
         assertEquals("""{"nonce":"abcdefghijklmnop"}""", request.body!!.utf8())
@@ -100,4 +101,26 @@ class ServerApiTest {
         "c59b7c5ccbba73f1c1f2c526838ae9486eaaf2ac726b320a170aad41b31565c3",
         registrationHash("""{"nonce":"abcdefghijklmnop"}"""),
     )
+
+    @Test fun aTrailingSlashInTheServerUrlIsIgnored() = runTest {
+        val slashed = ServerApi(server.url("/").toString(), OkHttpClient())
+        reply(200, """{"metres":7400,"seconds":1320}""")
+        slashed.route("tok", alex, neun)
+        assertEquals("/v1/route", server.takeRequest().url.encodedPath)
+    }
+
+    @Test fun writesCarryTheBearerAndTheIntegrityToken() = runTest {
+        reply(201, """{"report":"11111111-2222-4333-8444-555555555555","status":"pending"}""")
+        val body = """{"cards":[],"offer":"miles.s"}"""
+        assertEquals(
+            ApiResult.Ok(ReportOutcome("11111111-2222-4333-8444-555555555555", "pending")),
+            api.write("/v1/reports", body, "tok", "a.b.c.d.e", ::readReportOutcome),
+        )
+        val request = server.takeRequest()
+        assertEquals("/v1/reports", request.url.encodedPath)
+        assertEquals("Bearer tok", request.headers["Authorization"])
+        assertEquals("a.b.c.d.e", request.headers["X-Integrity-Token"])
+        assertEquals(body, request.body!!.utf8())
+    }
+
 }

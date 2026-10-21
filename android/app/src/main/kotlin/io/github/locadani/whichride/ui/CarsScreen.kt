@@ -53,10 +53,12 @@ fun CarsScreen(
     onToggle: (Choice) -> Unit,
     onFilter: (String) -> Unit,
     onCommit: () -> Unit,
+    onPropose: (String) -> Unit,
 ) {
     val colors = WhichrideTheme.colors
     val provider = state.providers.firstOrNull { it.id == providerId } ?: return
-    val quotes = state.quotes.filter { it.providerId == providerId }
+    val quotes = state.quotes.filter { it.providerId == providerId && !it.proposed }
+    val proposals = state.quotes.filter { it.providerId == providerId && it.proposed }
     val anyCar = Choice.AnyOf(providerId)
     val anyOn = anyCar in state.draft
     val terms = state.carFilter.lowercase().split(Regex("\\s+")).filter(String::isNotBlank)
@@ -112,6 +114,30 @@ fun CarsScreen(
             items(matching, key = { it.offerId }) { quote ->
                 val choice = Choice.Offer(quote.offerId)
                 CarRow(quote.offerName, null, money(quote.totalCents), anyOn || choice in state.draft, strong = false) { onToggle(choice) }
+            }
+            if (proposals.isNotEmpty() && terms.isEmpty()) {
+                item {
+                    Text(
+                        stringResource(R.string.proposals_title),
+                        style = MaterialTheme.typography.labelMedium,
+                        color = colors.onSurfaceMuted,
+                        modifier = Modifier.padding(top = Space.sm).semantics { heading() },
+                    )
+                }
+                items(proposals, key = { it.offerId }) { quote ->
+                    val choice = Choice.Offer(quote.offerId)
+                    CarRow(quote.offerName, stringResource(R.string.proposed_meta), money(quote.totalCents), choice in state.draft, strong = false) { onToggle(choice) }
+                }
+            }
+            if (state.crowdEnabled) {
+                item {
+                    OutlinedButton(
+                        onClick = { onPropose(providerId) },
+                        modifier = Modifier.fillMaxWidth().heightIn(min = WhichrideTokens.Size.touchTarget).padding(top = Space.xs),
+                        shape = MaterialTheme.shapes.medium,
+                        border = BorderStroke(WhichrideTokens.Size.stroke, colors.outline),
+                    ) { Text(stringResource(R.string.car_not_listed), color = colors.onSurfaceMuted) }
+                }
             }
             if (terms.isNotEmpty() && matching.isEmpty()) {
                 item {

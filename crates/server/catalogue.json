@@ -162,6 +162,13 @@
       "id": "sixt",
       "name": "SIXT share",
       "android_package": "com.trafi.whitelabel.bvg",
+      "app_name": "BVG Jelbi",
+      "other_apps": [
+        {
+          "name": "SIXT",
+          "android_package": "com.sixt.reservation"
+        }
+      ],
       "offers": [
         {
           "id": "sixt.volkswagen-t-roc",

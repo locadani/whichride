@@ -6,10 +6,12 @@ import androidx.lifecycle.ViewModelProvider
 import androidx.lifecycle.viewmodel.initializer
 import androidx.lifecycle.viewmodel.viewModelFactory
 import io.github.locadani.whichride.compare.CompareViewModel
+import io.github.locadani.whichride.crowd.ServerCrowd
 import io.github.locadani.whichride.launch.AndroidLauncher
 import io.github.locadani.whichride.location.AndroidLocationSource
 import io.github.locadani.whichride.location.hasLocationPermission
 import io.github.locadani.whichride.options.OptionsStore
+import io.github.locadani.whichride.personal.FilePersonalStore
 import io.github.locadani.whichride.prices.PriceBook
 import io.github.locadani.whichride.server.Installs
 import io.github.locadani.whichride.server.IntegrityTokens
@@ -45,6 +47,9 @@ class AppContainer(private val app: Application) {
                 store = OptionsStore(prefs("options"), System::currentTimeMillis),
                 priceLoader = priceBook,
                 hasLocationPermission = { hasLocationPermission(app) },
+                personal = FilePersonalStore(File(app.filesDir, "personal.json")),
+                crowd = ServerCrowd(api, installs),
+                crowdEnabled = BuildConfig.SERVER_URL.isNotEmpty(),
             )
         }
     }

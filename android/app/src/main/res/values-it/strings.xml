@@ -1,0 +1,228 @@
+<?xml version="1.0" encoding="utf-8"?>
+<resources>
+    <string name="back">Indietro</string>
+    <string name="close">Chiudi</string>
+    <string name="licences">Licenze</string>
+
+    <string name="home_title">Dove vai?</string>
+    <string name="home_title_accent">vai?</string>
+    <string name="start_my_location">La tua posizione</string>
+    <string name="start_change">Cambia</string>
+    <string name="destination_label">Destinazione</string>
+    <string name="destination_hint">Indirizzo, luogo o link di Maps</string>
+    <string name="maps_link_found">Link di Google Maps</string>
+    <string name="compare_this_trip">Confronta questo viaggio</string>
+    <string name="suggestions_unavailable">I suggerimenti usano il nostro servizio percorsi, che ora non è raggiungibile. Cerca comunque l\'indirizzo o incolla un link di Google Maps.</string>
+    <string name="home_tip">Suggerimento: in Google Maps tocca Condividi su un luogo e scegli whichride.</string>
+    <string name="error_not_a_maps_link">Questo link non è di Google Maps.</string>
+    <string name="error_no_destination">Questo link non porta a un luogo.</string>
+    <string name="error_not_found">Non abbiamo trovato questo luogo.</string>
+    <string name="error_too_long">Questo testo è troppo lungo per essere un link.</string>
+
+    <string name="resolving_from_maps">da Google Maps</string>
+    <string name="resolving_unnamed">La tua destinazione</string>
+    <string name="resolving_place">Cerco il luogo…</string>
+    <string name="resolving_location">Cerco la tua posizione…</string>
+    <string name="resolving_route">Calcolo il percorso…</string>
+
+    <string name="manual_title_busy">Il servizio percorsi è occupato</string>
+    <string name="manual_title_offline">Servizio percorsi non raggiungibile</string>
+    <string name="manual_title_no_route">Nessun percorso in auto</string>
+    <string name="manual_title_no_location">Non abbiamo trovato la tua posizione</string>
+    <string name="manual_title_edit">Distanza e tempo</string>
+    <string name="manual_body">Inserisci distanza e tempo da Google Maps. Il confronto funziona lo stesso.</string>
+    <string name="trip_to">Verso %1$s</string>
+    <string name="manual_km">Distanza (km)</string>
+    <string name="manual_minutes">Tempo (min)</string>
+    <string name="manual_km_invalid">Tra 0,1 e 2000 km</string>
+    <string name="manual_minutes_invalid">Tra 1 e 1440 minuti</string>
+    <string name="manual_choose_start">Scegli una partenza</string>
+    <string name="compare">Confronta</string>
+    <string name="open_in_maps">Apri in Google Maps</string>
+
+    <string name="trip_line">%1$s km · %2$s min</string>
+    <string name="built_in_prices">prezzi integrati</string>
+    <string name="edit">Modifica</string>
+    <string name="change_start">Cambia partenza</string>
+    <string name="loading_prices">Carico i prezzi…</string>
+    <string name="intro_title">Quali auto ci sono vicino a te?</string>
+    <string name="intro_title_accent">vicino a te?</string>
+    <string name="intro_body">Guarda in %1$s, poi aggiungi le auto che vedi. Ti mostriamo la più economica per questo viaggio.</string>
+    <string name="list_or">%1$s o %2$s</string>
+    <string name="cheapest_of_options">La più economica tra le tue opzioni</string>
+    <string name="any_car">Qualsiasi auto</string>
+    <string name="any_car_meta">la più economica è %1$s</string>
+    <string name="package_meta">pacchetto %1$s</string>
+    <string name="confirmed_today">confermato oggi</string>
+    <plurals name="confirmed_days_ago">
+        <item quantity="one">confermato %d giorno fa</item>
+        <item quantity="other">confermato %d giorni fa</item>
+    </plurals>
+    <string name="not_confirmed">non ancora confermato</string>
+    <string name="built_in_price">prezzo integrato</string>
+    <string name="price_difference">+%1$s</string>
+    <string name="remove_option">Rimuovi %1$s %2$s</string>
+    <string name="add_cars">Aggiungi le auto vicino a te</string>
+    <string name="add_more_cars">Aggiungi altre auto</string>
+    <plurals name="cheaper_not_added">
+        <item quantity="one">%1$d auto che non hai aggiunto costa meno: %2$s (%3$s).</item>
+        <item quantity="other">%1$d auto che non hai aggiunto costano meno, da %2$s (%3$s).</item>
+    </plurals>
+    <string name="nothing_cheaper">Nessuna auto che non hai aggiunto costa meno.</string>
+    <string name="open_provider">Apri %1$s</string>
+    <string name="add_cars_to_compare">Aggiungi auto da confrontare</string>
+
+    <string name="step_1">Passo 1 di 2</string>
+    <string name="step_2">Passo 2 di 2</string>
+    <string name="which_provider">Quale operatore?</string>
+    <plurals name="provider_offers">
+        <item quantity="one">%1$d auto · da %2$s</item>
+        <item quantity="other">%1$d auto · da %2$s</item>
+    </plurals>
+    <plurals name="added_count">
+        <item quantity="one">%1$d aggiunta</item>
+        <item quantity="other">%1$d aggiunte</item>
+    </plurals>
+    <string name="which_cars">%1$s: quali auto?</string>
+    <string name="which_cars_body">Seleziona ogni auto che vedi vicino. I prezzi sono per questo viaggio.</string>
+    <string name="check_in">Controlla in %1$s</string>
+    <plurals name="filter_cars">
+        <item quantity="one">Filtra %1$d auto, es. polo</item>
+        <item quantity="other">Filtra %1$d auto, es. polo</item>
+    </plurals>
+    <string name="any_provider_car">Qualsiasi auto %1$s</string>
+    <string name="any_car_sub">Non so quale modello</string>
+    <string name="from_price">da %1$s</string>
+    <string name="no_car_matches">Nessuna auto %1$s corrisponde a “%2$s”.</string>
+    <string name="done">Fatto</string>
+    <string name="add_any_car">Aggiungi qualsiasi auto %1$s</string>
+    <plurals name="add_n_cars">
+        <item quantity="one">Aggiungi %d auto</item>
+        <item quantity="other">Aggiungi %d auto</item>
+    </plurals>
+
+    <string name="start_title">Parti da</string>
+    <string name="start_hint">Indirizzo o luogo</string>
+    <string name="use_my_location">Usa la mia posizione</string>
+
+    <string name="licences_body">whichride è open source con licenza MIT. Include i font Sora e JetBrains Mono, con licenza SIL Open Font License 1.1.</string>
+    <string name="settings">Impostazioni</string>
+    <string name="settings_deals">Sconti e abbonamenti</string>
+    <plurals name="settings_deals_count">
+        <item quantity="one">%d attivo</item>
+        <item quantity="other">%d attivi</item>
+    </plurals>
+    <string name="settings_open_with">Apri %1$s con</string>
+    <string name="settings_language">Lingua dell\'app</string>
+    <string name="settings_language_body">whichride segue la lingua del telefono: English, Italiano, Deutsch o Türkçe.</string>
+    <string name="settings_language_change">Cambia nelle impostazioni di Android</string>
+
+    <string name="deals_title">Sconti e abbonamenti</string>
+    <string name="deals_body">Applicati a ogni prezzo che vedi. Salvati solo su questo telefono.</string>
+    <string name="deals_empty">Ancora nessuno sconto. Aggiungi lo sconto di un codice promo, un abbonamento che paghi o il credito che un operatore ti dà per il rifornimento.</string>
+    <string name="deals_add">Aggiungi uno sconto o un abbonamento</string>
+    <string name="deals_refuel_title">Fai rifornimento o ricarichi?</string>
+    <string name="deals_refuel_body">Alcuni operatori danno credito quando fai rifornimento. Aggiungilo come credito rifornimento, poi attivalo per ogni viaggio dalla schermata dei risultati.</string>
+    <string name="deal_on">%1$s attivo</string>
+    <string name="deal_percent">%1$s −%2$s%%</string>
+    <string name="deal_amount">%1$s −%2$s</string>
+    <string name="deal_pass">abbonamento %1$s</string>
+    <string name="deal_refuel">credito rifornimento %1$s</string>
+    <string name="deal_until">fino al %1$s</string>
+    <string name="deal_no_end">senza scadenza</string>
+    <string name="deal_once">una volta · solo prossimo viaggio</string>
+    <string name="deal_used">usato</string>
+    <string name="deal_expired">scaduto</string>
+    <string name="deal_pass_km">%1$s%% di sconto al km</string>
+    <string name="deal_pass_minute">%1$s%% di sconto al minuto</string>
+    <string name="deal_pass_package">%1$s%% di sconto sui pacchetti</string>
+    <string name="deal_pass_unlock">sblocco gratuito</string>
+    <string name="deal_refuel_sub">quando fai rifornimento o ricarichi</string>
+
+    <string name="deal_new">Nuovo sconto</string>
+    <string name="deal_edit">Modifica sconto</string>
+    <string name="deal_provider">Operatore</string>
+    <string name="deal_provider_missing">Scegli un operatore</string>
+    <string name="deal_kind">Tipo</string>
+    <string name="deal_kind_percent">% di sconto</string>
+    <string name="deal_kind_amount">€ di sconto</string>
+    <string name="deal_kind_pass">Abbonamento</string>
+    <string name="deal_kind_refuel">Credito rifornimento</string>
+    <string name="deal_field_percent">Sconto (%)</string>
+    <string name="deal_field_amount">Importo (€)</string>
+    <string name="deal_field_pass_km">Sconto al km (%)</string>
+    <string name="deal_field_pass_minute">Sconto al minuto (%)</string>
+    <string name="deal_field_pass_package">Sconto sui pacchetti (%)</string>
+    <string name="deal_field_refuel">Credito (€)</string>
+    <string name="deal_field_unlock">Sblocco gratuito</string>
+    <string name="deal_field_once">Una volta (solo prossimo viaggio)</string>
+    <string name="deal_field_until">Valido fino al</string>
+    <string name="deal_field_until_none">Senza scadenza</string>
+    <string name="deal_field_until_clear">Rimuovi scadenza</string>
+    <string name="deal_invalid_percent">Tra 0,01 e 100</string>
+    <string name="deal_invalid_amount">Più di 0 €, es. 5 o 2,50</string>
+    <string name="deal_invalid_pass">Inserisci almeno un risparmio</string>
+    <string name="deal_hint_percent">Tolto dal totale dell\'operatore per ogni viaggio, fino alla scadenza.</string>
+    <string name="deal_hint_amount">Tolto dal totale del viaggio, mai sotto 0 €.</string>
+    <string name="deal_hint_pass">Un abbonamento cambia le tariffe dell\'operatore in modo stabile, es. km più economici o sblocco gratuito. Il canone mensile non viene contato per viaggio.</string>
+    <string name="deal_hint_refuel">Tolto dal totale del viaggio quando attivi \"Faccio rifornimento o ricarico\" per un viaggio.</string>
+    <string name="deal_save">Salva sconto</string>
+    <string name="deal_delete">Elimina</string>
+    <string name="ok">OK</string>
+    <string name="cancel">Annulla</string>
+
+    <plurals name="discounts_pill">
+        <item quantity="one">Sconti · %d</item>
+        <item quantity="other">Sconti · %d</item>
+    </plurals>
+    <string name="discounts_pill_none">Sconti</string>
+    <string name="refuel_switch">Faccio rifornimento o ricarico</string>
+    <string name="once_used">%1$s usato</string>
+    <string name="undo">Annulla</string>
+    <string name="report_price">Prezzo sbagliato? Dillo a noi</string>
+    <string name="your_price">il tuo prezzo</string>
+    <string name="proposed_meta">aggiunto da un utente, non confermato</string>
+    <string name="price_title">Cosa mostra %1$s?</string>
+    <string name="price_body">Cambia solo ciò che è diverso. %1$s, %2$s.</string>
+    <string name="propose_title">Aggiungi un\'auto %1$s</string>
+    <string name="propose_body">Il nome come lo mostra %1$s e i prezzi per i viaggi a consumo.</string>
+    <string name="field_name">Nome dell\'auto</string>
+    <string name="field_unlock">Sblocco (€)</string>
+    <string name="field_per_km">Al km (€)</string>
+    <string name="field_per_minute">Al minuto (€)</string>
+    <string name="field_minimum">Minimo (€)</string>
+    <string name="field_invalid_euros">Fino a %1$s, es. 0,29</string>
+    <string name="field_invalid_name">Da 1 a %1$d caratteri</string>
+    <string name="price_note">I tuoi numeri valgono subito per te. Gli altri li vedono quando un altro utente li conferma.</string>
+    <string name="propose_note">Gli altri vedono quest\'auto quando un altro utente la conferma.</string>
+    <string name="price_save">Salva correzione</string>
+    <string name="propose_save">Invia auto</string>
+    <string name="price_reset">Usa il prezzo condiviso</string>
+
+    <string name="question_back_from">Di ritorno da %1$s</string>
+    <string name="question_title">È questo il prezzo che %1$s mostrava per la %2$s?</string>
+    <string name="question_title_proposal">%1$s mostrava la %2$s a questi prezzi?</string>
+    <string name="question_per_km">al km</string>
+    <string name="question_per_minute">al min</string>
+    <string name="question_unlock">sblocco</string>
+    <string name="question_yes">Sì, è giusto</string>
+    <string name="question_no_fix">No, correggi</string>
+    <string name="question_no">No</string>
+    <string name="question_skip">Salta</string>
+    <string name="question_note">Chiediamo al massimo una volta a settimana. La tua risposta mantiene i prezzi giusti per tutti.</string>
+    <string name="question_dont_know">Non conosco i numeri</string>
+    <string name="question_thanks">Grazie!</string>
+    <string name="question_confirmed">Prezzo confermato. Grazie per tenerlo giusto.</string>
+    <string name="question_corrected">I tuoi prezzi ora valgono per te. Gli altri li vedono quando qualcuno conferma.</string>
+    <string name="question_not_sent">Non siamo riusciti a inviare la risposta ora. Non è cambiato nulla.</string>
+
+    <string name="proposals_title">Aggiunte dagli utenti, non ancora confermate</string>
+    <string name="car_not_listed">Auto non in elenco? Aggiungila</string>
+
+    <string name="crowd_sent">Grazie! Gli altri lo vedono quando qualcuno conferma.</string>
+    <string name="crowd_proposed">Grazie! L\'auto compare agli altri quando qualcuno la conferma.</string>
+    <string name="crowd_not_sent">Salvato per te; non siamo riusciti a inviarlo ora.</string>
+    <string name="crowd_proposal_not_sent">Non siamo riusciti a inviare l\'auto. Riprova più tardi.</string>
+    <string name="crowd_locked">Questo prezzo è bloccato per ora; i tuoi numeri valgono comunque per te.</string>
+    <string name="crowd_already_current">È già il prezzo che vedono tutti.</string>
+</resources>

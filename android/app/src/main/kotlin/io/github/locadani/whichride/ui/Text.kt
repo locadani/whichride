@@ -10,6 +10,7 @@ import androidx.compose.ui.text.buildAnnotatedString
 import androidx.compose.ui.text.withStyle
 import io.github.locadani.whichride.R
 import io.github.locadani.whichride.compare.InputError
+import io.github.locadani.whichride.compare.CrowdMessage
 import io.github.locadani.whichride.core.Choice
 import io.github.locadani.whichride.core.ProviderInfo
 import io.github.locadani.whichride.core.Quote
@@ -17,6 +18,16 @@ import io.github.locadani.whichride.core.RankedOption
 import io.github.locadani.whichride.designsystem.WhichrideTheme
 import io.github.locadani.whichride.format.formatMoney
 import io.github.locadani.whichride.prices.PriceSource
+import io.github.locadani.whichride.format.percentInput
+import io.github.locadani.whichride.personal.AmountOff
+import io.github.locadani.whichride.personal.Deal
+import io.github.locadani.whichride.personal.Pass
+import io.github.locadani.whichride.personal.PercentOff
+import io.github.locadani.whichride.personal.RefuelCreditDeal
+import io.github.locadani.whichride.personal.isActive
+import java.time.LocalDate
+import java.time.format.DateTimeFormatter
+import java.time.format.FormatStyle
 import java.util.Locale
 
 @Composable
@@ -52,8 +63,10 @@ fun offerLabel(option: RankedOption): String =
 /** "cheapest is Kia Picanto · 3 h / 40 km package · confirmed 2 days ago". */
 @Composable
 fun optionMeta(option: RankedOption, source: PriceSource?): String = buildList {
+    if (option.quote.proposed) add(stringResource(R.string.proposed_meta))
     if (option.choice is Choice.AnyOf) add(stringResource(R.string.any_car_meta, option.quote.offerName))
     if (option.quote.cardLabel != STANDARD_CARD) add(stringResource(R.string.package_meta, option.quote.cardLabel))
+    if (option.quote.overridden) add(stringResource(R.string.your_price))
     add(freshness(option.quote, source))
 }.joinToString(" · ")
 
@@ -78,3 +91,46 @@ fun InputError.message() = when (this) {
 
 /** The catalogue's pay-as-you-go card label; any other label names a package. */
 private const val STANDARD_CARD = "Standard"
+
+/** "Bolt Drive −20%", "MILES pass", … (canvas Discounts). */
+@Composable
+fun Deal.title(providers: List<ProviderInfo>): String {
+    val provider = providers.nameOf(providerId)
+    return when (this) {
+        is PercentOff -> stringResource(R.string.deal_percent, provider, percentInput(basisPoints, locale()))
+        is AmountOff -> stringResource(R.string.deal_amount, provider, money(cents))
+        is Pass -> stringResource(R.string.deal_pass, provider)
+        is RefuelCreditDeal -> stringResource(R.string.deal_refuel, provider)
+    }
+}
+
+/** "until 31 Oct 2026", "once · next trip only", "10% off per km · no unlock fee", "expired". */
+@Composable
+fun Deal.subtitle(today: Long): String {
+    if (this is AmountOff && used) return stringResource(R.string.deal_used)
+    if (!isActive(today) && enabled) return stringResource(R.string.deal_expired)
+    val loc = locale()
+    @Composable fun until(day: Long?): String = day?.let {
+        stringResource(R.string.deal_until, LocalDate.ofEpochDay(it).format(DateTimeFormatter.ofLocalizedDate(FormatStyle.MEDIUM).withLocale(loc)))
+    } ?: stringResource(R.string.deal_no_end)
+    return when (this) {
+        is PercentOff -> until(until)
+        is AmountOff -> if (once) stringResource(R.string.deal_once) else until(until)
+        is Pass -> buildList {
+            if (distanceOff > 0) add(stringResource(R.string.deal_pass_km, percentInput(distanceOff, loc)))
+            if (timeOff > 0) add(stringResource(R.string.deal_pass_minute, percentInput(timeOff, loc)))
+            if (packageOff > 0) add(stringResource(R.string.deal_pass_package, percentInput(packageOff, loc)))
+            if (waiveUnlock) add(stringResource(R.string.deal_pass_unlock))
+        }.joinToString(" · ")
+        is RefuelCreditDeal -> "${money(cents)} · ${stringResource(R.string.deal_refuel_sub)}"
+    }
+}
+
+fun CrowdMessage.text() = when (this) {
+    CrowdMessage.SENT -> R.string.crowd_sent
+    CrowdMessage.PROPOSED -> R.string.crowd_proposed
+    CrowdMessage.NOT_SENT -> R.string.crowd_not_sent
+    CrowdMessage.PROPOSAL_NOT_SENT -> R.string.crowd_proposal_not_sent
+    CrowdMessage.LOCKED -> R.string.crowd_locked
+    CrowdMessage.ALREADY_CURRENT -> R.string.crowd_already_current
+}

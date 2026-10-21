@@ -13,6 +13,9 @@ import androidx.compose.foundation.layout.size
 import androidx.compose.foundation.lazy.LazyColumn
 import androidx.compose.foundation.lazy.items
 import androidx.compose.foundation.selection.selectable
+import androidx.compose.foundation.shape.RoundedCornerShape
+import io.github.locadani.whichride.personal.hasActiveRefuelCredit
+import io.github.locadani.whichride.personal.isActive
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.filled.Add
 import androidx.compose.material.icons.filled.Close
@@ -27,6 +30,7 @@ import androidx.compose.material3.Surface
 import androidx.compose.material3.Text
 import androidx.compose.material3.TextButton
 import androidx.compose.runtime.Composable
+import io.github.locadani.whichride.compare.canReport
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.res.pluralStringResource
@@ -48,24 +52,29 @@ import io.github.locadani.whichride.prices.PriceSource
 private val Space = WhichrideTokens.Space
 private val Size = WhichrideTokens.Size
 
+/** Everything the result screen can ask the ViewModel to do. */
+data class ResultActions(
+    val onBack: () -> Unit = {},
+    val onEdit: () -> Unit = {},
+    val onChangeStart: () -> Unit = {},
+    val onAddCars: () -> Unit = {},
+    val onRemove: (Choice) -> Unit = {},
+    val onSelect: (Choice) -> Unit = {},
+    val onOpen: () -> Unit = {},
+    val onOpenMaps: () -> Unit = {},
+    val onDeals: () -> Unit = {},
+    val onRefuel: (Boolean) -> Unit = {},
+    val onReport: () -> Unit = {},
+)
+
 /** Canvas "Result + add the cars near you" (spec §4 steps 6–7, §4.1). */
 @Composable
-fun ResultScreen(
-    state: UiState,
-    onBack: () -> Unit,
-    onEdit: () -> Unit,
-    onChangeStart: () -> Unit,
-    onAddCars: () -> Unit,
-    onRemove: (Choice) -> Unit,
-    onSelect: (Choice) -> Unit,
-    onOpen: () -> Unit,
-    onOpenMaps: () -> Unit,
-) {
+fun ResultScreen(state: UiState, actions: ResultActions) {
     val colors = WhichrideTheme.colors
     val ranked = state.options?.ranked.orEmpty()
     val chosen = ranked.firstOrNull { it.choice == state.selected } ?: ranked.firstOrNull()
     Column(Modifier.fillMaxSize()) {
-        TopBar(onBack) {
+        TopBar(actions.onBack) {
             Column(Modifier.weight(1f)) {
                 Text(
                     stringResource(R.string.trip_to, state.target?.label ?: stringResource(R.string.resolving_unnamed)),
@@ -78,8 +87,22 @@ fun ResultScreen(
                     Text(line + builtIn, style = WhichrideTheme.numbers.small, color = colors.onSurfaceMuted)
                 }
             }
-            TextButton(onClick = onChangeStart) { Text(stringResource(R.string.change_start), color = colors.accentText) }
-            TextButton(onClick = onEdit) { Text(stringResource(R.string.edit), color = colors.accentText) }
+            val active = state.personal.deals.count { it.isActive(state.today) }
+            Surface(
+                onClick = actions.onDeals,
+                shape = RoundedCornerShape(WhichrideTokens.Radius.full),
+                color = colors.surface,
+                modifier = Modifier.heightIn(min = Size.touchTarget),
+            ) {
+                Text(
+                    if (active == 0) stringResource(R.string.discounts_pill_none)
+                    else pluralStringResource(R.plurals.discounts_pill, active, active),
+                    style = MaterialTheme.typography.labelMedium,
+                    modifier = Modifier.padding(horizontal = Space.sm, vertical = Space.xs),
+                )
+            }
+            TextButton(onClick = actions.onChangeStart) { Text(stringResource(R.string.change_start), color = colors.accentText) }
+            TextButton(onClick = actions.onEdit) { Text(stringResource(R.string.edit), color = colors.accentText) }
         }
         val options = state.options
         if (options == null) {
@@ -93,19 +116,29 @@ fun ResultScreen(
                 contentPadding = PaddingValues(horizontal = Space.md, vertical = Space.sm),
                 verticalArrangement = Arrangement.spacedBy(Space.xs),
             ) {
+                if (state.personal.hasActiveRefuelCredit(state.today)) {
+                    item { SwitchRow(stringResource(R.string.refuel_switch), state.refuel, actions.onRefuel) }
+                }
                 if (ranked.isEmpty()) {
                     item { Intro(state) }
                 } else {
-                    item { Hero(ranked.first(), state, selected = chosen == ranked.first() && ranked.size > 1, onSelect, onRemove) }
+                    item { Hero(ranked.first(), state, selected = chosen == ranked.first() && ranked.size > 1, actions.onSelect, actions.onRemove) }
                     items(ranked.drop(1), key = { it.choice.toString() }) { option ->
-                        OptionRow(option, ranked.first().quote.totalCents, state, selected = chosen == option, onSelect, onRemove)
+                        OptionRow(option, ranked.first().quote.totalCents, state, selected = chosen == option, actions.onSelect, actions.onRemove)
                     }
                 }
                 item {
-                    if (ranked.isEmpty()) PrimaryButton(stringResource(R.string.add_cars), onAddCars, icon = Icons.Filled.Add)
-                    else SecondaryButton(stringResource(R.string.add_more_cars), onAddCars, icon = Icons.Filled.Add)
+                    if (ranked.isEmpty()) PrimaryButton(stringResource(R.string.add_cars), actions.onAddCars, icon = Icons.Filled.Add)
+                    else SecondaryButton(stringResource(R.string.add_more_cars), actions.onAddCars, icon = Icons.Filled.Add)
                 }
                 if (ranked.isNotEmpty()) item { CheaperLine(state) }
+                if (state.canReport()) {
+                    item {
+                        TextButton(onClick = actions.onReport) {
+                            Text(stringResource(R.string.report_price), color = WhichrideTheme.colors.accentText)
+                        }
+                    }
+                }
             }
         }
         Row(
@@ -114,7 +147,7 @@ fun ResultScreen(
             verticalAlignment = Alignment.CenterVertically,
         ) {
             OutlinedIconButton(
-                onClick = onOpenMaps,
+                onClick = actions.onOpenMaps,
                 modifier = Modifier.size(Size.controlLg),
                 shape = MaterialTheme.shapes.medium,
                 border = BorderStroke(Size.stroke, colors.outline),
@@ -123,7 +156,7 @@ fun ResultScreen(
             PrimaryButton(
                 text = chosen?.let { stringResource(R.string.open_provider, state.providers.nameOf(it.quote.providerId)) }
                     ?: stringResource(R.string.add_cars_to_compare),
-                onClick = onOpen,
+                onClick = actions.onOpen,
                 enabled = chosen != null,
                 modifier = Modifier.weight(1f),
             )

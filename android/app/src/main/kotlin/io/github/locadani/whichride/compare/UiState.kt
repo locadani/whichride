@@ -4,9 +4,14 @@ import io.github.locadani.whichride.core.Choice
 import io.github.locadani.whichride.core.Coordinate
 import io.github.locadani.whichride.core.Options
 import io.github.locadani.whichride.core.ProviderInfo
+import io.github.locadani.whichride.core.Question
 import io.github.locadani.whichride.core.Quote
 import io.github.locadani.whichride.core.Trip
+import io.github.locadani.whichride.crowd.PROPOSAL_PREFIX
+import io.github.locadani.whichride.crowd.PriceForm
 import io.github.locadani.whichride.launch.MapsTarget
+import io.github.locadani.whichride.personal.DealForm
+import io.github.locadani.whichride.personal.Personal
 import io.github.locadani.whichride.prices.PriceSource
 import io.github.locadani.whichride.server.Place
 
@@ -24,6 +29,16 @@ sealed interface Start {
     data object MyLocation : Start
     data class Chosen(val place: Place) : Start
 }
+
+enum class QuestionStep { ASK, FIX, CONFIRMED, CORRECTED, NOT_SENT }
+
+/** The §7.2 sheet: what is asked, about which car, and how far the user got. */
+data class QuestionState(val question: Question, val providerId: String, val offerName: String, val step: QuestionStep = QuestionStep.ASK) {
+    val isProposal: Boolean get() = question.offerId.startsWith(PROPOSAL_PREFIX)
+}
+
+/** What happened to a report or proposal the user sent (R11). */
+enum class CrowdMessage { SENT, PROPOSED, NOT_SENT, PROPOSAL_NOT_SENT, LOCKED, ALREADY_CURRENT }
 
 data class UiState(
     val stack: List<Screen> = listOf(Screen.Home),
@@ -56,6 +71,32 @@ data class UiState(
     val selected: Choice? = null,
     val draft: Set<Choice> = emptySet(),
     val carFilter: String = "",
+    // Personal (§6)
+    val personal: Personal = Personal(),
+    /** Epoch day in the phone's time zone, for "expired" labels. */
+    val today: Long = 0,
+    /** "I'll refuel or charge" for this trip (R6). */
+    val refuel: Boolean = false,
+    val dealForm: DealForm? = null,
+    /** Once discounts just used by Open <provider>, for the Undo snackbar (R5). */
+    val usedOnce: List<String> = emptyList(),
+    // Crowd (§7, §5.1)
+    /** A server is configured, so reports and questions can be sent. */
+    val crowdEnabled: Boolean = false,
+    val priceForm: PriceForm? = null,
+    val question: QuestionState? = null,
+    val crowdMessage: CrowdMessage? = null,
+    /** Offers the owner locked: no reports, no questions. */
+    val lockedOffers: Set<String> = emptySet(),
 ) {
     val screen: Screen get() = stack.last()
 }
+
+/** The option "Price wrong? Tell us" is about: the selected one, else the cheapest. */
+fun UiState.reportTarget(): Quote? {
+    val ranked = options?.ranked.orEmpty()
+    return (ranked.firstOrNull { it.choice == selected } ?: ranked.firstOrNull())?.quote
+}
+
+/** Reports are possible for an added, accepted, unlocked offer (R9, R14). */
+fun UiState.canReport(): Boolean = reportTarget()?.let { !it.proposed && it.offerId !in lockedOffers } == true

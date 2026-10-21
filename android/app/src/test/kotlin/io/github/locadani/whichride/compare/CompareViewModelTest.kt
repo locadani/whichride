@@ -2,6 +2,7 @@ package io.github.locadani.whichride.compare
 
 import io.github.locadani.whichride.core.Choice
 import io.github.locadani.whichride.core.Destination
+import io.github.locadani.whichride.core.Prices
 import io.github.locadani.whichride.launch.MapsTarget
 import io.github.locadani.whichride.server.ApiResult
 import io.github.locadani.whichride.server.Place
@@ -43,7 +44,10 @@ class CompareViewModelTest {
         store = store,
         priceLoader = SeedPrices(),
         hasLocationPermission = { permission },
-        now = { 1_792_497_600_000L },
+        personal = FakePersonalStore(),
+        crowd = FakeCrowd(),
+        today = { TODAY },
+        now = { NOW },
     ).also { advanceUntilIdle() }
 
     private val coordinateLink = "https://www.google.com/maps/search/?api=1&query=52.502287,13.431605"
@@ -430,4 +434,38 @@ class CompareViewModelTest {
         assertEquals(setOf(Choice.AnyOf("miles")), store.choices)
         assertEquals(setOf(Choice.AnyOf("miles")), vm.state.value.choices)
     }
-}
+
+    @Test fun `the location request is launched once even if the screen is recreated`() = runTest(dispatcher) {
+        permission = false
+        val vm = viewModel()
+        vm.onShared(coordinateLink)
+        advanceUntilIdle()
+        assertTrue(vm.state.value.askLocation)
+        vm.locationRequestLaunched()
+        assertFalse("a recreated screen must not ask again", vm.state.value.askLocation)
+        assertEquals(Screen.Resolving, vm.state.value.screen)
+        vm.onLocationAnswered()
+        advanceUntilIdle()
+        assertEquals(Screen.Result, vm.state.value.screen)
+    }
+
+    @Test fun `an expanded link that is not a short link says so`() = runTest(dispatcher) {
+        routes.expand = ApiResult.Refused(422, "not_a_short_link")
+        val vm = viewModel()
+        vm.onShared("https://maps.app.goo.gl/x7Qa2Lm")
+        advanceUntilIdle()
+        assertEquals(Screen.Home, vm.state.value.screen)
+        assertEquals(InputError.NOT_A_MAPS_LINK, vm.state.value.inputError)
+        routes.expand = ApiResult.Refused(200, "invalid_destination")
+        vm.onShared("https://maps.app.goo.gl/x7Qa2Lm")
+        advanceUntilIdle()
+        assertEquals(InputError.NO_DESTINATION, vm.state.value.inputError)
+    }
+
+    @Test fun `the cars screen closes when its provider leaves the catalogue`() = runTest(dispatcher) {
+        val vm = viewModel()
+        vm.onShared(coordinateLink); advanceUntilIdle()
+        vm.addCars(); vm.pickProvider("sixt")
+        vm.usePricesForTest(Prices.fromSeed(SEED.replaceSixt()))
+        assertEquals(Screen.Providers, vm.state.value.screen)
+    }}
