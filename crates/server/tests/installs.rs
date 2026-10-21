@@ -6,7 +6,7 @@ use common::{
 };
 use serde_json::json;
 use whichride_server::auth;
-use whichride_server::integrity::request_hash;
+use whichride_server::integrity::{Integrity, RegistrationKey, request_hash};
 use whichride_server::limits::Kind;
 use wiremock::MockServer;
 
@@ -210,4 +210,61 @@ async fn the_registration_cap_is_checked_before_asking_google() {
         server.received_requests().await.unwrap().len(),
         requests_before
     );
+}
+
+const KEY: &str = "owner-test-key-owner-test-key-owner-test-key";
+
+fn key_mode() -> Integrity {
+    Integrity::Key(RegistrationKey::new(KEY).unwrap())
+}
+
+#[tokio::test]
+async fn key_mode_registers_only_with_the_key() {
+    let Some(app) = TestApp::start_with_integrity(key_mode()).await else {
+        return;
+    };
+    let (status, body) = app.post("/v1/installs", &registration()).await;
+    assert_eq!(status, StatusCode::FORBIDDEN, "{body}");
+    let (status, _) = app
+        .post_with(
+            "/v1/installs",
+            &registration(),
+            &[("x-integrity-token", "wrong")],
+        )
+        .await;
+    assert_eq!(status, StatusCode::FORBIDDEN);
+    let (status, body) = app
+        .post_with(
+            "/v1/installs",
+            &registration(),
+            &[("x-integrity-token", KEY)],
+        )
+        .await;
+    assert_eq!(status, StatusCode::CREATED, "{body}");
+}
+
+#[tokio::test]
+async fn key_mode_writes_need_the_key_too() {
+    let Some(app) = TestApp::start_with_integrity(key_mode()).await else {
+        return;
+    };
+    app.insert_install("bearer-token-of-the-owner-phone").await;
+    let report = json!({"offer": "miles.s", "cards": [{
+        "label": "Standard", "kind": "standard", "base_fee": 100, "per_km": 30,
+        "per_minute": 0, "minimum": 0,
+        "km_rounding": "started_unit", "minute_rounding": "started_unit"
+    }]});
+    let bearer = "Bearer bearer-token-of-the-owner-phone";
+    let (status, _) = app
+        .post_with("/v1/reports", &report, &[("authorization", bearer)])
+        .await;
+    assert_eq!(status, StatusCode::FORBIDDEN);
+    let (status, body) = app
+        .post_with(
+            "/v1/reports",
+            &report,
+            &[("authorization", bearer), ("x-integrity-token", KEY)],
+        )
+        .await;
+    assert_eq!(status, StatusCode::CREATED, "{body}");
 }

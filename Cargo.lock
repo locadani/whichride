@@ -2983,6 +2983,7 @@ dependencies = [
  "serde_json",
  "sha2 0.11.1",
  "sqlx",
+ "subtle",
  "thiserror",
  "tokio",
  "tower",

@@ -21,6 +21,7 @@ async fn main() -> ExitCode {
         }
         Command::CloseReport { report } => whichride_server::commands::close_report(report).await,
         Command::RevertOffer { offer } => whichride_server::commands::revert_offer(&offer).await,
+        Command::RevokeInstalls => whichride_server::commands::revoke_installs().await,
         Command::CheckRouting => whichride_server::commands::check_routing().await,
     };
     match result {

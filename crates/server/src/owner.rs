@@ -135,6 +135,18 @@ pub async fn revert_offer(pool: &PgPool, offer: &str, today: Day) -> anyhow::Res
     Ok(())
 }
 
+/// Gives every install a token nobody knows (spec 2026-10-21 §6). Rows stay, because reports,
+/// votes and price history refer to them; each app registers again on its next 401.
+pub async fn revoke_installs(pool: &PgPool) -> anyhow::Result<u64> {
+    let revoked = sqlx::query(
+        "UPDATE installs SET token_hash = sha256(convert_to(gen_random_uuid()::text || id::text, 'UTF8'))",
+    )
+    .execute(pool)
+    .await?
+    .rows_affected();
+    Ok(revoked)
+}
+
 pub async fn show_offer(pool: &PgPool, offer: &str) -> anyhow::Result<String> {
     let (name, cards, confirmed, locked, hidden): OfferSummary = sqlx::query_as(
         "SELECT name, cards, confirmed_on, locked, hidden FROM offers WHERE id = $1",

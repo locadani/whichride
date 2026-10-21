@@ -29,6 +29,10 @@ pub async fn serve() -> anyhow::Result<()> {
         IntegrityMode::Google { package } => {
             Integrity::Google(GoogleIntegrity::new(package.clone()))
         }
+        IntegrityMode::Key(key) => {
+            info!("PLAY_INTEGRITY=key: only builds with the registration key can register");
+            Integrity::Key(key.clone())
+        }
         IntegrityMode::Off => {
             warn!("PLAY_INTEGRITY=off: writes are not checked (local development only)");
             Integrity::Off
@@ -110,6 +114,14 @@ pub async fn revert_offer(offer: &str) -> anyhow::Result<()> {
     owner::revert_offer(&pool, offer, crate::system_today()).await?;
     println!("{offer}: reverted to its previous price");
     println!("if the abuse may go on, consider lock-offer {offer} too");
+    pool.close().await;
+    Ok(())
+}
+
+pub async fn revoke_installs() -> anyhow::Result<()> {
+    let pool = owner_pool().await?;
+    let revoked = owner::revoke_installs(&pool).await?;
+    println!("{revoked} installs revoked; each registers again on its next request");
     pool.close().await;
     Ok(())
 }

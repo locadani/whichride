@@ -2,6 +2,7 @@
 //! and only for the exact request the app asked Google to vouch for.
 
 use std::collections::{HashSet, VecDeque};
+use std::fmt;
 use std::sync::Mutex as SyncMutex;
 use std::time::{Duration, Instant, SystemTime, UNIX_EPOCH};
 
@@ -9,6 +10,7 @@ use base64::Engine;
 use base64::engine::general_purpose::URL_SAFE_NO_PAD;
 use serde::Deserialize;
 use sha2::{Digest, Sha256};
+use subtle::ConstantTimeEq;
 use thiserror::Error;
 use tokio::sync::Mutex;
 use url::Url;
@@ -149,10 +151,40 @@ pub fn now_millis() -> i64 {
         })
 }
 
+/// The owner's registration key (`PLAY_INTEGRITY=key`, spec 2026-10-21): every install that
+/// presents it may register and write. `Debug` never shows it.
+#[derive(Clone, PartialEq, Eq)]
+pub struct RegistrationKey(String);
+
+impl RegistrationKey {
+    pub const MIN_BYTES: usize = 32;
+
+    pub fn new(key: &str) -> Result<RegistrationKey, &'static str> {
+        let key = key.trim();
+        if key.len() < Self::MIN_BYTES {
+            return Err("must be at least 32 bytes");
+        }
+        Ok(RegistrationKey(key.to_owned()))
+    }
+
+    /// Constant time for equal lengths; a different length is refused at once.
+    fn matches(&self, token: &str) -> bool {
+        self.0.as_bytes().ct_eq(token.as_bytes()).into()
+    }
+}
+
+impl fmt::Debug for RegistrationKey {
+    fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
+        f.write_str("RegistrationKey(<hidden>)")
+    }
+}
+
 // One value per process, held in an `Arc`: the size difference costs nothing.
 #[allow(clippy::large_enum_variant)]
 pub enum Integrity {
     Google(GoogleIntegrity),
+    /// Owner-only use before Play: the token must be the registration key.
+    Key(RegistrationKey),
     /// Local development only; the configuration refuses it on Cloud Run.
     Off,
 }
@@ -163,8 +195,19 @@ impl Integrity {
         token: Option<&str>,
         expected_hash: &str,
     ) -> Result<(), IntegrityError> {
-        let Integrity::Google(google) = self else {
-            return Ok(());
+        let google = match self {
+            Integrity::Google(google) => google,
+            Integrity::Key(key) => {
+                let token = token
+                    .filter(|token| !token.is_empty())
+                    .ok_or(IntegrityError::Missing)?;
+                return if key.matches(token) {
+                    Ok(())
+                } else {
+                    Err(IntegrityError::Refused("key"))
+                };
+            }
+            Integrity::Off => return Ok(()),
         };
         let token = token
             .filter(|token| !token.is_empty() && token.len() <= MAX_TOKEN_BYTES)
@@ -752,5 +795,56 @@ mod tests {
     #[tokio::test]
     async fn off_accepts_everything() {
         assert_eq!(Integrity::Off.verify(None, "h").await, Ok(()));
+    }
+
+    const KEY: &str = "owner-test-key-owner-test-key-owner-test-key";
+
+    fn key() -> Integrity {
+        Integrity::Key(RegistrationKey::new(KEY).unwrap())
+    }
+
+    #[test]
+    fn a_registration_key_must_be_long_enough() {
+        assert!(RegistrationKey::new("short").is_err());
+        assert!(RegistrationKey::new(&"k".repeat(31)).is_err());
+        assert!(RegistrationKey::new(&"k".repeat(32)).is_ok());
+    }
+
+    #[test]
+    fn a_registration_key_is_trimmed() {
+        let key = RegistrationKey::new(&format!("  {KEY}\n")).unwrap();
+        assert_eq!(key, RegistrationKey::new(KEY).unwrap());
+    }
+
+    #[test]
+    fn debug_hides_the_registration_key() {
+        let shown = format!("{:?}", RegistrationKey::new(KEY).unwrap());
+        assert!(!shown.contains("owner"), "{shown}");
+    }
+
+    #[tokio::test]
+    async fn key_mode_accepts_the_key_for_any_request() {
+        assert_eq!(key().verify(Some(KEY), "h1").await, Ok(()));
+        assert_eq!(key().verify(Some(KEY), "h2").await, Ok(()));
+    }
+
+    #[tokio::test]
+    async fn key_mode_refuses_anything_else() {
+        assert_eq!(key().verify(None, "h").await, Err(IntegrityError::Missing));
+        assert_eq!(
+            key().verify(Some(""), "h").await,
+            Err(IntegrityError::Missing)
+        );
+        for wrong in [
+            &KEY[..KEY.len() - 1],
+            &format!("{KEY}x"),
+            "owner-test-key-owner-test-key-other-key",
+        ] {
+            assert_eq!(
+                key().verify(Some(wrong), "h").await,
+                Err(IntegrityError::Refused("key")),
+                "{wrong}"
+            );
+        }
     }
 }

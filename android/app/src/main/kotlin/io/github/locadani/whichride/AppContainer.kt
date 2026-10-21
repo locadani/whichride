@@ -19,6 +19,7 @@ import io.github.locadani.whichride.server.KeystoreTokenStore
 import io.github.locadani.whichride.server.PlayIntegrityTokens
 import io.github.locadani.whichride.server.ServerApi
 import io.github.locadani.whichride.server.ServerRoutes
+import io.github.locadani.whichride.server.chooseIntegrityTokens
 import java.io.File
 import java.util.concurrent.TimeUnit
 import okhttp3.OkHttpClient
@@ -31,8 +32,9 @@ class AppContainer(private val app: Application) {
         .build()
     private val api = ServerApi(BuildConfig.SERVER_URL, http)
     private val integrity: IntegrityTokens =
-        if (BuildConfig.CLOUD_PROJECT_NUMBER == 0L) IntegrityTokens { null }
-        else PlayIntegrityTokens(app, BuildConfig.CLOUD_PROJECT_NUMBER)
+        chooseIntegrityTokens(BuildConfig.REGISTRATION_KEY, BuildConfig.CLOUD_PROJECT_NUMBER) {
+            PlayIntegrityTokens(app, BuildConfig.CLOUD_PROJECT_NUMBER)
+        }
     private val installs = Installs(api, integrity, KeystoreTokenStore(prefs("install")))
     private val priceBook = PriceBook(api, File(app.filesDir, "catalogue.json")) {
         app.assets.open("seed-catalogue.json").bufferedReader().use { it.readText() }

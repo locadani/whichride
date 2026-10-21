@@ -25,7 +25,7 @@ keytool -genkeypair -v -keystore ~/whichride-upload.jks -alias upload \
   -keyalg RSA -keysize 4096 -validity 10000
 ```
 
-Local release builds use it when `~/.gradle/gradle.properties` has:
+Local release builds use it when `android/local.properties` (copy `android/local.properties.example`) has:
 
 ```properties
 whichride.upload.storeFile=/Users/<you>/whichride-upload.jks
@@ -63,10 +63,20 @@ your approval before the key is used.
 
 ## 5. Play Integrity
 
-Play Console → *Test and release* → *App integrity* → *Play Integrity API* → link the Cloud
-project `1034831276867` (infra/README.md step 11). From then on a copy installed from Play gets
-`PLAY_RECOGNIZED` and the server accepts its registration, which turns on current location,
-address search and price reports. A sideloaded build stays refused; that is intended.
+Until the app is on Play the server runs `PLAY_INTEGRITY=key` and only the owner's build, which
+holds the registration key, can register (decision 77, infra/README.md step 11). To switch:
+
+1. Play Console → *Test and release* → *App integrity* → *Play Integrity API* → link the Cloud
+   project `1034831276867`. From then on a copy installed from Play gets `PLAY_RECOGNIZED`.
+2. Remove `whichride.registrationKey` from `android/local.properties`.
+3. A PR to `infra/prod/main.tf`: `PLAY_INTEGRITY = "google"` and drop `REGISTRATION_KEY` from
+   `attached_secrets`. Merge and apply.
+4. From Cloud Shell, run `revoke-installs` like `lock-offer` (infra/README.md, owner commands):
+   installs registered with the key must register again, now through Play Integrity.
+5. Optionally delete the `whichride-registration-key` secret.
+
+A Play copy's registration then turns on current location, address search and price reports. A
+sideloaded build stays refused; that is intended.
 
 ## 6. Closed test, then production
 

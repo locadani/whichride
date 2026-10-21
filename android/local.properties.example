@@ -1,0 +1,19 @@
+# Copy to android/local.properties (git-ignored) and fill in. Blank = not set.
+# Each value can also come from -P / ~/.gradle/gradle.properties or WHICHRIDE_<NAME>.
+# Android Studio adds sdk.dir to local.properties by itself.
+
+# The server, e.g. the Cloud Run URL (terraform output service_url). Blank: built-in prices only.
+whichride.serverUrl=
+# Google Cloud project number (infra/README.md). Blank: no Play Integrity.
+whichride.cloudProjectNumber=
+# Owner builds before Play (spec 2026-10-21): same value as the registration-key secret.
+# Never set it for a Play release.
+whichride.registrationKey=
+
+# Play upload key (docs/play/README.md §2). Blank: release builds use the debug key.
+whichride.upload.storeFile=
+whichride.upload.storePassword=
+whichride.upload.keyAlias=
+whichride.upload.keyPassword=
+# Set to true only by the release workflow.
+whichride.requireUploadKey=

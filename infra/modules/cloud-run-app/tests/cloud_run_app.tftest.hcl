@@ -352,7 +352,7 @@ run "secret_env_creates_secrets_without_attaching_them" {
 
   assert {
     condition     = length([for e in google_cloud_run_v2_service.app.template[0].containers[0].env : e if e.name == "ORS_API_KEY"]) == 0
-    error_message = "secrets are attached only with attach_secret_env"
+    error_message = "secrets are attached only when named in attached_secrets"
   }
 }
 
@@ -360,12 +360,42 @@ run "attached_secret_env_reaches_the_container" {
   command = plan
 
   variables {
-    secret_env        = { ORS_API_KEY = "ors-api-key" }
-    attach_secret_env = true
+    secret_env       = { ORS_API_KEY = "ors-api-key" }
+    attached_secrets = ["ORS_API_KEY"]
   }
 
   assert {
     condition     = length([for e in google_cloud_run_v2_service.app.template[0].containers[0].env : e if e.name == "ORS_API_KEY"]) == 1
     error_message = "ORS_API_KEY comes from its secret"
   }
+}
+
+run "only_named_secrets_are_attached" {
+  command = plan
+
+  variables {
+    secret_env       = { ORS_API_KEY = "ors-api-key", REGISTRATION_KEY = "registration-key" }
+    attached_secrets = ["ORS_API_KEY"]
+  }
+
+  assert {
+    condition     = google_secret_manager_secret.extra["REGISTRATION_KEY"].secret_id == "${var.name}-registration-key"
+    error_message = "every secret is created"
+  }
+
+  assert {
+    condition     = length([for e in google_cloud_run_v2_service.app.template[0].containers[0].env : e if e.name == "REGISTRATION_KEY"]) == 0
+    error_message = "a secret not in attached_secrets is not attached"
+  }
+}
+
+run "an_attached_secret_must_exist" {
+  command = plan
+
+  variables {
+    secret_env       = { ORS_API_KEY = "ors-api-key" }
+    attached_secrets = ["MISSING"]
+  }
+
+  expect_failures = [var.attached_secrets]
 }

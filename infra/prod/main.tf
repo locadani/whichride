@@ -18,12 +18,13 @@ module "app" {
   }
 
   secret_env = {
-    ORS_API_KEY = "ors-api-key"
+    ORS_API_KEY      = "ors-api-key"
+    REGISTRATION_KEY = "registration-key"
   }
 
-  # Both secrets have their first version (infra/README.md step 8).
+  # Attach a secret only once it has a version (infra/README.md steps 8 and 11).
   attach_database_url = true
-  attach_secret_env   = true
+  attached_secrets    = ["ORS_API_KEY"]
 
   depends_on = [google_project_service.apis]
 }

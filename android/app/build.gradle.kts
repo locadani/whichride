@@ -4,28 +4,42 @@ plugins {
     alias(libs.plugins.kotlin.serialization)
 }
 
-/** Not secrets, but deployment-specific: set them in ~/.gradle/gradle.properties (R9). */
-val serverUrl = providers.gradleProperty("whichride.serverUrl").getOrElse("")
-val cloudProjectNumber = providers.gradleProperty("whichride.cloudProjectNumber").getOrElse("0")
+/** Per-machine settings from android/local.properties (spec 2026-10-21 §3.4); see local.properties.example. */
+val settings = LocalSettings(providers, rootProject.file("local.properties"))
+val serverUrl = settings.get("whichride.serverUrl") ?: ""
+val cloudProjectNumber = settings.get("whichride.cloudProjectNumber") ?: "0"
+val registrationKey = settings.get("whichride.registrationKey") ?: ""
+val uploadStoreFile = settings.get("whichride.upload.storeFile")
+val uploadStorePassword = settings.get("whichride.upload.storePassword")
+val uploadKeyAlias = settings.get("whichride.upload.keyAlias")
+val uploadKeyPassword = settings.get("whichride.upload.keyPassword")
+val requireUploadKey = settings.get("whichride.requireUploadKey").toBoolean()
+
 require(serverUrl.isEmpty() || serverUrl.matches(Regex("""https://[^\s"]+|http://(localhost|10\.0\.2\.2)(:\d+)?"""))) {
     "whichride.serverUrl must be https:// (or http://localhost / http://10.0.2.2 for a local server)"
 }
 require(cloudProjectNumber.matches(Regex("""\d{1,20}"""))) { "whichride.cloudProjectNumber must be digits" }
-
-/**
- * The Play upload key: from ~/.gradle/gradle.properties locally, or WHICHRIDE_UPLOAD_* in the
- * release workflow. Without it a release build is signed with the debug key, so R8 builds can
- * still be installed on a phone; the release workflow sets whichride.requireUploadKey (plan 06).
- */
-fun upload(name: String): String? =
-    providers.gradleProperty("whichride.upload.$name")
-        .orElse(providers.environmentVariable("WHICHRIDE_UPLOAD_" + name.uppercase()))
-        .orNull?.takeIf { it.isNotBlank() }
-val uploadStoreFile = upload("storeFile")
-val requireUploadKey = providers.gradleProperty("whichride.requireUploadKey").map(String::toBoolean).getOrElse(false)
+require(registrationKey.isEmpty() || registrationKey.matches(Regex("""[A-Za-z0-9+/=_-]{32,}"""))) {
+    "whichride.registrationKey must be at least 32 characters of A-Z a-z 0-9 + / = _ -"
+}
+require(!(requireUploadKey && registrationKey.isNotEmpty())) {
+    "A Play release must not contain whichride.registrationKey (spec 2026-10-21 §3.2)"
+}
 require(uploadStoreFile != null || !requireUploadKey) {
     "No upload key: set whichride.upload.storeFile, storePassword, keyAlias and keyPassword"
 }
+
+logger.lifecycle(
+    "whichride: " + listOf(
+        if (serverUrl.isEmpty()) "no server (built-in prices only)" else "server $serverUrl",
+        "attestation: " + when {
+            registrationKey.isNotEmpty() -> "registration key"
+            cloudProjectNumber == "0" -> "none"
+            else -> "Play Integrity"
+        },
+        "signing: " + if (uploadStoreFile != null) "upload key" else "debug key",
+    ).joinToString(" · ") + if (serverUrl.isEmpty()) " · see android/local.properties.example" else "",
+)
 
 android {
     namespace = "io.github.locadani.whichride"
@@ -38,6 +52,7 @@ android {
         versionName = "0.1.0"
         buildConfigField("String", "SERVER_URL", "\"$serverUrl\"")
         buildConfigField("long", "CLOUD_PROJECT_NUMBER", "${cloudProjectNumber}L")
+        buildConfigField("String", "REGISTRATION_KEY", "\"$registrationKey\"")
         // JNA also ships libraries for ABIs no phone uses any more (spike finding).
         ndk { abiFilters += listOf("arm64-v8a", "armeabi-v7a", "x86_64") }
     }
@@ -49,9 +64,9 @@ android {
         if (uploadStoreFile != null) {
             create("upload") {
                 storeFile = file(uploadStoreFile)
-                storePassword = requireNotNull(upload("storePassword")) { "whichride.upload.storePassword is missing" }
-                keyAlias = requireNotNull(upload("keyAlias")) { "whichride.upload.keyAlias is missing" }
-                keyPassword = requireNotNull(upload("keyPassword")) { "whichride.upload.keyPassword is missing" }
+                storePassword = requireNotNull(uploadStorePassword) { "whichride.upload.storePassword is missing" }
+                keyAlias = requireNotNull(uploadKeyAlias) { "whichride.upload.keyAlias is missing" }
+                keyPassword = requireNotNull(uploadKeyPassword) { "whichride.upload.keyPassword is missing" }
             }
         }
     }
@@ -93,6 +108,19 @@ val bundledFiles = tasks.register<CopyIntoDirectory>("bundledFiles") {
 androidComponents.onVariants { variant ->
     variant.sources.assets?.addGeneratedSourceDirectory(bundledFiles, CopyIntoDirectory::outputDir)
 }
+
+// Every build fails while local.properties.example and the settings the build uses disagree.
+val checkLocalSettings = tasks.register<CheckLocalSettings>("checkLocalSettings") {
+    names.set(provider { settings.names })
+    template.set(rootProject.layout.projectDirectory.file("local.properties.example"))
+    buildScripts.from(
+        rootProject.fileTree(rootProject.projectDir) {
+            include("*.gradle.kts", "*/*.gradle.kts", "buildSrc/src/main/**/*.kt")
+            exclude("**/build/**")
+        },
+    )
+}
+tasks.named("preBuild") { dependsOn(checkLocalSettings) }
 
 useHostRustInTests()
 
