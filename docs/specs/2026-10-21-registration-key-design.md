@@ -150,6 +150,25 @@ and `local.properties` is the usual Android place for per-project values that ar
 - **Migration:** the owner moves the existing lines over once; the build also still accepts them
   from `~/.gradle/gradle.properties`.
 
+**Knowing what the file needs.** Following the common "committed template" practice:
+
+- **Template:** `android/local.properties.example` is committed. It lists every `whichride.*`
+  setting with a comment (what it is for, when it is needed, where the value comes from) and no
+  secret values. If `local.properties` is lost, copy the template and fill it in; the key itself
+  is recoverable from Secret Manager.
+- **Drift check:** a test fails when the build reads a `whichride.*` setting that the template
+  does not list, so the template cannot go stale.
+- **Build summary:** every build prints one line saying what it will do, for example
+  `whichride: server https://… · attestation: registration key · signing: debug key`, or
+  `whichride: no server (built-in prices only) · see android/local.properties.example`.
+- **Errors:** a malformed value (as today), a registration key shorter than 32 characters, or a
+  key in a Play release stops the build. A missing value does not: a build without a server is
+  valid (CI, offline work), and the summary line makes it visible. The release workflow already
+  fails without the upload key or the server settings.
+- **Not used:** Google's Secrets Gradle Plugin. Its last release is from February 2022, it is not
+  confirmed to work with Android Gradle Plugin 9, it copies every value in the file into the app
+  (the upload-key passwords would need excluding one by one), and it does not validate.
+
 ## 4. Security
 
 | Threat | Outcome |
