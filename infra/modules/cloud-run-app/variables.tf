@@ -94,8 +94,13 @@ variable "secret_env" {
   default     = {}
 }
 
-variable "attach_secret_env" {
-  description = "Give the service the secret_env variables. Enable only after every secret has a version: Cloud Run won't start an instance whose secret can't be read."
-  type        = bool
-  default     = false
+variable "attached_secrets" {
+  description = "Names from secret_env to give the service. Add a name only after its secret has a version: Cloud Run won't start an instance whose secret can't be read."
+  type        = set(string)
+  default     = []
+
+  validation {
+    condition     = alltrue([for name in var.attached_secrets : contains(keys(var.secret_env), name)])
+    error_message = "Every attached secret must be listed in secret_env."
+  }
 }

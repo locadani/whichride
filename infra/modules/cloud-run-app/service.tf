@@ -48,7 +48,7 @@ resource "google_cloud_run_v2_service" "app" {
       }
 
       dynamic "env" {
-        for_each = var.attach_secret_env ? var.secret_env : {}
+        for_each = { for name, secret in var.secret_env : name => secret if contains(var.attached_secrets, name) }
         content {
           name = env.key
           value_source {
