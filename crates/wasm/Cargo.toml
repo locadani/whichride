@@ -1,0 +1,25 @@
+[package]
+name = "whichride-wasm"
+version = "0.1.0"
+description = "WebAssembly bindings of carsharing-core for the website"
+edition.workspace = true
+rust-version.workspace = true
+license.workspace = true
+publish.workspace = true
+repository.workspace = true
+
+[lib]
+name = "whichride_wasm"
+crate-type = ["cdylib", "rlib"]
+
+[dependencies]
+carsharing-core.workspace = true
+serde.workspace = true
+serde_json.workspace = true
+serde-wasm-bindgen.workspace = true
+wasm-bindgen.workspace = true
+
+# Not the workspace lints: wasm-bindgen's macros expand to `unsafe` glue, and the workspace
+# forbids `unsafe_code`. This crate's own code has none (as crates/ffi).
+[lints.clippy]
+all = { level = "warn", priority = -1 }
