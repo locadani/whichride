@@ -12,6 +12,21 @@ require(serverUrl.isEmpty() || serverUrl.matches(Regex("""https://[^\s"]+|http:/
 }
 require(cloudProjectNumber.matches(Regex("""\d{1,20}"""))) { "whichride.cloudProjectNumber must be digits" }
 
+/**
+ * The Play upload key: from ~/.gradle/gradle.properties locally, or WHICHRIDE_UPLOAD_* in the
+ * release workflow. Without it a release build is signed with the debug key, so R8 builds can
+ * still be installed on a phone; the release workflow sets whichride.requireUploadKey (plan 06).
+ */
+fun upload(name: String): String? =
+    providers.gradleProperty("whichride.upload.$name")
+        .orElse(providers.environmentVariable("WHICHRIDE_UPLOAD_" + name.uppercase()))
+        .orNull?.takeIf { it.isNotBlank() }
+val uploadStoreFile = upload("storeFile")
+val requireUploadKey = providers.gradleProperty("whichride.requireUploadKey").map(String::toBoolean).getOrElse(false)
+require(uploadStoreFile != null || !requireUploadKey) {
+    "No upload key: set whichride.upload.storeFile, storePassword, keyAlias and keyPassword"
+}
+
 android {
     namespace = "io.github.locadani.whichride"
     compileSdk = 37
@@ -30,8 +45,19 @@ android {
         compose = true
         buildConfig = true
     }
+    signingConfigs {
+        if (uploadStoreFile != null) {
+            create("upload") {
+                storeFile = file(uploadStoreFile)
+                storePassword = requireNotNull(upload("storePassword")) { "whichride.upload.storePassword is missing" }
+                keyAlias = requireNotNull(upload("keyAlias")) { "whichride.upload.keyAlias is missing" }
+                keyPassword = requireNotNull(upload("keyPassword")) { "whichride.upload.keyPassword is missing" }
+            }
+        }
+    }
     buildTypes {
         release {
+            signingConfig = signingConfigs.findByName("upload") ?: signingConfigs.getByName("debug")
             isMinifyEnabled = true
             isShrinkResources = true
             proguardFiles(getDefaultProguardFile("proguard-android-optimize.txt"), "proguard-rules.pro")

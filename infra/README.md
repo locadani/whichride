@@ -188,8 +188,8 @@ Done once, in the Google Cloud console and Cloud Shell.
 
     `terraform output service_url` prints the service URL. Then run a second `terraform plan`: it
     reports no changes.
-11. **Play Integrity.** Nothing to do until milestone 6, when Play Console's *App integrity* page is
-    linked to this Cloud project (its API is already enabled here). Until then every write from a
+11. **Play Integrity.** Link Play Console's *App integrity* page to this Cloud project (its API is
+    already enabled here); steps in `docs/play/README.md` §5. Until then every write from a
     real app is refused with `integrity_failed`, which is expected.
 
 ## Owner commands (emergency switch)
