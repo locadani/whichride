@@ -35,6 +35,9 @@ pub enum Command {
     CloseReport { report: Uuid },
     /// Put back the offer's previous price and close its pending reports (abuse only).
     RevertOffer { offer: String },
+    /// Give every install a token nobody knows, so each must register again (switching to Play,
+    /// or after rotating REGISTRATION_KEY).
+    RevokeInstalls,
     /// Route between two Berlin landmarks through OpenRouteService, to check the key, TLS and
     /// the network from inside the deployed image. Needs ORS_API_KEY; no database.
     CheckRouting,
@@ -81,6 +84,10 @@ mod tests {
             Command::RevertOffer {
                 offer: "bolt.corsa".into()
             }
+        );
+        assert_eq!(
+            parse(&["revoke-installs"]).unwrap(),
+            Command::RevokeInstalls
         );
         assert!(parse(&["lock-offer"]).is_err());
         assert_eq!(

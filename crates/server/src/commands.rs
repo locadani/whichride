@@ -118,6 +118,14 @@ pub async fn revert_offer(offer: &str) -> anyhow::Result<()> {
     Ok(())
 }
 
+pub async fn revoke_installs() -> anyhow::Result<()> {
+    let pool = owner_pool().await?;
+    let revoked = owner::revoke_installs(&pool).await?;
+    println!("{revoked} installs revoked; each registers again on its next request");
+    pool.close().await;
+    Ok(())
+}
+
 /// Resolves on Ctrl-C, or on SIGTERM (what Cloud Run and `docker stop` send).
 async fn shutdown_signal() {
     let ctrl_c = async {

@@ -254,3 +254,33 @@ async fn closing_a_proposal_removes_it_from_the_catalogue() {
     let (_, catalogue) = app.get("/v1/catalogue").await;
     assert_eq!(catalogue["proposals"], json!([]));
 }
+
+#[tokio::test]
+async fn revoking_installs_refuses_old_tokens_and_keeps_their_history() {
+    let Some(app) = TestApp::start().await else {
+        return;
+    };
+    let token = app.register().await;
+    let (status, _) = app.post_as(&token, "/v1/reports", &report(30)).await;
+    assert_eq!(status, axum::http::StatusCode::CREATED);
+
+    assert_eq!(owner::revoke_installs(&app.pool).await.unwrap(), 1);
+
+    assert!(
+        whichride_server::auth::find_install(&app.pool, &token)
+            .await
+            .unwrap()
+            .is_none()
+    );
+    let installs: i64 = sqlx::query_scalar("SELECT count(*) FROM installs")
+        .fetch_one(&app.pool)
+        .await
+        .unwrap();
+    let reports: i64 = sqlx::query_scalar("SELECT count(*) FROM reports")
+        .fetch_one(&app.pool)
+        .await
+        .unwrap();
+    assert_eq!((installs, reports), (1, 1));
+    let (status, _) = app.post_as(&token, "/v1/reports", &report(31)).await;
+    assert_eq!(status, axum::http::StatusCode::UNAUTHORIZED);
+}
