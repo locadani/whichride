@@ -15,6 +15,19 @@ fun interface IntegrityTokens {
     suspend fun token(requestHash: String): String?
 }
 
+/** The owner's registration key for every request, before the app is on Play (spec 2026-10-21 §3.2). */
+class RegistrationKeyTokens(private val key: String) : IntegrityTokens {
+    override suspend fun token(requestHash: String): String = key
+}
+
+/** Build-time choice: the registration key if this build has one, else Play when a Cloud project is set. */
+fun chooseIntegrityTokens(registrationKey: String, cloudProjectNumber: Long, play: () -> IntegrityTokens): IntegrityTokens =
+    when {
+        registrationKey.isNotEmpty() -> RegistrationKeyTokens(registrationKey)
+        cloudProjectNumber == 0L -> IntegrityTokens { null }
+        else -> play()
+    }
+
 /** Play Integrity standard requests (decision 33); the provider is prepared once and re-prepared if it expired. */
 class PlayIntegrityTokens(context: Context, private val cloudProjectNumber: Long) : IntegrityTokens {
     private val manager = IntegrityManagerFactory.createStandard(context.applicationContext)
