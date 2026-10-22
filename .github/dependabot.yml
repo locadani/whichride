@@ -23,8 +23,11 @@ updates:
     schedule:
       interval: weekly
     groups:
+      # Majors get their own PR, so one that breaks (TypeScript 7 before @astrojs/check
+      # accepted it) can't hold back the rest.
       web-dependencies:
         patterns: ["*"]
+        update-types: [minor, patch]
   - package-ecosystem: gradle
     directory: /android
     schedule:
