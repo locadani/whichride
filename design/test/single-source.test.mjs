@@ -9,6 +9,7 @@ const ANDROID_RES = 'android/designsystem/src/main/res';
 const GENERATED = new Set([
   'android/designsystem/src/main/kotlin/io/github/locadani/whichride/designsystem/WhichrideTokens.kt',
   `${ANDROID_RES}/drawable/ic_launcher_foreground.xml`,
+  `${ANDROID_RES}/drawable/ic_launcher_monochrome.xml`,
   `${ANDROID_RES}/drawable/whichride_logo.xml`,
   `${ANDROID_RES}/mipmap-anydpi/ic_launcher.xml`,
   `${ANDROID_RES}/values/ic_launcher_background.xml`,
