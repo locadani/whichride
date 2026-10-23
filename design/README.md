@@ -8,7 +8,7 @@ generated file is stale or a colour pair misses WCAG 2.2 AA.
 |---|---|
 | `tokens.json` | Palette, brand colours, light and dark theme roles, fonts, type scale, spacing, radii, sizes (W3C design token format) |
 | `contrast.json` | Colour pairs the UI uses; each must meet 4.5:1 (text) or 3:1 (control boundaries) in both themes |
-| `logo.svg` | The logo's shape: one `<rect>` tile and one stroked `<path>` mark, coloured by `{brand.*}` references to `tokens.json` |
+| `logo.svg` | The logo's shape: one `<rect>` tile, then `<path>` layers that are either filled or stroked, coloured by `{brand.*}` references to `tokens.json`. Android's themed icon draws only the stroked layers not marked `data-monochrome="omit"` |
 | `fonts/` | Sora and JetBrains Mono (SIL Open Font License 1.1, licences next to them) |
 
 ```sh

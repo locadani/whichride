@@ -53,6 +53,7 @@ object WhichrideTokens {
 
     val BrandMark: Color = Color(0xFF3DDC97)
     val BrandOnMark: Color = Color(0xFF04261A)
+    val BrandOnMarkBehind: Color = Color(0xFF1E7852)
 
     object Space {
         val lg: Dp = 20.dp

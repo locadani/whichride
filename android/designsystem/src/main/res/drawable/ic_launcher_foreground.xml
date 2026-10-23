@@ -4,6 +4,10 @@
     android:width="108dp" android:height="108dp"
     android:viewportWidth="108" android:viewportHeight="108">
     <group android:scaleX="2.25" android:scaleY="2.25" android:translateX="18" android:translateY="18">
-        <path android:pathData="M16 22.75V16.75M16 16.75L11.5 10M16 16.75L20.5 10" android:strokeColor="#04261A" android:strokeWidth="1.8" android:strokeLineCap="round" android:strokeLineJoin="round"/>
+        <path android:pathData="M12 16.22H10.26V12.91Q10.26 11.99 10.99 11.25L12.1 10.33Q12.46 10.15 13.02 10.15H19.64Q20.19 10.15 20.56 10.51L23.14 12.81L25.9 13.37Q26.82 13.55 26.82 14.47V16.22H24.33M15.13 16.22H21.2M12 16.22a1.56 1.56 0 1 0 3.13 0a1.56 1.56 0 1 0 -3.13 0M21.2 16.22a1.56 1.56 0 1 0 3.13 0a1.56 1.56 0 1 0 -3.13 0" android:strokeColor="#1E7852" android:strokeWidth="1.38" android:strokeLineCap="round" android:strokeLineJoin="round"/>
+        <path android:pathData="M11.91 12.72V11.25H16.33V12.72ZM17.16 12.72V11.25H19.92L21.66 12.72Z" android:strokeColor="#1E7852" android:strokeWidth="0.83" android:strokeLineCap="round" android:strokeLineJoin="round"/>
+        <path android:pathData="M5.66 21.37V19.35Q5.66 18.52 6.58 18.33L9.52 17.87L11.54 15.76Q11.91 15.39 12.46 15.39H16.33Q16.88 15.39 17.25 15.76L19.64 17.97L21.66 18.43Q22.58 18.61 22.58 19.53V21.37Z" android:fillColor="#3DDC97"/>
+        <path android:pathData="M7.59 21.37H5.66V19.35Q5.66 18.52 6.58 18.33L9.52 17.87L11.54 15.76Q11.91 15.39 12.46 15.39H16.33Q16.88 15.39 17.25 15.76L19.64 17.97L21.66 18.43Q22.58 18.61 22.58 19.53V21.37H19.92M10.72 21.37H16.79M7.59 21.37a1.56 1.56 0 1 0 3.13 0a1.56 1.56 0 1 0 -3.13 0M16.79 21.37a1.56 1.56 0 1 0 3.13 0a1.56 1.56 0 1 0 -3.13 0" android:strokeColor="#04261A" android:strokeWidth="1.38" android:strokeLineCap="round" android:strokeLineJoin="round"/>
+        <path android:pathData="M10.62 17.87L12.28 16.22H14.03V17.87ZM14.86 17.87V16.22H16.51L18.26 17.87Z" android:strokeColor="#04261A" android:strokeWidth="0.83" android:strokeLineCap="round" android:strokeLineJoin="round"/>
     </group>
 </vector>
