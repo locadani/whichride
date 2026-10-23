@@ -11,6 +11,7 @@ test('the build writes every output, identically on a second run', async () => {
   assert.deepEqual(written, [
     'android/designsystem/src/main/kotlin/io/github/locadani/whichride/designsystem/WhichrideTokens.kt',
     'android/designsystem/src/main/res/drawable/ic_launcher_foreground.xml',
+    'android/designsystem/src/main/res/drawable/ic_launcher_monochrome.xml',
     'android/designsystem/src/main/res/drawable/whichride_logo.xml',
     'android/designsystem/src/main/res/font/jetbrains_mono.ttf',
     'android/designsystem/src/main/res/font/sora.ttf',

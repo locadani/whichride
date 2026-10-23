@@ -1,0 +1,10 @@
+<?xml version="1.0" encoding="utf-8"?>
+<!-- Generated from design/logo.svg by design/build.mjs. Do not edit. -->
+<vector xmlns:android="http://schemas.android.com/apk/res/android"
+    android:width="108dp" android:height="108dp"
+    android:viewportWidth="108" android:viewportHeight="108">
+    <group android:scaleX="2.25" android:scaleY="2.25" android:translateX="18" android:translateY="18">
+        <path android:pathData="M7.59 21.37H5.66V19.35Q5.66 18.52 6.58 18.33L9.52 17.87L11.54 15.76Q11.91 15.39 12.46 15.39H16.33Q16.88 15.39 17.25 15.76L19.64 17.97L21.66 18.43Q22.58 18.61 22.58 19.53V21.37H19.92M10.72 21.37H16.79M7.59 21.37a1.56 1.56 0 1 0 3.13 0a1.56 1.56 0 1 0 -3.13 0M16.79 21.37a1.56 1.56 0 1 0 3.13 0a1.56 1.56 0 1 0 -3.13 0" android:strokeColor="#04261A" android:strokeWidth="1.38" android:strokeLineCap="round" android:strokeLineJoin="round"/>
+        <path android:pathData="M10.62 17.87L12.28 16.22H14.03V17.87ZM14.86 17.87V16.22H16.51L18.26 17.87Z" android:strokeColor="#04261A" android:strokeWidth="0.83" android:strokeLineCap="round" android:strokeLineJoin="round"/>
+    </group>
+</vector>
