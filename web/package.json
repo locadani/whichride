@@ -15,12 +15,12 @@
     "test:dist": "vitest run --config vitest.dist.config.ts"
   },
   "dependencies": {
-    "@astrojs/svelte": "9.1.0",
-    "astro": "7.4.0",
+    "@astrojs/svelte": "9.1.1",
+    "astro": "7.4.2",
     "svelte": "5.57.2"
   },
   "devDependencies": {
-    "@astrojs/check": "0.9.10",
+    "@astrojs/check": "0.9.12",
     "@testing-library/jest-dom": "7.0.1",
     "@testing-library/svelte": "5.4.2",
     "@testing-library/user-event": "14.6.8",
